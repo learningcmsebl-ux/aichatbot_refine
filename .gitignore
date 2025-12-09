@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Cache
+.cache/
+.parcel-cache/
+.redis/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Docker
+docker-compose.override.yml
+
+# Frontend build
+bank_chatbot_frontend/vite-project/dist/
+bank_chatbot_frontend/vite-project/.vite/
+
+# Python virtual environment
+venv/
+ENV/
+
