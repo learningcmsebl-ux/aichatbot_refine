@@ -15,7 +15,11 @@ class LightRAGClient:
     """Client for connecting to LightRAG API"""
     
     def __init__(self):
-        self.base_url = settings.LIGHTRAG_URL.rstrip('/')
+        # Remove /query suffix if present (base_url should not include endpoint)
+        base_url = settings.LIGHTRAG_URL.rstrip('/')
+        if base_url.endswith('/query'):
+            base_url = base_url[:-6].rstrip('/')
+        self.base_url = base_url
         self.api_key = settings.LIGHTRAG_API_KEY
         self.knowledge_base = settings.LIGHTRAG_KNOWLEDGE_BASE
         self.timeout = settings.LIGHTRAG_TIMEOUT
@@ -24,6 +28,7 @@ class LightRAGClient:
             "X-API-Key": self.api_key
         }
         self.client = httpx.AsyncClient(timeout=self.timeout)
+        logger.info(f"LightRAG client initialized: base_url={self.base_url}, knowledge_base={self.knowledge_base}")
     
     async def health_check(self) -> Dict[str, Any]:
         """Check if LightRAG API is healthy"""
@@ -90,10 +95,20 @@ class LightRAGClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            logger.error(f"LightRAG HTTP error: {e.response.status_code} - {e.response.text}")
-            raise
+            error_text = e.response.text if e.response else "No response text"
+            error_status = e.response.status_code if e.response else "Unknown"
+            logger.error(f"LightRAG HTTP error {error_status}: {error_text}")
+            logger.error(f"Request URL: {self.base_url}/query")
+            logger.error(f"Request data: {data}")
+            raise Exception(f"LightRAG HTTP error {error_status}: {error_text}")
+        except httpx.RequestError as e:
+            logger.error(f"LightRAG request error: {e}")
+            logger.error(f"Request URL: {self.base_url}/query")
+            raise Exception(f"LightRAG connection error: {e}")
         except Exception as e:
-            logger.error(f"LightRAG query error: {e}")
+            logger.error(f"LightRAG query error: {type(e).__name__}: {str(e)}")
+            logger.error(f"Request URL: {self.base_url}/query")
+            logger.error(f"Request data: {data}")
             raise
     
     async def query_data(
