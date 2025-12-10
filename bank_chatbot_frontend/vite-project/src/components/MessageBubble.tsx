@@ -24,44 +24,34 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   if (isUser) {
     return (
       <div
-        className="message-enter max-w-full group"
+        className="message-enter max-w-full group flex justify-end"
         style={{ animation: 'fadeIn 0.3s' }}
       >
         <div
-          className="bg-[#d1e8ff] text-[#111827] self-end rounded-2xl px-4 py-3 my-2 whitespace-pre-line relative hover:shadow-md transition-shadow"
+          className="msg-bubble user"
           style={{
-            backgroundColor: '#d1e8ff',
-            color: '#111827',
-            alignSelf: 'flex-end',
-            borderBottomRightRadius: '4px',
+            backgroundColor: '#008f6c',
+            color: '#ffffff',
             whiteSpace: 'pre-line',
-            padding: '12px 16px',
-            borderRadius: '14px',
-            margin: '8px 0',
-            maxWidth: '85%',
+            padding: '10px 14px',
+            borderRadius: '18px',
+            marginBottom: '10px',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            maxWidth: '70%',
+            marginLeft: 'auto',
             wordWrap: 'break-word',
-            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-            transition: 'box-shadow 0.2s ease',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.2s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 143, 108, 0.3)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
           }}
         >
           {message.content}
-          {message.timestamp && (
-            <div
-              className="text-xs mt-1.5 opacity-70 text-right"
-              style={{ fontSize: '11px', color: '#6b7280' }}
-            >
-              {new Date(message.timestamp).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </div>
-          )}
         </div>
       </div>
     );
@@ -73,26 +63,27 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       style={{ animation: 'fadeIn 0.3s' }}
     >
       <div
-        className={`${
+        className={`msg-bubble bot ${
           hasError
             ? 'bg-red-50 text-red-800 border border-red-200'
-            : 'bg-[#f3f4f6] text-[#111827]'
-        } self-start rounded-2xl px-4 py-4 my-3 whitespace-pre-line relative hover:shadow-md transition-all`}
+            : ''
+        }`}
         style={{
-          backgroundColor: hasError ? '#fef2f2' : '#f3f4f6',
+          backgroundColor: hasError ? '#fef2f2' : '#ffffff',
           color: hasError ? '#991b1b' : '#111827',
-          alignSelf: 'flex-start',
           whiteSpace: 'pre-line',
-          padding: '16px 18px 16px 88px',
-          borderRadius: '14px',
-          margin: '12px 0',
-          maxWidth: '85%',
+          padding: '10px 14px',
+          borderRadius: '18px',
+          marginBottom: '10px',
+          fontSize: '14px',
+          lineHeight: '1.5',
+          maxWidth: '70%',
           wordWrap: 'break-word',
-          borderLeft: isStreaming ? '3px solid #003366' : undefined,
           boxShadow: hasError
             ? '0 1px 3px rgba(239, 68, 68, 0.1)'
-            : '0 1px 2px rgba(0, 0, 0, 0.05)',
-          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+            : '0 2px 6px rgba(15, 23, 42, 0.06)',
+          transition: 'all 0.2s ease',
+          borderLeft: isStreaming ? '3px solid #10a37f' : undefined,
         }}
         onMouseEnter={(e) => {
           if (!hasError) {
@@ -102,50 +93,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         onMouseLeave={(e) => {
           e.currentTarget.style.boxShadow = hasError
             ? '0 1px 3px rgba(239, 68, 68, 0.1)'
-            : '0 1px 2px rgba(0, 0, 0, 0.05)';
+            : '0 2px 6px rgba(15, 23, 42, 0.06)';
         }}
       >
-        {/* Avatar for assistant messages */}
-        {!hasError && (
-          <div
-            className="absolute left-4 top-4 rounded-xl bg-cover bg-center border-2 border-gray-200 shadow-sm"
+        {message.content}
+        {isStreaming && (
+          <span
+            className="inline-block w-2 h-4 bg-[#10a37f] ml-1.5 rounded-sm animate-pulse"
             style={{
-              left: '18px',
-              top: '18px',
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              backgroundImage: 'url(/dia-avatar.png)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center 20%',
-              backgroundRepeat: 'no-repeat',
-              border: '2px solid #e5e7eb',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              verticalAlign: 'middle',
+              animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }}
           />
-        )}
-        <div className="whitespace-pre-wrap break-words">
-          {message.content}
-          {isStreaming && (
-            <span
-              className="inline-block w-2 h-4 bg-[#003366] ml-1.5 rounded-sm animate-pulse"
-              style={{
-                verticalAlign: 'middle',
-                animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              }}
-            />
-          )}
-        </div>
-        {message.timestamp && (
-          <div
-            className="text-xs mt-2 opacity-70"
-            style={{ fontSize: '11px', color: '#6b7280' }}
-          >
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </div>
         )}
         {/* Copy button - appears on hover */}
         {!isStreaming && !hasError && message.content && (

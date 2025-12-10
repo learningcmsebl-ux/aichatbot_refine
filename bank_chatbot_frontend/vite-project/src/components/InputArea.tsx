@@ -14,13 +14,41 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
     setShowButton(input.trim().length >= 2);
   }, [input]);
 
+  // Refocus input when it becomes enabled again (after loading completes)
+  useEffect(() => {
+    if (!disabled && inputRef.current) {
+      // Use multiple timing strategies to ensure focus works
+      const focusInput = () => {
+        if (inputRef.current && !inputRef.current.disabled) {
+          inputRef.current.focus();
+        }
+      };
+      
+      // Try immediately
+      focusInput();
+      
+      // Try after a short delay
+      setTimeout(focusInput, 50);
+      
+      // Try after DOM update
+      requestAnimationFrame(() => {
+        setTimeout(focusInput, 10);
+      });
+    }
+  }, [disabled]);
+
   const handleSend = () => {
     if (input.trim() && !disabled) {
-      onSend(input.trim());
+      const message = input.trim();
+      onSend(message);
       setInput('');
       setShowButton(false);
-      // Keep focus on input after sending
-      setTimeout(() => inputRef.current?.focus(), 100);
+      // Keep focus on input after sending - use multiple attempts to ensure it works
+      setTimeout(() => {
+        inputRef.current?.focus();
+        // Try again after a short delay in case the first attempt didn't work
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }, 50);
     }
   };
 
@@ -32,7 +60,7 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
   };
 
   return (
-    <div className="mt-5">
+    <div style={{ width: '100%' }}>
       <div className="relative flex">
         <input
           ref={inputRef}
@@ -125,29 +153,6 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>
         </button>
-      </div>
-      <div
-        id="input-help"
-        className="text-xs text-gray-500 text-center pt-2"
-        style={{
-          fontSize: '13px',
-          color: '#6b7280',
-          paddingTop: '8px',
-          textAlign: 'center',
-        }}
-      >
-        EBL DIA can make mistakes. Please check important information.
-      </div>
-      <div
-        className="text-xs text-gray-700 text-left pt-1 italic"
-        style={{
-          fontSize: '11px',
-          color: '#1f2937',
-          textAlign: 'left',
-          fontStyle: 'italic',
-        }}
-      >
-        Powered by EBL ICT Division
       </div>
     </div>
   );
