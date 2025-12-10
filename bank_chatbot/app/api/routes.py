@@ -2,7 +2,7 @@
 API routes for the Bank Chatbot.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 # Create routers
 health_router = APIRouter()
 chat_router = APIRouter()
+analytics_router = APIRouter()
+debug_router = APIRouter()
 
 # Initialize orchestrator (singleton)
 orchestrator = ChatOrchestrator()
@@ -242,4 +244,78 @@ async def clear_chat_history(session_id: str):
     except Exception as e:
         logger.error(f"Clear history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Analytics Routes
+@analytics_router.get("/analytics/performance")
+async def get_performance(days: int = Query(30, ge=1, le=365)):
+    """Get performance metrics for the last N days"""
+    try:
+        from app.services.analytics import get_performance_metrics
+        return get_performance_metrics(days=days)
+    except Exception as e:
+        logger.error(f"Analytics performance error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@analytics_router.get("/analytics/most-asked")
+async def get_most_asked(limit: int = Query(20, ge=1, le=100)):
+    """Get most frequently asked questions"""
+    try:
+        from app.services.analytics import get_most_asked_questions
+        return {"questions": get_most_asked_questions(limit=limit)}
+    except Exception as e:
+        logger.error(f"Analytics most-asked error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@analytics_router.get("/analytics/unanswered")
+async def get_unanswered(limit: int = Query(50, ge=1, le=200)):
+    """Get questions that were not answered"""
+    try:
+        from app.services.analytics import get_unanswered_questions
+        return {"questions": get_unanswered_questions(limit=limit)}
+    except Exception as e:
+        logger.error(f"Analytics unanswered error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@analytics_router.get("/analytics/history")
+async def get_history(
+    session_id: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=1000)
+):
+    """Get conversation history"""
+    try:
+        from app.services.analytics import get_conversation_history
+        return {"conversations": get_conversation_history(session_id=session_id, limit=limit)}
+    except Exception as e:
+        logger.error(f"Analytics history error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Debug Routes
+@debug_router.get("/debug/lightrag")
+async def debug_lightrag():
+    """Debug endpoint for LightRAG status and last query"""
+    try:
+        lightrag_client = LightRAGClient()
+        health = await lightrag_client.health_check()
+        
+        # Get last query info if available
+        last_query_info = getattr(lightrag_client, '_last_query', None)
+        
+        await lightrag_client.close()
+        
+        return {
+            "status": "ok",
+            "lightrag_health": health,
+            "last_query": last_query_info if last_query_info else "No queries yet"
+        }
+    except Exception as e:
+        logger.error(f"Debug LightRAG error: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 

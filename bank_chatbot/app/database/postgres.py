@@ -2,7 +2,7 @@
 PostgreSQL database connection and models for conversation memory.
 """
 
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Index
+from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Index, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import func
@@ -15,6 +15,21 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
+
+# Import analytics models to ensure they're registered with Base
+# This ensures analytics tables are created during init_db()
+
+# Import lead models to ensure they're registered with Base
+# This ensures lead tables are created during init_db()
+try:
+    from app.database.leads import Lead
+except ImportError:
+    pass  # Leads module may not be available
+try:
+    from app.services.analytics import Question, PerformanceMetric, ConversationLog
+except ImportError:
+    # Analytics module not available - tables won't be created
+    pass
 engine = None
 SessionLocal = None
 
@@ -44,16 +59,24 @@ async def init_db():
             settings.DATABASE_URL,
             pool_pre_ping=True,
             pool_size=10,
-            max_overflow=20
+            max_overflow=20,
+            connect_args={"connect_timeout": 5}
         )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        
+        # Test connection
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
         
         # Create tables
         Base.metadata.create_all(bind=engine)
         logger.info("PostgreSQL database initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize PostgreSQL: {e}")
-        raise
+        logger.warning(f"Failed to initialize PostgreSQL: {e}")
+        logger.warning("Application will continue but database features will be unavailable")
+        # Don't raise - allow app to start without DB
+        engine = None
+        SessionLocal = None
 
 
 async def close_db():
@@ -64,26 +87,32 @@ async def close_db():
         logger.info("PostgreSQL connections closed")
 
 
-def get_db() -> Session:
+def get_db() -> Optional[Session]:
     """Get database session"""
     if SessionLocal is None:
-        raise RuntimeError("Database not initialized. Call init_db() first.")
+        logger.warning("Database not initialized. Running in degraded mode without persistence.")
+        return None
     db = SessionLocal()
     try:
         return db
-    finally:
-        pass  # Session will be closed by caller
+    except Exception as e:
+        logger.warning(f"Failed to get database session: {e}")
+        return None
 
 
 class PostgresChatMemory:
     """PostgreSQL-based chat memory manager"""
     
     def __init__(self, db: Optional[Session] = None):
-        self.db = db or get_db()
+        self.db = db if db is not None else get_db()
         self._own_db = db is None
+        self._available = self.db is not None
     
-    def add_message(self, session_id: str, role: str, message: str) -> ChatMessage:
+    def add_message(self, session_id: str, role: str, message: str) -> Optional[ChatMessage]:
         """Add a message to the conversation history"""
+        if not self._available:
+            logger.debug("Database not available, skipping message storage")
+            return None
         try:
             chat_message = ChatMessage(
                 session_id=session_id,
@@ -95,9 +124,10 @@ class PostgresChatMemory:
             self.db.refresh(chat_message)
             return chat_message
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Error adding message: {e}")
-            raise
+            if self.db:
+                self.db.rollback()
+            logger.warning(f"Error adding message (continuing without persistence): {e}")
+            return None
     
     def get_conversation_history(
         self, 
@@ -105,6 +135,9 @@ class PostgresChatMemory:
         limit: Optional[int] = None
     ) -> List[ChatMessage]:
         """Get conversation history for a session"""
+        if not self._available:
+            logger.debug("Database not available, returning empty history")
+            return []
         try:
             query = self.db.query(ChatMessage).filter(
                 ChatMessage.session_id == session_id
@@ -115,11 +148,14 @@ class PostgresChatMemory:
             
             return query.all()
         except Exception as e:
-            logger.error(f"Error getting conversation history: {e}")
+            logger.warning(f"Error getting conversation history (continuing without history): {e}")
             return []
     
     def clear_session(self, session_id: str) -> bool:
         """Clear all messages for a session"""
+        if not self._available:
+            logger.debug("Database not available, skipping session clear")
+            return False
         try:
             self.db.query(ChatMessage).filter(
                 ChatMessage.session_id == session_id
@@ -127,12 +163,16 @@ class PostgresChatMemory:
             self.db.commit()
             return True
         except Exception as e:
-            self.db.rollback()
-            logger.error(f"Error clearing session: {e}")
+            if self.db:
+                self.db.rollback()
+            logger.warning(f"Error clearing session: {e}")
             return False
     
     def close(self):
         """Close database session"""
-        if self.db and self._own_db:
-            self.db.close()
+        if self.db and self._own_db and self._available:
+            try:
+                self.db.close()
+            except Exception as e:
+                logger.warning(f"Error closing database session: {e}")
 
