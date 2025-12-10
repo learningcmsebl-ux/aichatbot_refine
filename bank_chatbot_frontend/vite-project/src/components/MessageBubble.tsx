@@ -30,28 +30,48 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         <div
           className="msg-bubble user"
           style={{
-            backgroundColor: '#008f6c',
+            background: 'linear-gradient(135deg, #0057a6 0%, #004080 100%)',  /* Subtle gradient - EBL blue */
             color: '#ffffff',
             whiteSpace: 'pre-line',
-            padding: '10px 14px',
-            borderRadius: '18px',
-            marginBottom: '10px',
-            fontSize: '14px',
+            padding: '12px 16px',  /* More padding for bubble feel */
+            borderRadius: '12px 12px 4px 12px',  /* Less rounded, more bubble-like with slight tail effect */
+            marginBottom: '8px',
+            fontSize: '15px',  /* Slightly larger */
             lineHeight: '1.5',
-            maxWidth: '70%',
+            maxWidth: '75%',  /* Slightly wider */
             marginLeft: 'auto',
             wordWrap: 'break-word',
-            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.15)',  /* Subtle shadow for depth */
             transition: 'all 0.2s ease',
+            border: 'none',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 143, 108, 0.3)';
+            e.currentTarget.style.boxShadow = '0px 3px 8px rgba(0, 0, 0, 0.2)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
+            e.currentTarget.style.boxShadow = '0px 2px 6px rgba(0, 0, 0, 0.15)';
           }}
         >
-          {message.content}
+          <div style={{ lineHeight: '1.5' }}>
+            {message.content}
+          </div>
+          {message.timestamp && (
+            <div
+              className="text-xs mt-1.5 opacity-80 text-right"
+              style={{ 
+                fontSize: '10px',  /* Smaller than main text */
+                color: 'rgba(255, 255, 255, 0.65)',  /* Lighter/more transparent */
+                marginTop: '4px',
+                fontWeight: 400,
+                letterSpacing: '0.3px'
+              }}
+            >
+              {new Date(message.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -96,7 +116,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             : '0 2px 6px rgba(15, 23, 42, 0.06)';
         }}
       >
-        {message.content}
+        <div style={{ lineHeight: '1.5' }}>
+          {message.content}
+        </div>
         {isStreaming && (
           <span
             className="inline-block w-2 h-4 bg-[#10a37f] ml-1.5 rounded-sm animate-pulse"
@@ -105,6 +127,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }}
           />
+        )}
+        {message.timestamp && !isStreaming && (
+          <div
+            className="text-xs mt-1 opacity-65 text-left font-normal tracking-wide"
+            style={{ 
+              fontSize: '10px', 
+              color: 'rgba(53, 55, 64, 0.65)', 
+              marginTop: '4px' 
+            }}
+          >
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </div>
         )}
         {/* Copy button - appears on hover */}
         {!isStreaming && !hasError && message.content && (

@@ -1,4 +1,5 @@
 import React, { useState, KeyboardEvent, useEffect, useRef } from 'react';
+import './ChatInterface.css';
 
 interface InputAreaProps {
   onSend: (message: string) => void;
@@ -60,8 +61,8 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
   };
 
   return (
-    <div style={{ width: '100%' }}>
-      <div className="relative flex">
+    <div className="input-container" style={{ width: '100%' }}>
+      <div className="input-box relative flex">
         <input
           ref={inputRef}
           type="text"
@@ -70,27 +71,18 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
           onKeyPress={handleKeyPress}
           placeholder="Type your message here..."
           disabled={disabled}
-          className="flex-1 px-4 py-3 pr-12 bg-white border border-gray-300 rounded-xl text-base outline-none transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex-1 pr-12 text-base outline-none transition-all text-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{
-            padding: '12px 50px 12px 16px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #d1d5db',
-            borderRadius: '12px',
+            padding: '0',
+            backgroundColor: 'transparent',
+            border: 'none',
             fontSize: '16px',
             outline: 'none',
             transition: 'all 0.3s ease',
             color: '#1f2937',
             lineHeight: 1.55,
             letterSpacing: '0.1px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = '#003366';
-            e.target.style.boxShadow = '0 0 0 3px rgba(0, 51, 102, 0.1)';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = '#d1d5db';
-            e.target.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+            boxShadow: 'none',
           }}
           aria-label="Chat input"
           aria-describedby="input-help"
@@ -104,7 +96,7 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
               : 'opacity-0 scale-90 pointer-events-none'
           }`}
           style={{
-            right: '6px',
+            right: '18px',
             top: '50%',
             transform: 'translateY(-50%)',
             padding: 0,
@@ -153,6 +145,21 @@ export const InputArea: React.FC<InputAreaProps> = ({ onSend, disabled }) => {
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>
         </button>
+      </div>
+      <div
+        style={{
+          fontSize: '12px',
+          color: '#6b7280',
+          textAlign: 'center',
+          marginTop: '7px',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          pointerEvents: 'none',
+        }}
+      >
+        EBL DIA 2.0 may make mistakes. Please verify important information.
       </div>
     </div>
   );
