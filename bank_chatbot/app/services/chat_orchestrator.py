@@ -9,10 +9,13 @@ from datetime import datetime
 import pytz
 
 from openai import AsyncOpenAI
+import httpx
 
 from app.core.config import settings
 from app.database.postgres import PostgresChatMemory, get_db
 from app.database.redis_client import RedisCache, get_cache_key
+
+logger = logging.getLogger(__name__)
 
 # Import lead management
 try:
@@ -31,8 +34,6 @@ except ImportError:
     def log_conversation(*args, **kwargs):
         pass  # No-op if analytics not available
 from app.services.lightrag_client import LightRAGClient
-
-logger = logging.getLogger(__name__)
 
 # Import lead management
 try:
@@ -97,22 +98,48 @@ class ChatOrchestrator:
         return """You are a helpful and professional banking assistant for a financial institution.
 Your role is to assist customers with banking-related queries, product information, account services, and general banking questions.
 
+═══════════════════════════════════════════════════════════════════════════════
+🚨 CRITICAL CURRENCY RULE - READ THIS FIRST 🚨
+═══════════════════════════════════════════════════════════════════════════════
+**ABSOLUTE REQUIREMENT: When the context shows currency codes like "BDT" or "USD", 
+you MUST use the EXACT currency code from the context. NEVER replace BDT with ₹ or 
+any other symbol. 
+
+EXAMPLES:
+- Context says "BDT 287.5" → You MUST output "BDT 287.5" (NOT ₹287.5)
+- Context says "BDT 1,725" → You MUST output "BDT 1,725" (NOT ₹1,725)
+- Context says "USD 57.5" → You MUST output "USD 57.5"
+
+BDT = Bangladeshi Taka (use "BDT", never use ₹)
+USD = US Dollar (use "USD")
+
+This is a CRITICAL requirement - incorrect currency symbols cause serious errors.
+═══════════════════════════════════════════════════════════════════════════════
+
 Guidelines:
 1. Always be professional, friendly, and helpful
-2. Use the provided context from the knowledge base to answer questions accurately
-3. If information is not available in the context, politely inform the user
-4. For banking queries, always use the provided context from LightRAG
-5. Never make up specific numbers, rates, or product details
-6. If asked about products, services, or policies, refer to the knowledge base context
-7. For general greetings or small talk, respond naturally without requiring context
-8. When asked about the current date or time, use the provided current date and time information to answer accurately
+2. **IMPORTANT: When context from the knowledge base is provided, you MUST use it to answer the question. Do NOT say you don't have information if the context contains the answer.**
+3. The context provided contains accurate information from the bank's knowledge base - trust it and use it directly
+4. If the context contains specific numbers, facts, or details, include them in your response
+5. Only say "I don't have information" if the context is truly empty or doesn't contain relevant information
+6. For banking queries, always use the provided context from LightRAG
+7. **CRITICAL: If the context includes "Card Rates and Fees Information (Official Schedule)", this is official, deterministic data from the card charges schedule. You MUST use this data to answer card fee/rate questions. Do NOT say you don't have the information if this data is present.**
+8. **CRITICAL CURRENCY PRESERVATION: When the context shows amounts with currency symbols or codes (BDT, USD, etc.), you MUST use the EXACT currency symbol/code from the context. NEVER replace BDT (Bangladeshi Taka) with ₹ (Indian Rupee) or any other currency symbol. If you see "BDT 287.5" in the context, you MUST output "BDT 287.5" - do NOT change it to ₹287.5 or any other currency. Preserve all currency codes exactly as shown: BDT = Bangladeshi Taka, USD = US Dollar.**
+9. Never make up specific numbers, rates, or product details
+10. If asked about products, services, or policies, refer to the knowledge base context
+11. For general greetings or small talk, respond naturally without requiring context
+12. When asked about the current date or time, use the provided current date and time information to answer accurately
+13. **For policy-related questions: If the query is missing required entities (like policy name, account type, or customer type), ask a clarification question instead of guessing or providing incomplete information. The system will handle this automatically, but if you receive a query that seems incomplete, ask for the missing information.**
 
 When responding:
 - Be concise but thorough
 - Use clear, simple language
 - Structure product information clearly
 - Always prioritize accuracy over speed
-- For date/time queries, provide the exact current date and time as provided in the context"""
+- For date/time queries, provide the exact current date and time as provided in the context
+- **When context is provided, use it - don't ignore it or say you don't have the information**
+- **CRITICAL: Preserve currency symbols and codes exactly as shown in context - BDT means Bangladeshi Taka, USD means US Dollar. Never substitute or change currency symbols. If context says "BDT 287.5", output "BDT 287.5" - never use ₹ or other symbols.**
+- **For policy queries missing required information, ask for clarification rather than guessing**"""
     
     def _is_small_talk(self, query: str) -> bool:
         """Detect if query is small talk (greetings, thanks, etc.)"""
@@ -164,102 +191,89 @@ When responding:
         return any(keyword in query_lower for keyword in datetime_keywords)
     
     def _is_contact_info_query(self, query: str) -> bool:
-        """Detect if query is about contact information (phone, address, email, etc.)
-        This should ALWAYS check phonebook first, never LightRAG"""
+        """Detect if query is about contact information (ONLY phone number or email)
+        This should ALWAYS check phonebook first, never LightRAG
+        VERY RESTRICTIVE - only phone and email, nothing else"""
+        import re
         query_lower = query.lower().strip()
         
-        # Comprehensive contact-related keywords - ANY of these means check phonebook first
-        contact_keywords = [
-            # Phone/Telephone
-            'phone', 'telephone', 'tel', 'call', 'calling', 'dial', 'dialing',
-            'number', 'phone number', 'telephone number', 'contact number',
-            'mobile', 'cell', 'cellphone', 'mobile number', 'cell number',
-            'pabx', 'extension', 'ext', 'ip phone', 'ip phone number',
-            'direct line', 'direct number', 'landline',
-            
-            # Contact/Communication
-            'contact', 'contacts', 'contact info', 'contact information',
-            'reach', 'reach out', 'reachable', 'how to contact', 'how can i contact',
-            'get in touch', 'get in touch with', 'connect with', 'connect to',
-            
-            # Email
-            'email', 'e-mail', 'mail', 'email address', 'mail address',
-            'email id', 'mail id', 'send email', 'email to',
-            
-            # Address/Location
-            'address', 'location', 'where', 'where is', 'where are',
-            'office address', 'work address', 'business address',
-            
-            # Employee/Staff related (these are always phonebook queries)
-            'employee', 'employees', 'staff', 'staff member', 'staff members',
-            'emp id', 'emp_id', 'employee id', 'employee number',
-            'who is', 'who are', 'who works', 'who is working',
-            
-            # Designation/Department (often contact queries)
-            'designation', 'department', 'division',
-            'manager', 'director', 'officer', 'head of', 'head',
-            'ceo', 'cfo', 'coo', 'president', 'executive',
-            
-            # Other contact-related
-            'hotline', 'helpline', 'support line', 'customer service',
-            'branch contact', 'office contact', 'head office', 'headquarters',
-            'contact center', 'contact centre', 'call center', 'call centre'
+        # Exclude queries about email processes/policies/requirements
+        # These should go to LightRAG, not phonebook
+        email_process_keywords = [
+            'email confirmation', 'email verification', 'email requirement',
+            'email required', 'email process', 'email policy', 'email procedure',
+            'email workflow', 'email approval', 'email notification',
+            'send email', 'email sent', 'email received', 'email delivery',
+            'email template', 'email format', 'email content',
+            'prior email confirmation', 'prior confirmation', 'subject to prior',
+            'subject to email', 'processing subject to', 'confirmation required',
+            'prior email', 'email prior'
         ]
         
-        # Check if query contains ANY contact-related keywords
+        # If query is about email processes/policies, NOT a contact query
+        if any(keyword in query_lower for keyword in email_process_keywords):
+            return False
+        
+        # VERY SPECIFIC: Only phone number and email keywords for CONTACT lookup
+        # Everything else goes to LightRAG
+        # Use word boundaries to avoid false matches (e.g., "call" in "cancelled")
+        contact_patterns = [
+            # Phone/Telephone - with word boundaries
+            r'\bphone number\b', r'\btelephone number\b', r'\bcontact number\b',
+            r'\bmobile number\b', r'\bcell number\b', r'\bphone\b', r'\btelephone\b',
+            r'\bmobile\b', r'\bcell\b', r'\bcellphone\b', r'\btel\b', r'\bcall\b',
+            r'\bpabx\b', r'\bextension\b', r'\bext\b', r'\bip phone\b', r'\bip phone number\b',
+            r'\bdirect line\b', r'\bdirect number\b', r'\blandline\b',
+            
+            # Email - ONLY for contact lookup (not processes)
+            # Must be in context of asking for someone's email
+            r'\bemail address of\b', r'\bemail of\b', r'\bemail for\b', r'\bemail id of\b',
+            r'\bemail id for\b', r'\bmail address of\b', r'\bmail address for\b',
+            r'\bwhat is the email\b', r'\bwhat is email\b', r'\bget email\b',
+            r'\bfind email\b', r'\bcontact email\b', r'\bemail contact\b'
+        ]
+        
+        # Check if query contains phone number or email keywords for contact lookup
+        # Use regex with word boundaries to avoid false matches
         # If yes, ALWAYS check phonebook first (never LightRAG)
-        return any(keyword in query_lower for keyword in contact_keywords)
+        return any(re.search(pattern, query_lower) for pattern in contact_patterns)
     
     def _is_phonebook_query(self, query: str) -> bool:
-        """Detect if query is about phone book/employee contact information
-        This should ALWAYS check phonebook first, never LightRAG"""
+        """Detect if query is about phone book directory
+        VERY RESTRICTIVE - only explicit phonebook/directory queries"""
         query_lower = query.lower().strip()
         
-        # Comprehensive phone book keywords - ANY of these means check phonebook first
+        # VERY SPECIFIC: Only explicit phonebook/directory keywords
         phonebook_keywords = [
-            # Direct contact methods
-            'phone', 'contact', 'number', 'telephone', 'tel', 'call',
-            'email', 'address', 'mobile', 'cell', 'cellphone',
-            'extension', 'ext', 'pabx', 'ip phone', 'ip phone number',
-            'direct line', 'direct number', 'landline',
-            
-            # Employee/Staff identifiers
-            'employee', 'employees', 'staff', 'staff member', 'staff members',
-            'emp id', 'emp_id', 'employee id', 'employee number',
-            'who is', 'who are', 'who works', 'who is working',
-            
-            # Contact information requests
-            'contact info', 'contact information', 'contact details',
-            'phone number', 'telephone number', 'contact number',
-            'email address', 'mail address', 'office address',
-            
-            # Designation/Department (often used for contact queries)
-            'designation', 'department', 'division',
-            'manager', 'director', 'officer', 'head of', 'head',
-            'ceo', 'cfo', 'coo', 'president', 'executive',
-            
-            # Directory/List queries
-            'directory', 'phonebook', 'phone book', 'contact list',
-            'employee directory', 'staff directory', 'employee list', 'staff list'
+            'phonebook', 'phone book', 'employee directory', 'staff directory',
+            'contact list', 'employee list', 'staff list', 'directory'
         ]
         
-        # Check if query contains phone book keywords
-        # If yes, ALWAYS check phonebook first (never LightRAG)
+        # Check if query explicitly mentions phonebook/directory
         return any(keyword in query_lower for keyword in phonebook_keywords)
     
     def _is_employee_query(self, query: str) -> bool:
-        """Detect if query is about employee information"""
+        """Detect if query is about employee information (for phonebook lookup)
+        VERY RESTRICTIVE - only employee search/lookup queries"""
         query_lower = query.lower().strip()
         
+        # VERY SPECIFIC: Only employee search/lookup keywords
+        # Exclude general "employee" mentions that might be about policies, etc.
         employee_keywords = [
-            'employee', 'employees', 'staff', 'staff member', 'staff members',
-            'emp id', 'emp_id', 'employee id', 'employee number',
-            'designation', 'ip phone', 'ip phone number', 'pabx', 'extension',
-            'who works', 'who is working', 'who are the employees', 'employee list',
-            'staff list', 'employee directory', 'staff directory', 'employee contact',
-            'staff contact', 'employee email', 'staff email', 'employee phone',
-            'staff phone', 'employee information', 'staff information'
+            'employee id', 'employee number', 'emp id', 'emp_id',
+            'employee phone', 'employee email', 'employee contact',
+            'staff phone', 'staff email', 'staff contact',
+            'who is employee', 'who are employees', 'find employee',
+            'search employee', 'lookup employee', 'employee directory',
+            'staff directory', 'employee list', 'staff list'
         ]
+        
+        # Also check for "employee" or "staff" combined with contact-related terms
+        if 'employee' in query_lower or 'staff' in query_lower:
+            # Only if combined with contact/search terms
+            contact_terms = ['phone', 'email', 'contact', 'number', 'id', 'search', 'find', 'lookup', 'who']
+            if any(term in query_lower for term in contact_terms):
+                return True
         
         return any(keyword in query_lower for keyword in employee_keywords)
     
@@ -334,6 +348,53 @@ When responding:
         
         return any(keyword in query_normalized for keyword in milestone_keywords)
     
+    def _is_card_rates_query(self, query: str) -> bool:
+        """Detect if query is asking specifically about card fees/rates (card rates microservice)"""
+        query_lower = query.lower().strip()
+        
+        # Card product names that indicate a card query (even without the word "card")
+        card_products = [
+            "classic", "gold", "platinum", "infinite", "signature", "titanium", 
+            "world", "visa", "mastercard", "diners club", "unionpay", "taka pay",
+            "prepaid", "debit", "credit"
+        ]
+        
+        # Must mention a card - either explicitly or through card product/network names
+        has_card_keyword = "card" in query_lower
+        has_card_product = any(product in query_lower for product in card_products)
+        
+        if not has_card_keyword and not has_card_product:
+            return False
+        
+        # Card rates/fees keywords
+        card_rates_keywords = [
+            # Fees
+            "annual fee", "yearly fee", "renewal fee", "issuance fee", "joining fee",
+            "replacement fee", "card replacement", "pin replacement", "pin fee",
+            "late payment fee", "late fee", "overlimit fee", "over-limit fee",
+            "cash advance fee", "cash withdrawal fee", "transaction fee",
+            "duplicate statement fee", "certificate fee", "chequebook fee",
+            "customer verification fee", "cib fee", "transaction alert fee",
+            "sales voucher fee", "return cheque fee", "undelivered card fee",
+            "atm receipt fee", "cctv footage fee", "fund transfer fee",
+            "wallet transfer fee", "want2buy fee", "easycredit fee",
+            "risk assurance fee", "balance maintenance fee",
+            
+            # Rates
+            "interest rate", "rate of interest", "apr", "annual percentage rate",
+            "card interest", "credit card rate",
+            
+            # Lounge access
+            "lounge", "lounge access", "sky lounge", "airport lounge", "lounge visit",
+            "skylounge", "international lounge", "domestic lounge", "global lounge",
+            "lounge free visit", "lounge fee", "priority pass",
+            
+            # Charges
+            "charge", "charges", "fee", "fees", "cost", "price", "pricing"
+        ]
+        
+        return any(kw in query_lower for kw in card_rates_keywords)
+    
     def _is_compliance_query(self, query: str) -> bool:
         """Detect if query is about compliance, AML, regulatory, or policy matters"""
         query_lower = query.lower().strip()
@@ -374,6 +435,144 @@ When responding:
         
         return any(keyword in query_lower for keyword in compliance_keywords)
     
+    def _check_policy_entities(self, query: str) -> tuple[bool, Optional[str]]:
+        """
+        Check if a policy query has required entities.
+        Returns: (has_required_entities, clarification_question_if_missing)
+        """
+        import re
+        query_lower = query.lower().strip()
+        
+        # Common policy names/identifiers that might be mentioned
+        policy_identifiers = [
+            'aml', 'kyc', 'cdd', 'ofac', 'pep', 'sanctions',
+            'anti money laundering', 'know your customer', 'customer due diligence',
+            'money laundering', 'politically exposed person',
+            'credit policy', 'lending policy', 'loan policy', 'card policy',
+            'account policy', 'deposit policy', 'withdrawal policy',
+            'transaction policy', 'compliance policy', 'risk policy',
+            'fraud policy', 'operational policy', 'internal policy',
+            'gap policy', 'code of conduct', 'dress code', 'employee policy'
+        ]
+        
+        # Account types that might be relevant
+        account_types = [
+            'savings', 'current', 'fixed deposit', 'fd', 'rd', 'recurring deposit',
+            'corporate', 'commercial', 'retail', 'personal', 'business',
+            'super saver', 'stellar', 'platinum', 'gold', 'silver'
+        ]
+        
+        # Customer types
+        customer_types = [
+            'corporate', 'commercial', 'retail', 'personal', 'individual',
+            'business', 'sme', 'small medium enterprise', 'enterprise'
+        ]
+        
+        # Check if query mentions a specific policy name using patterns:
+        # - "X policy" (e.g., "GAP policy", "AML policy")
+        # - "policy X" (e.g., "policy regarding socks")
+        # - Known policy identifiers
+        has_policy_name = False
+        
+        # Pattern 1: Check known policy identifiers first (most reliable)
+        if any(identifier in query_lower for identifier in policy_identifiers):
+            has_policy_name = True
+        
+        # Pattern 2: "X policy" - look for any word/phrase before "policy" that's not generic
+        # This handles: "GAP policy", "the GAP policy", "AML policy", "what does the GAP policy say"
+        generic_words = {'the', 'a', 'an', 'this', 'that', 'what', 'which', 'some', 'any', 'does', 'say', 'is', 'are', 'was', 'were'}
+        
+        # Find all instances of "X policy" pattern
+        policy_before_pattern = r'\b([a-z]+(?:\s+[a-z]+)?)\s+policy\b'
+        matches = re.findall(policy_before_pattern, query_lower)
+        if matches:
+            for match in matches:
+                match_clean = match.strip().lower()
+                # If it's not a generic word, consider it a policy name
+                if match_clean and match_clean not in generic_words:
+                    has_policy_name = True
+                    break
+        
+        # Pattern 3: "policy regarding/about/for X" - indicates a specific policy is being discussed
+        if re.search(r'\bpolicy\s+(?:regarding|about|for|on|concerning|in|of|say|state|mention|specify|require|allow|prohibit)', query_lower):
+            has_policy_name = True
+        
+        # Pattern 4: If query has "policy" and asks about a specific topic, assume policy name is present
+        # e.g., "what does the GAP policy say about socks" - has "policy" and "socks" (specific topic)
+        # e.g., "what does the policy say about X" - has "policy" and topic X
+        if 'policy' in query_lower:
+            # Check if there's a specific topic/subject mentioned (not just "policy" alone)
+            # Look for words after "policy" that suggest a specific question
+            has_specific_topic = re.search(
+                r'policy\s+(?:say|state|mention|specify|require|allow|prohibit|regarding|about|for|on|concerning|in|of)\s+[a-z]+',
+                query_lower
+            )
+            if has_specific_topic:
+                has_policy_name = True
+        
+        # If a specific policy is mentioned, allow it to proceed (don't ask for clarification)
+        if has_policy_name:
+            return (True, None)
+        
+        # Safety check: If query has "policy" and mentions a specific topic/subject, allow it through
+        # This catches cases like "what does the GAP policy say about socks" where the policy name
+        # might not have been detected but there's clearly a specific question being asked
+        if 'policy' in query_lower:
+            # Check if there's substantive content beyond just "what is the policy?"
+            # Look for: specific topics, action verbs, or content after "policy"
+            has_substantive_content = (
+                # Has a topic/subject mentioned (more than just "policy")
+                len(query_lower.split()) > 4 or
+                # Has action verbs that suggest a specific question
+                any(word in query_lower for word in ['say', 'state', 'mention', 'specify', 'require', 'allow', 'prohibit', 'regarding', 'about', 'for', 'on', 'concerning']) or
+                # Has "does" or "do" which suggests asking about something specific
+                'does' in query_lower or 'do ' in query_lower
+            )
+            
+            # Only ask for clarification if it's truly vague (like "what is the policy?")
+            is_truly_vague = (
+                query_lower in ['what is the policy?', 'what is policy?', 'tell me about policy', 'explain policy'] or
+                (len(query_lower.split()) <= 4 and 'policy' in query_lower and not has_substantive_content)
+            )
+            
+            if not is_truly_vague:
+                # Has enough context, allow it through
+                return (True, None)
+        
+        # Check if query is asking about policy in general (e.g., "what is the policy?")
+        # Only trigger if it's truly general without any specific policy mentioned
+        is_general_policy_query = (
+            ('what' in query_lower and 'policy' in query_lower and not has_policy_name) or
+            ('tell me' in query_lower and 'policy' in query_lower and not has_policy_name) or
+            ('explain' in query_lower and 'policy' in query_lower and not has_policy_name)
+        )
+        
+        # If it's a general policy query without context, we need clarification
+        if is_general_policy_query:
+            # Check if account type or customer type is mentioned
+            has_account_type = any(acc_type in query_lower for acc_type in account_types)
+            has_customer_type = any(cust_type in query_lower for cust_type in customer_types)
+            
+            if not has_account_type and not has_customer_type:
+                return (False, "I'd be happy to help you with policy information. Could you please specify which policy you're asking about? For example:\n- AML (Anti-Money Laundering) policy\n- KYC (Know Your Customer) policy\n- Credit/Lending policy\n- GAP policy\n- Code of Conduct policy\n- Or any other specific policy name")
+        
+        # Check for queries that need account type context
+        # e.g., "what is the policy for account?" - needs account type
+        # But only if no specific policy is mentioned
+        if 'policy' in query_lower and ('account' in query_lower or 'deposit' in query_lower) and not has_policy_name:
+            if not any(acc_type in query_lower for acc_type in account_types):
+                return (False, "To provide accurate policy information, could you please specify the account type? For example:\n- Savings account\n- Current account\n- Fixed Deposit (FD)\n- Recurring Deposit (RD)\n- Corporate account\n- Or any other specific account type")
+        
+        # Check for queries that need customer type context
+        # e.g., "what is the policy for customer?" - needs customer type
+        # But only if no specific policy is mentioned
+        if 'policy' in query_lower and ('customer' in query_lower or 'client' in query_lower) and not has_policy_name:
+            if not any(cust_type in query_lower for cust_type in customer_types):
+                return (False, "To provide accurate policy information, could you please specify the customer type? For example:\n- Corporate customer\n- Retail/Personal customer\n- Business/SME customer\n- Or any other specific customer category")
+        
+        # All required entities are present
+        return (True, None)
+    
     def _is_banking_product_query(self, query: str) -> bool:
         """Detect if query is about banking products/services (should use LightRAG, not phonebook)"""
         query_lower = query.lower().strip()
@@ -391,14 +590,42 @@ When responding:
             'loan approval', 'loan repayment', 'loan emi', 'loan processing',
             
             # Accounts
+            'account', 'accounts',  # Standalone account keyword to catch all account types
             'savings account', 'current account', 'fixed deposit', 'fd', 'rd', 'recurring deposit',
+            'rfcd', 'rfd', 'recurring fixed', 'recurring fixed deposit',  # RFCD account types
             'account opening', 'account balance', 'account statement', 'account fee',
             'account interest', 'account rate', 'account minimum balance',
+            'account type', 'account types', 'types of account', 'kinds of account',
+            
+            # Corporate/Commercial Banking
+            'corporate customer', 'corporate customers', 'corporate account', 'corporate accounts',
+            'corporate banking', 'commercial customer', 'commercial customers',
+            'corporate service', 'corporate process', 'corporate procedure',
+            'corporate requirement', 'corporate requirements', 'corporate policy',
+            'corporate confirmation', 'email confirmation', 'email verification',
+            'processing requirement', 'processing requirements', 'before processing',
+            'whose email confirmation', 'email confirmation required', 'confirmation required',
+            'prior email confirmation', 'prior confirmation', 'subject to prior',
+            'subject to email', 'processing subject to', 'subject to confirmation',
+            'in case of corporate', 'case of corporate', 'corporate processing',
+            'in the case of', 'in case of', 'case of', 'subject to',
             
             # Banking Services
             'online banking', 'mobile banking', 'internet banking', 'atm', 'cash withdrawal',
             'fund transfer', 'remittance', 'foreign exchange', 'forex', 'currency exchange',
             'locker', 'safe deposit', 'cheque', 'draft', 'demand draft',
+            'standing instruction', 'standing instructions', 'si', 'si setup', 'si cancellation',
+            'si cancel', 'cancel si', 'cancel standing instruction', 'recurring payment',
+            'recurring transfer', 'automatic payment', 'automatic transfer', 'auto debit',
+            'auto credit', 'scheduled payment', 'scheduled transfer', 'recurring debit',
+            'recurring credit', 'auto payment', 'auto transfer',
+            
+            # Branch/Center Locations
+            'priority center', 'priority centre', 'priority centers', 'priority centres',
+            'branch', 'branches', 'branch location', 'branch locations',
+            'center', 'centre', 'centers', 'centres', 'service center', 'service centre',
+            'how many', 'number of', 'count of', 'list of', 'where is', 'where are',
+            'sylhet', 'dhaka', 'chittagong', 'city', 'location', 'locations',
             
             # Products & Services
             'banking product', 'financial product', 'service', 'banking service',
@@ -661,6 +888,131 @@ When responding:
         
         return text
     
+    def _fix_currency_symbols(self, text: str, context: str = "") -> str:
+        """
+        Fix currency symbol hallucinations - replace incorrect currency symbols with correct ones.
+        This is a safety net to catch cases where LLM hallucinates currency symbols.
+        """
+        if not text:
+            return text
+        
+        import re
+        
+        # Check if context contains BDT amounts
+        has_bdt_in_context = "BDT" in context if context else False
+        
+        # Pattern to match currency symbols followed by numbers (₹287.5, ₹1,725, etc.)
+        # Replace ₹ (Indian Rupee) with BDT if context has BDT
+        if has_bdt_in_context:
+            # Match ₹ followed by optional space and number
+            text = re.sub(r'₹\s*(\d+(?:[.,]\d+)?)', r'BDT \1', text)
+            # Also catch cases where ₹ might be used with commas
+            text = re.sub(r'₹\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)', r'BDT \1', text)
+        
+        return text
+    
+    async def _get_card_rates_context(self, query: str) -> str:
+        """
+        Call card rates microservice to get deterministic fee/rate data for card queries.
+        Returns a formatted text block to include before LightRAG context.
+        """
+        base_url = getattr(settings, "CARD_RATES_URL", "http://localhost:8002").rstrip("/")
+        url = f"{base_url}/rates/search"
+        
+        try:
+            # Increase limit for lounge queries to get all relevant information
+            limit = 10 if any(kw in query.lower() for kw in ["lounge", "sky lounge"]) else 5
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(url, params={"q": query, "limit": limit})
+            
+            if resp.status_code != 200:
+                logger.warning(f"[CARD_RATES] Non-200 response: {resp.status_code}")
+                return ""
+            
+            data = resp.json()
+            results = data.get("results") or []
+            if not results:
+                logger.info("[CARD_RATES] No card rates results for query")
+                return ""
+            
+            lines: List[str] = []
+            lines.append("=" * 70)
+            lines.append("OFFICIAL CARD RATES AND FEES INFORMATION")
+            lines.append("Source: Card Charges and Fees Schedule (Effective from 01st January, 2026)")
+            lines.append("=" * 70)
+            
+            # Group by charge type for better readability
+            charge_groups: Dict[str, List[Dict]] = {}
+            for item in results:
+                charge_type = item.get("charge_type") or "Other"
+                if charge_type not in charge_groups:
+                    charge_groups[charge_type] = []
+                charge_groups[charge_type].append(item)
+            
+            # Format grouped results
+            for charge_type, items in charge_groups.items():
+                lines.append(f"\n{charge_type}:")
+                for item in items:
+                    card_name = item.get("card_full_name") or "Unknown Card"
+                    amount_raw = item.get("amount_raw") or ""
+                    category = item.get("category") or ""
+                    network = item.get("network") or ""
+                    product = item.get("product") or ""
+                    
+                    # Build card identifier
+                    card_parts = []
+                    if category:
+                        card_parts.append(category)
+                    if network:
+                        card_parts.append(network)
+                    if product:
+                        card_parts.append(product)
+                    
+                    # Format amount based on charge type
+                    formatted_amount = amount_raw
+                    if "interest rate" in charge_type.lower():
+                        # Format interest rates clearly
+                        try:
+                            # Try to parse as number
+                            # Remove spaces and check if it's a number
+                            clean_amount = amount_raw.strip().replace(" ", "")
+                            if clean_amount.replace(".", "").replace("-", "").isdigit():
+                                rate_value = float(clean_amount)
+                                # In the schedule, 0.25 means 25% annually (decimal format: 0.25 = 25%)
+                                if rate_value < 1:
+                                    # Decimal format - convert to percentage: 0.25 = 25%
+                                    annual_rate_percent = rate_value * 100
+                                    formatted_amount = f"{annual_rate_percent}% per annum (or as specified in schedule)"
+                                elif rate_value <= 100:
+                                    # Value between 1-100, likely already a percentage
+                                    formatted_amount = f"{rate_value}% per annum"
+                                else:
+                                    formatted_amount = f"{amount_raw} (please verify format)"
+                            else:
+                                formatted_amount = f"{amount_raw} (as per schedule)"
+                        except:
+                            formatted_amount = f"{amount_raw} (as per schedule)"
+                    
+                    if card_parts:
+                        card_id = " ".join(card_parts)
+                        lines.append(f"  • {card_id}: {formatted_amount}")
+                    else:
+                        lines.append(f"  • {card_name}: {formatted_amount}")
+            
+            lines.append("\n" + "=" * 70)
+            lines.append("IMPORTANT: The above information is from the official Card Charges and Fees Schedule.")
+            lines.append("This data is authoritative and should be used to answer card fee/rate questions.")
+            lines.append("=" * 70)
+            lines.append("")
+            
+            return "\n".join(lines)
+        except httpx.TimeoutException:
+            logger.warning("[CARD_RATES] Timeout calling card rates service")
+            return ""
+        except Exception as e:
+            logger.error(f"[CARD_RATES] Error calling card rates service: {e}")
+            return ""
+    
     def _format_lightrag_context(self, lightrag_response: Dict[str, Any]) -> str:
         """Format LightRAG response into context string"""
         context_parts = []
@@ -732,6 +1084,35 @@ When responding:
         
         return "\n".join(context_parts) if context_parts else ""
     
+    def _improve_query_for_lightrag(self, query: str) -> str:
+        """
+        Improve query phrasing for better LightRAG results
+        Converts conversational queries into more specific, search-friendly formats
+        """
+        query_lower = query.lower().strip()
+        
+        # Priority center queries - make them more specific
+        if 'priority center' in query_lower or 'priority centre' in query_lower:
+            if 'sylhet' in query_lower:
+                # Convert "tell me about priority center in sylhet" to more specific query
+                if 'how many' not in query_lower and 'number' not in query_lower:
+                    # Use a single, comprehensive query that works well with LightRAG
+                    return "How many Priority centers are there in Sylhet City and what are their details?"
+            elif 'how many' in query_lower or 'number' in query_lower:
+                # Already specific enough
+                return query
+        
+        # Location-based queries - make them more specific
+        if 'tell me about' in query_lower and ('center' in query_lower or 'centre' in query_lower):
+            # Extract location if mentioned
+            locations = ['sylhet', 'dhaka', 'chittagong', 'narayanganj']
+            for loc in locations:
+                if loc in query_lower:
+                    return f"What are the Priority Centers in {loc.capitalize()}? How many Priority Centers are in {loc.capitalize()}?"
+        
+        # Return original query if no improvements needed
+        return query
+    
     async def _get_lightrag_context(
         self,
         query: str,
@@ -739,35 +1120,39 @@ When responding:
     ) -> str:
         """Get context from LightRAG (with caching)"""
         kb = knowledge_base or settings.LIGHTRAG_KNOWLEDGE_BASE
-        cache_key = get_cache_key(query, kb)
+        
+        # Improve query phrasing for better results
+        improved_query = self._improve_query_for_lightrag(query)
+        if improved_query != query:
+            logger.info(f"[ROUTING] Improved query: '{query[:100]}' → '{improved_query[:100]}'")
+        
+        cache_key = get_cache_key(improved_query, kb)
         
         # Check cache first
         cached = await self.redis_cache.get(cache_key)
         if cached:
-            logger.info(f"Cache HIT for query: {query[:50]}... (key: {cache_key})")
+            logger.info(f"Cache HIT for query: {improved_query[:50]}... (key: {cache_key})")
             return self._format_lightrag_context(cached)
         
-        logger.info(f"Cache MISS for query: {query[:50]}... (key: {cache_key})")
+        logger.info(f"Cache MISS for query: {improved_query[:50]}... (key: {cache_key})")
         
         # Query LightRAG
         try:
-            logger.info(f"Querying LightRAG for: {query[:50]}... (knowledge_base: {kb})")
+            logger.info(f"Querying LightRAG for: {improved_query[:50]}... (knowledge_base: {kb})")
             response = await self.lightrag_client.query(
-                query=query,
+                query=improved_query,
                 knowledge_base=kb,
-                mode="hybrid",  # Match other LightRAG instance
-                top_k=8,  # KG Top K: 8 (was 5)
-                chunk_top_k=5,  # Chunk Top K: 5 (was 10)
+                mode="mix",  # Use 'mix' mode (works better than 'hybrid')
+                top_k=5,  # KG Top K: 5 (reduced from 8 for better results)
+                chunk_top_k=5,  # Chunk Top K: 5
                 include_references=True,
                 only_need_context=False,  # Get full response, not just context
-                max_entity_tokens=2500,  # Max tokens for entities
-                max_relation_tokens=3500,  # Max tokens for relations
-                max_total_tokens=12000,  # Overall max tokens
-                enable_rerank=True  # Enable reranking
-                # Note: only_need_prompt and stream are UI settings, not API parameters
+                # Removed max_entity_tokens, max_relation_tokens, max_total_tokens, enable_rerank
+                # These parameters were causing the query to miss relevant information
+                # LightRAG will use its internal defaults which work better
             )
             
-            # Cache the response
+            # Cache the response (using improved query for cache key)
             await self.redis_cache.set(cache_key, response)
             
             return self._format_lightrag_context(response)
@@ -806,7 +1191,12 @@ When responding:
         
         # Add current query with context
         if context:
-            user_message = f"Context from knowledge base:\n{context}\n\nUser query: {query}{datetime_info}"
+            # Add currency preservation reminder if card rates context is present
+            currency_reminder = ""
+            if "OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context:
+                currency_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL CURRENCY RULE 🚨\n" + "="*70 + "\nThe context above contains currency codes like 'BDT' and 'USD'. You MUST use the EXACT currency code from the context.\n\nEXAMPLES:\n- If context shows 'BDT 287.5', you MUST output 'BDT 287.5' (NOT ₹287.5)\n- If context shows 'BDT 1,725', you MUST output 'BDT 1,725' (NOT ₹1,725)\n- If context shows 'USD 57.5', you MUST output 'USD 57.5'\n\nNEVER replace BDT with ₹ or any other currency symbol. BDT = Bangladeshi Taka.\n" + "="*70
+            
+            user_message = f"Context from knowledge base:\n{context}\n\nUser query: {query}{datetime_info}{currency_reminder}"
         else:
             user_message = f"{query}{datetime_info}"
         
@@ -821,7 +1211,8 @@ When responding:
         self,
         query: str,
         session_id: Optional[str] = None,
-        knowledge_base: Optional[str] = None
+        knowledge_base: Optional[str] = None,
+        client_ip: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """
         Process a chat query and stream the response
@@ -907,6 +1298,10 @@ When responding:
             if db:
                 db.close()
         
+        # ===== ROUTING DECISION LOGGING =====
+        logger.info(f"[ROUTING] ===== Processing Query (STREAMING): '{query}' =====")
+        logger.info(f"[ROUTING] CODE VERSION: Corporate customer routing fix v2.0 - includes 'in the case of' pattern")
+        
         # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries FIRST
         # These should go to LightRAG, NOT phonebook
         is_banking_product_query = self._is_banking_product_query(query)
@@ -916,9 +1311,25 @@ When responding:
         is_milestone_query = self._is_milestone_query(query)
         is_user_doc_query = self._is_user_document_query(query)
         
+        # Log all routing checks
+        logger.info(f"[ROUTING] Routing checks - banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
+        
         # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
         if is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
-            logger.info(f"[ROUTING] Query detected as special (banking product/compliance/management/financial/milestone/user doc) - skipping phonebook, using LightRAG")
+            routing_type = []
+            if is_banking_product_query:
+                routing_type.append("banking_product")
+            if is_compliance_query:
+                routing_type.append("compliance")
+            if is_management_query:
+                routing_type.append("management")
+            if is_financial_query:
+                routing_type.append("financial")
+            if is_milestone_query:
+                routing_type.append("milestone")
+            if is_user_doc_query:
+                routing_type.append("user_doc")
+            logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
             should_check_phonebook = False
             is_phonebook_query = False
             is_contact_query = False
@@ -932,14 +1343,24 @@ When responding:
             is_phonebook_query = self._is_phonebook_query(query)
             is_employee_query = self._is_employee_query(query)
             
+            # Log contact-related checks
+            logger.info(f"[ROUTING] Contact checks - small_talk={is_small_talk}, contact={is_contact_query}, phonebook={is_phonebook_query}, employee={is_employee_query}, phonebook_available={PHONEBOOK_DB_AVAILABLE}")
+            
             # If it's any kind of contact/phonebook/employee query, ALWAYS check phonebook first
             should_check_phonebook = (
                 (is_phonebook_query or is_contact_query or is_employee_query) 
                 and not is_small_talk 
                 and PHONEBOOK_DB_AVAILABLE
             )
+            
+            if should_check_phonebook:
+                logger.info(f"[ROUTING] ✓ Query detected as contact/phonebook/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
+            elif is_small_talk:
+                logger.info(f"[ROUTING] ✓ Query detected as small talk → ROUTING TO OPENAI (no LightRAG)")
+            else:
+                logger.info(f"[ROUTING] ✓ Query not matched to special categories → ROUTING TO LIGHTRAG (default)")
         
-        logger.info(f"[DEBUG] Phonebook priority: phonebook={is_phonebook_query}, contact={is_contact_query}, employee={is_employee_query}, small_talk={is_small_talk}, available={PHONEBOOK_DB_AVAILABLE}, will_check={should_check_phonebook}")
+        logger.info(f"[ROUTING] Final decision - will_check_phonebook={should_check_phonebook}, will_use_lightrag={not should_check_phonebook and not is_small_talk}")
         
         # Check phonebook FIRST for contact queries (before LightRAG)
         if should_check_phonebook:
@@ -1000,7 +1421,8 @@ When responding:
                                     session_id=session_id,
                                     user_message=query,
                                     assistant_response=response,
-                                    knowledge_base=None  # Phonebook query
+                                    knowledge_base=None,  # Phonebook query
+                                    client_ip=client_ip
                                 )
                     finally:
                         memory.close()
@@ -1035,7 +1457,8 @@ When responding:
                                     session_id=session_id,
                                     user_message=query,
                                     assistant_response=response,
-                                    knowledge_base=None  # Phonebook query
+                                    knowledge_base=None,  # Phonebook query
+                                    client_ip=client_ip
                                 )
                     finally:
                         memory.close()
@@ -1081,17 +1504,74 @@ When responding:
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
+        card_rates_context = ""
         
         if not is_small_talk:
+            # Check for policy queries and validate required entities
+            if is_compliance_query:
+                has_entities, clarification = self._check_policy_entities(query)
+                if not has_entities and clarification:
+                    logger.info(f"[POLICY] Policy query missing required entities, asking for clarification")
+                    # Save to memory
+                    db = get_db()
+                    memory = PostgresChatMemory(db=db)
+                    try:
+                        if memory._available:
+                            memory.add_message(session_id, "user", query)
+                            memory.add_message(session_id, "assistant", clarification)
+                            # Log for analytics
+                            if ANALYTICS_AVAILABLE:
+                                log_conversation(
+                                    session_id=session_id,
+                                    user_message=query,
+                                    assistant_response=clarification,
+                                    knowledge_base=None,  # Clarification question
+                                    client_ip=client_ip
+                                )
+                    finally:
+                        memory.close()
+                        if db:
+                            db.close()
+                    
+                    # Stream clarification question
+                    for char in clarification:
+                        yield char
+                    return  # Don't query LightRAG if entities are missing
+            
+            # If it's a card rates query, call card rates microservice for deterministic numbers
+            if self._is_card_rates_query(query):
+                logger.info(f"[CARD_RATES] Detected card rates query: '{query}'")
+                card_rates_context = await self._get_card_rates_context(query)
+                if card_rates_context:
+                    logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
+                else:
+                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}'")
+            
             # Smart routing: determine which knowledge base to use based on query content
             # This prevents confusion between financial reports and user documents
             if knowledge_base is None:
                 knowledge_base = self._get_knowledge_base(query)
             
+            logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
             context = await self._get_lightrag_context(query, knowledge_base)
+            if context:
+                logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars)")
+            else:
+                logger.warning(f"[ROUTING] LightRAG returned empty context")
+        
+        # Combine card rates context (if any) with LightRAG context
+        combined_context = ""
+        if card_rates_context and context:
+            combined_context = f"{card_rates_context}\n\n{context}"
+            logger.info(f"[CARD_RATES] Combined context: card_rates={len(card_rates_context)} chars, lightrag={len(context)} chars")
+        elif card_rates_context:
+            combined_context = card_rates_context
+            logger.info(f"[CARD_RATES] Using only card rates context: {len(card_rates_context)} chars")
+        else:
+            combined_context = context
         
         # Build messages
-        messages = self._build_messages(query, context, conversation_history)
+        messages = self._build_messages(query, combined_context, conversation_history)
         
         # Save user message
         db = get_db()
@@ -1121,6 +1601,9 @@ When responding:
                     full_response += content
                     # Clean markdown formatting from content before yielding
                     cleaned_content = self._clean_markdown_formatting(content)
+                    # Fix currency symbols if needed (use combined_context if available)
+                    if hasattr(self, '_last_combined_context'):
+                        cleaned_content = self._fix_currency_symbols(cleaned_content, self._last_combined_context)
                     yield cleaned_content
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
@@ -1130,6 +1613,8 @@ When responding:
         
         # Clean markdown formatting from full response before saving
         full_response = self._clean_markdown_formatting(full_response)
+        # Fix currency symbols as a safety net
+        full_response = self._fix_currency_symbols(full_response, combined_context)
         
         # Save assistant response
         db = get_db()
@@ -1143,7 +1628,8 @@ When responding:
                         session_id=session_id,
                         user_message=query,
                         assistant_response=full_response,
-                        knowledge_base=knowledge_base
+                        knowledge_base=knowledge_base,
+                        client_ip=client_ip
                     )
         finally:
             memory.close()
@@ -1154,7 +1640,8 @@ When responding:
         self,
         query: str,
         session_id: Optional[str] = None,
-        knowledge_base: Optional[str] = None
+        knowledge_base: Optional[str] = None,
+        client_ip: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Process a chat query and return complete response (non-streaming)
@@ -1190,6 +1677,9 @@ When responding:
             if db:
                 db.close()
         
+        # ===== ROUTING DECISION LOGGING =====
+        logger.info(f"[ROUTING] ===== Processing Query (SYNC): '{query}' =====")
+        
         # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries FIRST
         # These should go to LightRAG, NOT phonebook
         is_banking_product_query = self._is_banking_product_query(query)
@@ -1199,9 +1689,25 @@ When responding:
         is_milestone_query = self._is_milestone_query(query)
         is_user_doc_query = self._is_user_document_query(query)
         
+        # Log all routing checks
+        logger.info(f"[ROUTING] Routing checks - banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
+        
         # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
         if is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
-            logger.info(f"[ROUTING] Query detected as special (banking product/compliance/management/financial/milestone/user doc) - skipping phonebook, using LightRAG")
+            routing_type = []
+            if is_banking_product_query:
+                routing_type.append("banking_product")
+            if is_compliance_query:
+                routing_type.append("compliance")
+            if is_management_query:
+                routing_type.append("management")
+            if is_financial_query:
+                routing_type.append("financial")
+            if is_milestone_query:
+                routing_type.append("milestone")
+            if is_user_doc_query:
+                routing_type.append("user_doc")
+            logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
             should_check_phonebook = False
             is_phonebook_query = False
             is_contact_query = False
@@ -1215,14 +1721,24 @@ When responding:
             is_phonebook_query = self._is_phonebook_query(query)
             is_employee_query = self._is_employee_query(query)
             
+            # Log contact-related checks
+            logger.info(f"[ROUTING] Contact checks - small_talk={is_small_talk}, contact={is_contact_query}, phonebook={is_phonebook_query}, employee={is_employee_query}, phonebook_available={PHONEBOOK_DB_AVAILABLE}")
+            
             # If it's any kind of contact/phonebook/employee query, ALWAYS check phonebook first
             should_check_phonebook = (
                 (is_phonebook_query or is_contact_query or is_employee_query) 
                 and not is_small_talk 
                 and PHONEBOOK_DB_AVAILABLE
             )
+            
+            if should_check_phonebook:
+                logger.info(f"[ROUTING] ✓ Query detected as contact/phonebook/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
+            elif is_small_talk:
+                logger.info(f"[ROUTING] ✓ Query detected as small talk → ROUTING TO OPENAI (no LightRAG)")
+            else:
+                logger.info(f"[ROUTING] ✓ Query not matched to special categories → ROUTING TO LIGHTRAG (default)")
         
-        logger.info(f"[DEBUG] Phonebook priority: phonebook={is_phonebook_query}, contact={is_contact_query}, employee={is_employee_query}, small_talk={is_small_talk}, available={PHONEBOOK_DB_AVAILABLE}, will_check={should_check_phonebook}")
+        logger.info(f"[ROUTING] Final decision - will_check_phonebook={should_check_phonebook}, will_use_lightrag={not should_check_phonebook and not is_small_talk}")
         
         # Check phonebook FIRST for contact queries (before LightRAG)
         if should_check_phonebook:
@@ -1283,7 +1799,8 @@ When responding:
                                     session_id=session_id,
                                     user_message=query,
                                     assistant_response=response,
-                                    knowledge_base=None  # Phonebook query
+                                    knowledge_base=None,  # Phonebook query
+                                    client_ip=client_ip
                                 )
                     finally:
                         memory.close()
@@ -1318,7 +1835,8 @@ When responding:
                                     session_id=session_id,
                                     user_message=query,
                                     assistant_response=response,
-                                    knowledge_base=None  # Phonebook query
+                                    knowledge_base=None,  # Phonebook query
+                                    client_ip=client_ip
                                 )
                     finally:
                         memory.close()
@@ -1357,24 +1875,84 @@ When responding:
                     if db:
                         db.close()
                 
-                return {
-                    "response": response,
-                    "session_id": session_id
-                }  # DO NOT query LightRAG for contact queries
+                    return {
+                        "response": response,
+                        "session_id": session_id
+                    }  # DO NOT query LightRAG for contact queries
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
+        card_rates_context = ""
         
         if not is_small_talk:
+            # Check for policy queries and validate required entities
+            if is_compliance_query:
+                has_entities, clarification = self._check_policy_entities(query)
+                if not has_entities and clarification:
+                    logger.info(f"[POLICY] Policy query missing required entities, asking for clarification")
+                    # Save to memory
+                    db = get_db()
+                    memory = PostgresChatMemory(db=db)
+                    try:
+                        if memory._available:
+                            memory.add_message(session_id, "user", query)
+                            memory.add_message(session_id, "assistant", clarification)
+                            # Log for analytics
+                            if ANALYTICS_AVAILABLE:
+                                log_conversation(
+                                    session_id=session_id,
+                                    user_message=query,
+                                    assistant_response=clarification,
+                                    knowledge_base=None,  # Clarification question
+                                    client_ip=client_ip
+                                )
+                    finally:
+                        memory.close()
+                        if db:
+                            db.close()
+                    
+                    return {
+                        "response": clarification,
+                        "session_id": session_id
+                    }  # Don't query LightRAG if entities are missing
+            
+            # If it's a card rates query, call card rates microservice for deterministic numbers
+            if self._is_card_rates_query(query):
+                logger.info(f"[CARD_RATES] Detected card rates query: '{query}'")
+                card_rates_context = await self._get_card_rates_context(query)
+                if card_rates_context:
+                    logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
+                else:
+                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}'")
+            
             # Smart routing: determine which knowledge base to use based on query content
             # This prevents confusion between financial reports and user documents
             if knowledge_base is None:
                 knowledge_base = self._get_knowledge_base(query)
             
+            logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
             context = await self._get_lightrag_context(query, knowledge_base)
+            if context:
+                logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars)")
+            else:
+                logger.warning(f"[ROUTING] LightRAG returned empty context")
+        
+        # Combine card rates context (if any) with LightRAG context
+        combined_context = ""
+        if card_rates_context and context:
+            combined_context = f"{card_rates_context}\n\n{context}"
+            logger.info(f"[CARD_RATES] Combined context: card_rates={len(card_rates_context)} chars, lightrag={len(context)} chars")
+        elif card_rates_context:
+            combined_context = card_rates_context
+            logger.info(f"[CARD_RATES] Using only card rates context: {len(card_rates_context)} chars")
+        else:
+            combined_context = context
+        
+        # Store combined context for currency fixing
+        self._last_combined_context = combined_context
         
         # Build messages
-        messages = self._build_messages(query, context, conversation_history)
+        messages = self._build_messages(query, combined_context, conversation_history)
         
         # Save user message
         db = get_db()
@@ -1400,6 +1978,8 @@ When responding:
             full_response = response.choices[0].message.content
             # Clean markdown formatting from response
             full_response = self._clean_markdown_formatting(full_response)
+            # Fix currency symbols as a safety net
+            full_response = self._fix_currency_symbols(full_response, combined_context)
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             full_response = "I apologize, but I'm experiencing technical difficulties. Please try again later."
@@ -1416,7 +1996,8 @@ When responding:
                         session_id=session_id,
                         user_message=query,
                         assistant_response=full_response,
-                        knowledge_base=knowledge_base
+                        knowledge_base=knowledge_base,
+                        client_ip=client_ip
                     )
         finally:
             memory.close()
