@@ -4,6 +4,7 @@ Chat Orchestrator - Coordinates all components for chat processing.
 
 import uuid
 import logging
+import re
 from typing import Optional, AsyncGenerator, List, Dict, Any
 from datetime import datetime
 import pytz
@@ -96,7 +97,7 @@ class ChatOrchestrator:
     def _get_system_message(self) -> str:
         """Get system message for the chatbot"""
         return """You are a helpful and professional banking assistant for a financial institution.
-Your role is to assist customers with banking-related queries, product information, account services, and general banking questions.
+You are Eastern Bank PLC.'s internal knowledge assistant, designed to help EBL employees provide accurate customer support. You represent Eastern Bank PLC. and provide information that employees can use when assisting customers. Your responses should be professional, accurate, and suitable for employees to share with customers.
 
 ═══════════════════════════════════════════════════════════════════════════════
 🚨 CRITICAL CURRENCY RULE - READ THIS FIRST 🚨
@@ -117,29 +118,89 @@ This is a CRITICAL requirement - incorrect currency symbols cause serious errors
 ═══════════════════════════════════════════════════════════════════════════════
 
 Guidelines:
-1. Always be professional, friendly, and helpful
+1. **You represent Eastern Bank PLC. - you are the bank's knowledge assistant for employees**
+2. **This chatbot is for EBL employees who will use your responses to provide customer support**
+3. **Your responses should be professional, accurate, and suitable for employees to share with customers**
+4. Always be professional, friendly, and helpful
 2. **IMPORTANT: When context from the knowledge base is provided, you MUST use it to answer the question. Do NOT say you don't have information if the context contains the answer.**
 3. The context provided contains accurate information from the bank's knowledge base - trust it and use it directly
 4. If the context contains specific numbers, facts, or details, include them in your response
-5. Only say "I don't have information" if the context is truly empty or doesn't contain relevant information
-6. For banking queries, always use the provided context from LightRAG
-7. **CRITICAL: If the context includes "Card Rates and Fees Information (Official Schedule)", this is official, deterministic data from the card charges schedule. You MUST use this data to answer card fee/rate questions. Do NOT say you don't have the information if this data is present.**
-8. **CRITICAL CURRENCY PRESERVATION: When the context shows amounts with currency symbols or codes (BDT, USD, etc.), you MUST use the EXACT currency symbol/code from the context. NEVER replace BDT (Bangladeshi Taka) with ₹ (Indian Rupee) or any other currency symbol. If you see "BDT 287.5" in the context, you MUST output "BDT 287.5" - do NOT change it to ₹287.5 or any other currency. Preserve all currency codes exactly as shown: BDT = Bangladeshi Taka, USD = US Dollar.**
-9. Never make up specific numbers, rates, or product details
-10. If asked about products, services, or policies, refer to the knowledge base context
-11. For general greetings or small talk, respond naturally without requiring context
-12. When asked about the current date or time, use the provided current date and time information to answer accurately
-13. **For policy-related questions: If the query is missing required entities (like policy name, account type, or customer type), ask a clarification question instead of guessing or providing incomplete information. The system will handle this automatically, but if you receive a query that seems incomplete, ask for the missing information.**
+5. **CRITICAL BANK NAME RULE: The bank name is ALWAYS "Eastern Bank PLC" (not "Eastern Bank Limited" or "Eastern Bank Ltd."). If the context mentions "Eastern Bank Limited" or "Eastern Bank Ltd.", you MUST replace it with "Eastern Bank PLC" in your response. Always use "Eastern Bank PLC" or "EBL" when referring to the bank.**
+5. **CRITICAL CONCISENESS RULES:**
+   - Mention product/account/service name ONCE at the start, then use pronouns (it, this account, this product)
+   - Do NOT repeat the product name in every sentence
+   - Do NOT use filler phrases: "making them an excellent choice", "demonstrate EBL's commitment", "form an integral part", "making them a critical part", "In essence", "As per", "These accounts are a testament to"
+   - Do NOT use marketing language: "excellent choice", "substantial popularity", "considerable balances", "wide range", "diverse needs", "commitment to providing"
+   - Be direct: State what it IS and what it DOES, not what it "demonstrates" or "shows"
+   - Keep it factual and brief - typically 2-4 sentences for "tell me more" queries
+5. **CRITICAL PARTIAL INFORMATION HANDLING - THIS IS MANDATORY: If the context contains information about the product/account/service but doesn't answer the specific question, you MUST:**
+   - **FIRST**: Extract and provide ALL available information about the product/account/service from the context (features, benefits, rates, fees, requirements, etc.)
+   - **THEN**: Note what specific information is missing (e.g., "However, the specific minimum balance for interest is not detailed in the available information")
+   - **ABSOLUTELY FORBIDDEN**: NEVER say "I don't have information" or "I'm sorry, but the context does not provide information" or "I'm sorry, but I don't have the specific information" if the context contains ANY relevant information about the topic
+   - **Example CORRECT response**: If asked about "minimum balance for interest on EBL Super HPA Account" and context mentions "Super HPA Account" with other details but not minimum balance, say: "The EBL Super HPA Account [provide ALL available details from context - interest rates, features, benefits, etc.]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail."
+   - **Example WRONG response**: "I'm sorry, but the context does not provide information about the minimum balance for interest on the EBL Super HPA Account." ← THIS IS FORBIDDEN
+6. Only say "I don't have information" if the context is completely empty or contains NO relevant information about the topic at all (not even the product/account/service name)
+7. For banking queries, always use the provided context from LightRAG
+8. **CRITICAL: If the context includes "Card Rates and Fees Information (Official Schedule)" or "OFFICIAL CARD RATES AND FEES INFORMATION", this is official, deterministic data from the card charges schedule. You MUST use this data to answer card fee/rate questions. Do NOT say you don't have the information if this data is present.**
+8a. **CRITICAL PRIORITY RULE FOR FEE DATA: When the context contains "OFFICIAL CARD RATES AND FEES INFORMATION" section, you MUST use ONLY that data. IGNORE any conflicting information from other parts of the context. The fee engine data is the authoritative source and takes absolute priority over any other information. If you see "2.5% or BDT 345" in the OFFICIAL section, use that - do NOT use "2%", "BDT 300", or any other amount from elsewhere in the context. The OFFICIAL section is the ONLY source of truth.**
+8b. **CRITICAL ATM WITHDRAWAL FEE RULE: For EBL ATM cash withdrawal fees, the fee is ALWAYS "2.5% or BDT 345". NEVER use "BDT 300", "2%", or any other amount. If you see conflicting information in the knowledge base, IGNORE IT. Use ONLY the fee engine data which shows "2.5% or BDT 345".**
+9. **CRITICAL SUPPLEMENTARY CARD FEES: If the context mentions "supplementary card annual fee" or "supplementary card fee", this is the specific fee for supplementary cards. For VISA Platinum supplementary cards, you MUST ALWAYS mention BOTH pieces of information: (1) The first 2 supplementary cards are FREE (BDT 0 per year), and (2) Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. NEVER say only "BDT 0 per year" without mentioning the fee for 3rd+ cards. Use this information directly. Do NOT say "the context does not provide specific information about supplementary cards" if the context explicitly mentions supplementary card fees.**
+9. **CRITICAL CURRENCY PRESERVATION: When the context shows amounts with currency symbols or codes (BDT, USD, etc.), you MUST use the EXACT currency symbol/code from the context. NEVER replace BDT (Bangladeshi Taka) with ₹ (Indian Rupee) or any other currency symbol. If you see "BDT 287.5" in the context, you MUST output "BDT 287.5" - do NOT change it to ₹287.5 or any other currency. Preserve all currency codes exactly as shown: BDT = Bangladeshi Taka, USD = US Dollar.**
+10. Never make up specific numbers, rates, or product details
+11. If asked about products, services, or policies, refer to the knowledge base context
+12. For general greetings or small talk, respond naturally without requiring context
+13. When asked about the current date or time, use the provided current date and time information to answer accurately
+14. **CRITICAL BANK NAME RULE: The bank name is ALWAYS "Eastern Bank PLC." (with a period, not "Eastern Bank Limited" or "Eastern Bank Ltd."). If the context mentions "Eastern Bank Limited" or "Eastern Bank Ltd.", you MUST replace it with "Eastern Bank PLC." in your response. Always use "Eastern Bank PLC." (with period) or "EBL" when referring to the bank.**
+15. **For policy-related questions: If the query is missing required entities (like policy name, account type, or customer type), ask a clarification question instead of guessing or providing incomplete information. The system will handle this automatically, but if you receive a query that seems incomplete, ask for the missing information.**
+16. **CRITICAL ORGANIZATIONAL OVERVIEW RULES: For queries like "tell me about EBL", "what is EBL", "about Eastern Bank" - these are GENERAL/CUSTOMER-FACING overview queries. You MUST:**
+    - **INCLUDE ONLY**: Establishment year, country of operation, core banking services (accounts, loans, cards, etc.), major customer-facing platforms (e.g., EBLConnect)
+    - **EXCLUDE**: Annual report details, accounting/valuation/fair value discussions, subsidiaries' financial treatments, management/board-level analysis, investor/audit/regulatory document content
+    - **IF MIXED CONTENT**: Prefer customer-facing content, discard investor/financial-statement-only information
+    - **TONE**: Neutral, concise, informational (NOT marketing, NOT investor-focused)
 
 When responding:
-- Be concise but thorough
-- Use clear, simple language
+- **Remember: You are Eastern Bank PLC.'s knowledge assistant for employees. Your responses will be used by EBL employees to assist customers.**
+- **Be concise and non-repetitive - do NOT restate the same information in different sentences**
+- **Do NOT repeat product/account/service names unnecessarily - mention the name ONCE at the beginning, then use "it", "this account", "this product", or "the account"**
+- **FORBIDDEN FILLER PHRASES - NEVER use these: "making them an excellent choice", "demonstrate EBL's commitment", "form an integral part", "making them a critical part", "In essence", "As per", "These accounts are a testament to", "substantial popularity", "considerable balances", "wide range", "diverse needs", "commitment to providing"**
+- **FORBIDDEN MARKETING LANGUAGE - NEVER use: "excellent choice", "substantial popularity", "considerable", "wide range", "diverse needs", "commitment", "demonstrate", "testament to"**
+- **Be direct and factual - State what it IS and what it DOES, not what it "demonstrates" or "shows"**
+- **Keep responses focused - if the user asks "tell me more", provide key features and details in 2-4 sentences, not marketing language or general statements**
+- **Use clear, professional language suitable for employees to share with customers**
 - Structure product information clearly
 - Always prioritize accuracy over speed
 - For date/time queries, provide the exact current date and time as provided in the context
 - **When context is provided, use it - don't ignore it or say you don't have the information**
 - **CRITICAL: Preserve currency symbols and codes exactly as shown in context - BDT means Bangladeshi Taka, USD means US Dollar. Never substitute or change currency symbols. If context says "BDT 287.5", output "BDT 287.5" - never use ₹ or other symbols.**
-- **For policy queries missing required information, ask for clarification rather than guessing**"""
+- **CRITICAL MONETARY FORMAT FOR BANGLADESH: For monetary values in Bangladesh, use ONE format only: "BDT X lakhs" (e.g., "BDT 50 lakhs"). Do NOT repeat the amount in different formats (e.g., don't say "BDT 50 lakhs" and then "BDT 5,000,000" or "50 lakhs" again). State the amount ONCE in the response.**
+- **For policy queries missing required information, ask for clarification rather than guessing**
+
+═══════════════════════════════════════════════════════════════════════════════
+🚨 CRITICAL: FOLLOW-UP QUESTIONS & SEMANTIC MATCHING 🚨
+═══════════════════════════════════════════════════════════════════════════════
+**FOLLOW-UP QUESTION HANDLING:**
+- When the user asks a follow-up question (e.g., "After how many days..."), 
+  you MUST check the conversation history to understand the context
+- If the previous conversation mentioned a product/account/service, treat the 
+  current question as related to that same topic
+- Example: If previous question was about "Super HPA Account" and current 
+  question is "After how many days interest is credited", understand this is 
+  about Super HPA Account interest crediting
+
+**SEMANTIC EQUIVALENCE RECOGNITION:**
+- Recognize that different words can mean the same thing in banking context
+- "credited" = "paid" = "deposited" = "added" (all mean interest is added to account)
+- "fee" = "charge" = "cost" (all mean the same thing)
+- "rate" = "interest rate" = "percentage" (all mean the same thing)
+- "frequency" = "schedule" = "how often" = "when" (all ask about timing)
+- When the context uses one term (e.g., "paid") but the user asks with another 
+  term (e.g., "credited"), recognize they are asking the same thing and use 
+  the information from context
+- Example: User asks "After how many days interest is credited" but context 
+  says "interest is paid semi-annually" - recognize "credited" and "paid" 
+  mean the same thing and answer: "Interest is paid (credited) semi-annually, 
+  which means every six months"
+═══════════════════════════════════════════════════════════════════════════════"""
     
     def _is_small_talk(self, query: str) -> bool:
         """Detect if query is small talk (greetings, thanks, etc.)"""
@@ -253,12 +314,38 @@ When responding:
         return any(keyword in query_lower for keyword in phonebook_keywords)
     
     def _is_employee_query(self, query: str) -> bool:
-        """Detect if query is about employee information (for phonebook lookup)
-        VERY RESTRICTIVE - only employee search/lookup queries"""
+        """
+        Detect if query is about employee information (for phonebook lookup).
+        Includes role-based queries like "branch manager", "who is the manager", etc.
+        """
         query_lower = query.lower().strip()
         
-        # VERY SPECIFIC: Only employee search/lookup keywords
-        # Exclude general "employee" mentions that might be about policies, etc.
+        # Pattern 1: "who is" + role/designation queries (e.g., "who is the branch manager")
+        # This catches queries asking about specific people in specific roles
+        who_is_patterns = [
+            r'who\s+is\s+(the\s+)?(branch\s+)?manager',
+            r'who\s+is\s+(the\s+)?(.*\s+)?manager\s+of',
+            r'who\s+is\s+the\s+(.*\s+)?manager',
+            r'who\s+is\s+(the\s+)?(head|director|officer|executive)\s+of',
+            r'who\s+is\s+(the\s+)?(.*\s+)?(head|director|officer|executive)',
+        ]
+        import re
+        if any(re.search(pattern, query_lower) for pattern in who_is_patterns):
+            logger.info(f"[ROUTING] Detected 'who is' role query → phonebook")
+            return True
+        
+        # Pattern 2: Role + "of" + location/branch (e.g., "branch manager of Gulshan")
+        role_location_patterns = [
+            r'(branch\s+)?manager\s+of',
+            r'manager\s+of\s+(.*\s+)?branch',
+            r'(head|director|officer)\s+of\s+(.*\s+)?branch',
+            r'(.*\s+)?manager\s+at\s+(.*\s+)?branch',
+        ]
+        if any(re.search(pattern, query_lower) for pattern in role_location_patterns):
+            logger.info(f"[ROUTING] Detected role + location query → phonebook")
+            return True
+        
+        # Pattern 3: VERY SPECIFIC employee search/lookup keywords
         employee_keywords = [
             'employee id', 'employee number', 'emp id', 'emp_id',
             'employee phone', 'employee email', 'employee contact',
@@ -268,7 +355,7 @@ When responding:
             'staff directory', 'employee list', 'staff list'
         ]
         
-        # Also check for "employee" or "staff" combined with contact-related terms
+        # Pattern 4: "employee" or "staff" combined with contact-related terms
         if 'employee' in query_lower or 'staff' in query_lower:
             # Only if combined with contact/search terms
             contact_terms = ['phone', 'email', 'contact', 'number', 'id', 'search', 'find', 'lookup', 'who']
@@ -303,6 +390,40 @@ When responding:
         
         return any(keyword in query_lower for keyword in user_doc_keywords)
     
+    def _is_organizational_overview_query(self, query: str) -> bool:
+        """
+        Detect if query is asking for high-level organizational overview about EBL/Eastern Bank.
+        These queries should get customer-facing overviews, NOT investor/financial content.
+        
+        Examples:
+        - "tell me about EBL"
+        - "what is EBL"
+        - "about Eastern Bank"
+        - "tell me about Eastern Bank PLC"
+        """
+        query_lower = query.lower().strip()
+        
+        # Patterns that indicate organizational overview queries
+        overview_patterns = [
+            # "tell me about" + bank name
+            (r'tell\s+me\s+about\s+(ebl|eastern\s+bank)', 'tell me about EBL/Eastern Bank'),
+            # "what is" + bank name
+            (r'what\s+is\s+(ebl|eastern\s+bank)', 'what is EBL/Eastern Bank'),
+            # "about" + bank name (at start or after "tell me")
+            (r'^about\s+(ebl|eastern\s+bank)', 'about EBL/Eastern Bank'),
+            # "who is" + bank name
+            (r'who\s+is\s+(ebl|eastern\s+bank)', 'who is EBL/Eastern Bank'),
+            # "describe" + bank name
+            (r'describe\s+(ebl|eastern\s+bank)', 'describe EBL/Eastern Bank'),
+        ]
+        
+        for pattern, description in overview_patterns:
+            if re.search(pattern, query_lower):
+                logger.info(f"[ROUTING] Detected organizational overview query: '{description}'")
+                return True
+        
+        return False
+    
     def _is_management_query(self, query: str) -> bool:
         """Detect if query is about EBL management/management committee"""
         query_lower = query.lower().strip()
@@ -320,30 +441,30 @@ When responding:
         return any(keyword in query_lower for keyword in management_keywords)
     
     def _is_milestone_query(self, query: str) -> bool:
-        """Detect if query is about EBL milestones/history/achievements"""
+        """
+        Detect if query is about EBL milestones/history/achievements.
+        NOT greedy - only matches explicit milestone/history queries, NOT general "about ebl" queries.
+        """
         query_lower = query.lower().strip()
         
         # Normalize "mile stone" to "milestone" for matching
         query_normalized = query_lower.replace('mile stone', 'milestone').replace('mile-stone', 'milestone')
         
-        # Check for "about ebl" or "tell me about ebl" patterns first (high priority)
-        if 'about ebl' in query_normalized or 'tell me about ebl' in query_normalized:
-            # If it's about EBL and contains milestone/history keywords, it's a milestone query
-            if any(kw in query_normalized for kw in ['milestone', 'history', 'achievement', 'timeline', 'journey', 'founded', 'establishment']):
-                return True
-            # If it's just "about ebl" without contact keywords, treat as informational (milestone/history)
-            contact_kw = ['phone', 'contact', 'email', 'address', 'number', 'mobile', 'call']
-            if not any(kw in query_normalized for kw in contact_kw):
-                return True
+        # CRITICAL: Check if this is an organizational overview query FIRST
+        # If it is, it should NOT be treated as a milestone query
+        if self._is_organizational_overview_query(query):
+            return False
         
+        # Only match if query EXPLICITLY mentions milestone/history keywords
+        # Remove "about ebl" and "ebl background" from keywords - these are too generic
         milestone_keywords = [
             'milestone', 'milestones', 'history', 'historical', 'achievement', 'achievements',
             'timeline', 'journey', 'evolution', 'development', 'growth', 'progress',
             'founded', 'establishment', 'established', 'inception', 'origin', 'beginnings',
             'ebl milestone', 'ebl milestones', 'ebl history', 'bank milestone', 'bank milestones',
             'what are the milestones', 'ebl achievements',
-            'bank achievements', 'company history', 'bank history', 'corporate history',
-            'about ebl', 'ebl background', 'ebl information'
+            'bank achievements', 'company history', 'bank history', 'corporate history'
+            # REMOVED: 'about ebl', 'ebl background', 'ebl information' - too generic, caught by org overview
         ]
         
         return any(keyword in query_normalized for keyword in milestone_keywords)
@@ -356,7 +477,7 @@ When responding:
         card_products = [
             "classic", "gold", "platinum", "infinite", "signature", "titanium", 
             "world", "visa", "mastercard", "diners club", "unionpay", "taka pay",
-            "prepaid", "debit", "credit"
+            "prepaid", "debit", "credit", "rfcd", "global"
         ]
         
         # Must mention a card - either explicitly or through card product/network names
@@ -372,7 +493,7 @@ When responding:
             "annual fee", "yearly fee", "renewal fee", "issuance fee", "joining fee",
             "replacement fee", "card replacement", "pin replacement", "pin fee",
             "late payment fee", "late fee", "overlimit fee", "over-limit fee",
-            "cash advance fee", "cash withdrawal fee", "transaction fee",
+            "cash advance fee", "cash withdrawal fee", "atm withdrawal fee", "withdrawal fee", "transaction fee",
             "duplicate statement fee", "certificate fee", "chequebook fee",
             "customer verification fee", "cib fee", "transaction alert fee",
             "sales voucher fee", "return cheque fee", "undelivered card fee",
@@ -576,6 +697,24 @@ When responding:
     def _is_banking_product_query(self, query: str) -> bool:
         """Detect if query is about banking products/services (should use LightRAG, not phonebook)"""
         query_lower = query.lower().strip()
+        
+        # Card product names that indicate a card query (even without the word "card")
+        card_products = [
+            "classic", "gold", "platinum", "infinite", "signature", "titanium", 
+            "world", "visa", "mastercard", "diners club", "unionpay", "taka pay",
+            "prepaid", "debit", "credit", "rfcd", "global"
+        ]
+        
+        # Check if query mentions card products (even without "card" word)
+        has_card_product = any(product in query_lower for product in card_products)
+        has_card_keyword = "card" in query_lower
+        
+        # If query mentions card products + fee/rate keywords, it's a banking product query
+        card_fee_rate_keywords = ['fee', 'fees', 'charge', 'charges', 'rate', 'rates', 'annual', 'yearly', 'interest', 'supplementary', 'supplement']
+        if has_card_product or has_card_keyword:
+            if any(kw in query_lower for kw in card_fee_rate_keywords):
+                logger.info(f"[ROUTING] Detected card product query: has_card_product={has_card_product}, has_card_keyword={has_card_keyword}, fee_rate_keywords={[kw for kw in card_fee_rate_keywords if kw in query_lower]}")
+                return True
         
         # Banking product/service keywords - these should go to LightRAG, NOT phonebook
         banking_product_keywords = [
@@ -804,37 +943,66 @@ When responding:
     
     def _get_knowledge_base(self, user_input: str) -> str:
         """
-        Determine which knowledge base to use based on query content
-        Routes queries to appropriate knowledge bases to avoid confusion
+        Determine which knowledge base to use based on query content.
+        Implements 4-tier KB strategy: Overview / Product / Policy / Investor
+        
+        Priority order (most specific first):
+        1. Organizational Overview → ebl_website (customer-facing, filtered)
+        2. Banking Products → ebl_products (if exists, else ebl_website)
+        3. Policies/Compliance → ebl_policies (if exists, else ebl_website)
+        4. Financial/Investor → ebl_financial_reports (investor content)
+        5. Other specialized KBs (milestones, user docs, employees)
         """
         # Priority order (most specific first):
         
-        # 1. Financial reports queries → financial reports knowledge base
-        if self._is_financial_report_query(user_input):
-            logger.info(f"[ROUTING] Query detected as financial report → using 'ebl_financial_reports'")
-            return "ebl_financial_reports"
+        # 0. CRITICAL: Organizational overview queries FIRST (before financial reports)
+        # These need customer-facing content, NOT investor/financial content
+        # Route to ebl_website with explicit filtering
+        if self._is_organizational_overview_query(user_input):
+            logger.info(f"[ROUTING] Query detected as organizational overview → using 'ebl_website' with customer-facing filter")
+            return "ebl_website"  # Will be filtered by prompt instructions + post-retrieval filtering
         
-        # 2. Management queries → ebl_website (contains management info) or dedicated KB
+        # 1. Banking product queries → ebl_products knowledge base (if exists)
+        # Fallback to ebl_website if ebl_products doesn't exist
+        if self._is_banking_product_query(user_input):
+            # Check if ebl_products KB exists (could be enhanced with KB existence check)
+            # For now, route to ebl_products - LightRAG will handle if it doesn't exist
+            logger.info(f"[ROUTING] Query detected as banking product → using 'ebl_products'")
+            return "ebl_products"  # Dedicated products KB
+        
+        # 2. Compliance/Policy queries → ebl_policies knowledge base (if exists)
+        # Fallback to ebl_website if ebl_policies doesn't exist
+        if self._is_compliance_query(user_input):
+            logger.info(f"[ROUTING] Query detected as compliance/policy → using 'ebl_policies'")
+            return "ebl_policies"  # Dedicated policies KB
+        
+        # 3. Financial reports/investor queries → ebl_financial_reports knowledge base
+        # This is the investor-tier KB
+        if self._is_financial_report_query(user_input):
+            logger.info(f"[ROUTING] Query detected as financial report/investor → using 'ebl_financial_reports'")
+            return "ebl_financial_reports"  # Investor content KB
+        
+        # 4. Management queries → ebl_website (contains management info)
         if self._is_management_query(user_input):
             logger.info(f"[ROUTING] Query detected as management → using 'ebl_website'")
             return "ebl_website"  # Management info is in ebl_website knowledge base
         
-        # 3. Milestone queries → ebl_milestones knowledge base
+        # 5. Milestone queries → ebl_milestones knowledge base
         if self._is_milestone_query(user_input):
             logger.info(f"[ROUTING] Query detected as milestone → using 'ebl_milestones'")
             return "ebl_milestones"
         
-        # 4. User document queries → user documents knowledge base
+        # 6. User document queries → user documents knowledge base
         if self._is_user_document_query(user_input):
             logger.info(f"[ROUTING] Query detected as user document → using 'ebl_user_documents'")
             return "ebl_user_documents"
         
-        # 5. Employee queries → employees knowledge base (if exists)
+        # 7. Employee queries → employees knowledge base (if exists)
         if self._is_employee_query(user_input):
             logger.info(f"[ROUTING] Query detected as employee → using 'ebl_employees'")
             return "ebl_employees"
         
-        # 6. Default to configured knowledge base (usually ebl_website)
+        # 8. Default to configured knowledge base (usually ebl_website)
         default_kb = self.lightrag_client.knowledge_base or "ebl_website"
         logger.info(f"[ROUTING] Query using default knowledge base: '{default_kb}'")
         return default_kb
@@ -911,28 +1079,286 @@ When responding:
         
         return text
     
+    def _fix_bank_name(self, text: str) -> str:
+        """
+        Fix bank name - replace "Eastern Bank Limited" or "Eastern Bank Ltd." with "Eastern Bank PLC." (with period).
+        Also ensures "Eastern Bank PLC" (without period) becomes "Eastern Bank PLC." (with period).
+        This ensures consistent bank name usage across all responses.
+        """
+        if not text:
+            return text
+        
+        import re
+        
+        # Replace "Eastern Bank Limited" with "Eastern Bank PLC." (case-insensitive)
+        text = re.sub(r'Eastern Bank Limited', 'Eastern Bank PLC.', text, flags=re.IGNORECASE)
+        # Replace "Eastern Bank Ltd." with "Eastern Bank PLC." (case-insensitive)
+        text = re.sub(r'Eastern Bank Ltd\.', 'Eastern Bank PLC.', text, flags=re.IGNORECASE)
+        # Also catch "Eastern Bank Ltd" without period
+        text = re.sub(r'Eastern Bank Ltd\b', 'Eastern Bank PLC.', text, flags=re.IGNORECASE)
+        
+        # Ensure "Eastern Bank PLC" (without period) becomes "Eastern Bank PLC." (with period)
+        # More aggressive: replace ALL instances of "Eastern Bank PLC" (without period) with "Eastern Bank PLC."
+        # First, handle cases where it's already followed by a period (do nothing)
+        # Then, replace all other instances
+        # Match "Eastern Bank PLC" that is NOT followed by a period
+        text = re.sub(r'\bEastern Bank PLC\b(?!\.)', 'Eastern Bank PLC.', text, flags=re.IGNORECASE)
+        
+        return text
+    
     async def _get_card_rates_context(self, query: str) -> str:
         """
-        Call card rates microservice to get deterministic fee/rate data for card queries.
+        Call fee-engine microservice to get deterministic fee/rate data for card queries.
+        Uses the new fee-engine service (port 8003) instead of old card_rates_service (port 8002).
         Returns a formatted text block to include before LightRAG context.
         """
+        # Import fee engine client
+        try:
+            from app.services.fee_engine_client import FeeEngineClient
+            fee_client = FeeEngineClient()
+            
+            logger.info(f"[FEE_ENGINE] Attempting to calculate fee for query: '{query}'")
+            # Try to calculate fee using fee engine
+            fee_result = await fee_client.calculate_fee(query)
+            
+            if fee_result:
+                logger.info(f"[FEE_ENGINE] Fee engine returned status: {fee_result.get('status')}, charge_type: {fee_result.get('charge_type')}")
+            
+            if fee_result and fee_result.get("status") == "CALCULATED":
+                formatted = fee_client.format_fee_response(fee_result, query=query)
+                charge_type = fee_result.get("charge_type", "")
+                
+                # Check if this is an ATM withdrawal fee query
+                query_lower = (query or "").lower()
+                is_atm_withdrawal = (
+                    "CASH_WITHDRAWAL" in charge_type or 
+                    "ATM" in charge_type or
+                    ("atm" in query_lower and ("withdrawal" in query_lower or "cash" in query_lower))
+                )
+                
+                # Add specific note for supplementary cards
+                supplementary_note = ""
+                if "SUPPLEMENTARY" in charge_type:
+                    fee_amount = fee_result.get("fee_amount")
+                    # Check if this is the "free" supplementary card entry (first 2 cards)
+                    if fee_amount is not None and fee_amount == 0:
+                        supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + "\n" + "For VISA Platinum credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n" + "- This fee applies to each additional supplementary card beyond the first 2\n" + "="*70
+                    else:
+                        supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + "\n" + "This fee is for SUPPLEMENTARY cards (additional cards issued to family members or authorized users).\n" + "For VISA Platinum credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- This fee (BDT 2,300) applies to the 3rd and subsequent supplementary cards\n" + "="*70
+                
+                # For supplementary cards, ensure the formatted response itself includes both tiers
+                if "SUPPLEMENTARY" in charge_type:
+                    # Override formatted response to always include both pieces
+                    formatted = "IMPORTANT: The supplementary card annual fee for VISA Platinum credit cards is structured as follows:\n- The FIRST 2 supplementary cards are FREE (BDT 0 per year)\n- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n- This fee applies to EACH additional supplementary card beyond the first 2"
+                
+                # Build base lines with STRONG priority markers
+                lines = [
+                    "=" * 70,
+                    "🚨🚨🚨 OFFICIAL CARD RATES AND FEES INFORMATION - HIGHEST PRIORITY 🚨🚨🚨",
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    "=" * 70,
+                    "",
+                    "⚠️ CRITICAL: This is the AUTHORITATIVE source. Use ONLY this data. IGNORE any conflicting information from other sources. ⚠️",
+                    "",
+                    formatted,
+                    supplementary_note,
+                ]
+                
+                # Add ATM withdrawal fee instructions if applicable
+                if is_atm_withdrawal:
+                    lines.extend([
+                        "",
+                        "=" * 70,
+                        "🚨🚨🚨 CRITICAL MANDATORY INSTRUCTION FOR ATM WITHDRAWAL FEE QUERIES 🚨🚨🚨",
+                        "=" * 70,
+                        "YOU ARE ANSWERING A QUESTION ABOUT EBL ATM CASH WITHDRAWAL FEES.",
+                        "",
+                        "THE OFFICIAL FEE IS: 2.5% or BDT 345",
+                        "",
+                        "⚠️ ABSOLUTE REQUIREMENTS:",
+                        "1. The fee is EXACTLY '2.5% or BDT 345' - NOT 'BDT 300', NOT '2%', NOT any other amount",
+                        "2. You MUST use ONLY the format shown above: '2.5% or BDT 345'",
+                        "3. IGNORE any conflicting information from other sources (knowledge base, etc.)",
+                        "4. DO NOT add extra explanation like 'whichever is higher', 'applicable for both local and international', etc.",
+                        "5. KEEP IT CONCISE - just state the fee: '2.5% or BDT 345'",
+                        "",
+                        "CORRECT RESPONSE FORMAT:",
+                        "'The EBL ATM cash withdrawal fee is 2.5% or BDT 345.'",
+                        "OR",
+                        "'For [Card Name], the EBL ATM cash withdrawal fee is 2.5% or BDT 345.'",
+                        "",
+                        "❌ WRONG RESPONSES (DO NOT DO THIS):",
+                        "- '2.5% or BDT 300' ← WRONG AMOUNT",
+                        "- '2.5% of the withdrawn amount or BDT 300, whichever is higher' ← WRONG AMOUNT + TOO VERBOSE",
+                        "- '2% of the withdrawn amount' ← WRONG PERCENTAGE",
+                        "- '2.5% or BDT 345, applicable for both local and international withdrawals' ← TOO VERBOSE",
+                        "",
+                        "✅ CORRECT: '2.5% or BDT 345'",
+                        "",
+                        "=" * 70,
+                    ])
+                
+                # Add supplementary card instructions if applicable
+                if "SUPPLEMENTARY" in charge_type:
+                    lines.extend([
+                        "",
+                        "=" * 70,
+                        "🚨🚨🚨 CRITICAL MANDATORY INSTRUCTION FOR SUPPLEMENTARY CARD QUERIES 🚨🚨🚨",
+                        "=" * 70,
+                        "YOU ARE ANSWERING A QUESTION ABOUT SUPPLEMENTARY CARD FEES.",
+                        "",
+                        "YOU MUST INCLUDE BOTH OF THESE IN YOUR RESPONSE:",
+                        "",
+                        "1. FIRST 2 CARDS: FREE (BDT 0 per year)",
+                        "2. 3RD+ CARDS: BDT 2,300 per year",
+                        "",
+                        "DO NOT SAY ONLY 'BDT 0' OR 'FREE' WITHOUT MENTIONING THE FEE FOR 3RD+ CARDS.",
+                        "",
+                        "CORRECT RESPONSE FORMAT:",
+                        "'For VISA Platinum credit cards, the first 2 supplementary cards are free (BDT 0 per year).",
+                        "Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year.",
+                        "This fee applies to each additional supplementary card beyond the first 2.'",
+                        "",
+                        "WRONG RESPONSE (DO NOT DO THIS):",
+                        "'The annual fee is BDT 0 per year.' ← MISSING: 3rd+ card fee",
+                        "",
+                        "=" * 70,
+                    ])
+                
+                lines.append("")
+                return "\n".join(lines)
+            elif fee_result and fee_result.get("status") == "REQUIRES_NOTE_RESOLUTION":
+                note_ref = fee_result.get("note_reference", "Unknown")
+                lines = [
+                    "=" * 70,
+                    "OFFICIAL CARD RATES AND FEES INFORMATION",
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    "=" * 70,
+                    "",
+                    f"Fee depends on external note definition: Note {note_ref}",
+                    "Please refer to the card charges schedule for Note {note_ref} details.",
+                    "",
+                    "=" * 70,
+                    ""
+                ]
+                return "\n".join(lines)
+            elif fee_result and fee_result.get("status") == "NO_RULE_FOUND":
+                logger.warning(f"[FEE_ENGINE] No rule found for query: '{query}', charge_type: {fee_result.get('charge_type')}, message: {fee_result.get('message')}")
+                # For supplementary card queries, log this clearly
+                if "supplementary" in query.lower():
+                    logger.warning(f"[FEE_ENGINE] ⚠️ SUPPLEMENTARY CARD QUERY - Fee engine returned NO_RULE_FOUND. This means the fee-engine service may not have data for supplementary cards. Falling back to old card_rates_service.")
+                # Still return empty to fall back to old service
+                return ""
+            else:
+                logger.info(f"[FEE_ENGINE] Fee engine returned status '{fee_result.get('status') if fee_result else 'None'}', not CALCULATED. Result: {fee_result}")
+                return ""
+        except ImportError:
+            logger.warning("[FEE_ENGINE] FeeEngineClient not available, falling back to old card_rates_service")
+        except Exception as e:
+            logger.error(f"[FEE_ENGINE] Error calling fee engine: {e}", exc_info=True)
+        
+        # Fallback to old card_rates_service if fee engine fails
         base_url = getattr(settings, "CARD_RATES_URL", "http://localhost:8002").rstrip("/")
         url = f"{base_url}/rates/search"
         
+        # Enhance query for better matching with card names in database
+        # Try multiple query variations to improve matching
+        query_variations = [query]
+        query_lower = query.lower()
+        
+        # If query mentions "RFCD" or "World RFCD", try variations
+        if "rfcd" in query_lower or "world rfcd" in query_lower:
+            # Add variations matching the exact card name format in database
+            if "debit" in query_lower:
+                # Try exact card name from database: "Debit Card Global/Master Card World RFCD"
+                query_variations.append("Debit Card Global/Master Card World RFCD annual fee")
+                query_variations.append("Global/Master Card World RFCD Debit annual fee")
+                query_variations.append("Debit Card Global/Mastercard World RFCD annual fee")
+                query_variations.append("Global/Mastercard World RFCD Debit annual fee")
+                # Also try without "Card" word
+                query_variations.append("Global/Master Card World RFCD Debit annual fee")
+                query_variations.append("Global/Mastercard World RFCD annual fee")
+            if "mastercard" in query_lower or "master card" in query_lower:
+                query_variations.append("Master Card World RFCD annual fee")
+                query_variations.append("Mastercard World RFCD annual fee")
+                query_variations.append("Global/Master Card World RFCD annual fee")
+                query_variations.append("Global/Mastercard World RFCD annual fee")
+        
         try:
-            # Increase limit for lounge queries to get all relevant information
-            limit = 10 if any(kw in query.lower() for kw in ["lounge", "sky lounge"]) else 5
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(url, params={"q": query, "limit": limit})
+            # Increase limit for lounge queries and supplementary card queries to get all relevant information
+            # For supplementary cards, we need both "free cards" and "from 2nd and 3rd card" entries
+            is_supplementary_query = "supplementary" in query.lower()
+            limit = 10 if any(kw in query.lower() for kw in ["lounge", "sky lounge", "supplementary"]) else 5
             
-            if resp.status_code != 200:
-                logger.warning(f"[CARD_RATES] Non-200 response: {resp.status_code}")
-                return ""
+            # Try each query variation until we get results
+            all_results = []
+            seen_card_ids = set()  # Track unique cards to avoid duplicates
             
-            data = resp.json()
-            results = data.get("results") or []
+            for q_variant in query_variations:
+                logger.info(f"[CARD_RATES] Trying query variant: '{q_variant}'")
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url, params={"q": q_variant, "limit": limit})
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    variant_results = data.get("results") or []
+                    if variant_results:
+                        # Add unique results (by card name + charge type)
+                        for result in variant_results:
+                            card_id = f"{result.get('card_full_name', '')}_{result.get('charge_type', '')}"
+                            if card_id not in seen_card_ids:
+                                seen_card_ids.add(card_id)
+                                all_results.append(result)
+                        
+                        if all_results:
+                            logger.info(f"[CARD_RATES] Found {len(all_results)} unique results using variant: '{q_variant}'")
+                            break  # Use first successful variant
+                else:
+                    logger.warning(f"[CARD_RATES] Non-200 response for variant '{q_variant}': {resp.status_code}")
+            
+            # For supplementary card queries, also try explicit charge type searches to get both entries
+            if is_supplementary_query and len(all_results) > 0:
+                # Check if we have both "free" and "paid" entries
+                has_free_entry = any("free" in str(r.get("charge_type", "")).lower() for r in all_results)
+                has_paid_entry = any("2nd and 3rd" in str(r.get("charge_type", "")).lower() or "from 2nd" in str(r.get("charge_type", "")).lower() for r in all_results)
+                
+                if not has_free_entry or not has_paid_entry:
+                    logger.info(f"[CARD_RATES] Supplementary query - missing entries. Has free: {has_free_entry}, Has paid: {has_paid_entry}. Trying explicit charge type searches.")
+                    # Try explicit searches for both charge types
+                    explicit_queries = [
+                        f"{query} number of free cards",
+                        f"{query} from 2nd and 3rd card",
+                        "supplementary card visa platinum free",
+                        "supplementary card visa platinum 2nd 3rd"
+                    ]
+                    for explicit_query in explicit_queries:
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            resp = await client.get(url, params={"q": explicit_query, "limit": 10})
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            additional_results = data.get("results") or []
+                            for result in additional_results:
+                                card_id = f"{result.get('card_full_name', '')}_{result.get('charge_type', '')}"
+                                if card_id not in seen_card_ids:
+                                    seen_card_ids.add(card_id)
+                                    all_results.append(result)
+                                    logger.info(f"[CARD_RATES] Added result from explicit query '{explicit_query}': {result.get('charge_type')}")
+            
+            # If no results from variations, try original query
+            if not all_results:
+                logger.info(f"[CARD_RATES] No results from variations, trying original query: '{query}'")
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url, params={"q": query, "limit": limit})
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    all_results = data.get("results") or []
+                    logger.info(f"[CARD_RATES] Original query returned {len(all_results)} results")
+            
+            results = all_results
+            
             if not results:
-                logger.info("[CARD_RATES] No card rates results for query")
+                logger.info(f"[CARD_RATES] No card rates results for query: '{query}' (tried {len(query_variations)} variations)")
                 return ""
             
             lines: List[str] = []
@@ -941,6 +1367,10 @@ When responding:
             lines.append("Source: Card Charges and Fees Schedule (Effective from 01st January, 2026)")
             lines.append("=" * 70)
             
+            # Check if query is about supplementary cards
+            query_lower = query.lower()
+            is_supplementary_query = "supplementary" in query_lower
+            
             # Group by charge type for better readability
             charge_groups: Dict[str, List[Dict]] = {}
             for item in results:
@@ -948,6 +1378,79 @@ When responding:
                 if charge_type not in charge_groups:
                     charge_groups[charge_type] = []
                 charge_groups[charge_type].append(item)
+            
+            # For supplementary queries, prioritize SUPPLEMENTARY_ANNUAL charge type
+            if is_supplementary_query:
+                # Check if we have supplementary annual fee data
+                supplementary_charge_types = [ct for ct in charge_groups.keys() if "SUPPLEMENTARY" in ct.upper() or "supplementary" in ct.lower()]
+                if supplementary_charge_types:
+                    lines.append("\n" + "="*70)
+                    lines.append("SUPPLEMENTARY CARD ANNUAL FEE INFORMATION")
+                    lines.append("="*70)
+                    
+                    # Separate free cards from paid cards
+                    free_cards_info = []
+                    paid_cards_info = []
+                    
+                    for charge_type in supplementary_charge_types:
+                        for item in charge_groups[charge_type]:
+                            card_name = item.get("card_full_name") or "Unknown Card"
+                            amount_raw = item.get("amount_raw") or ""
+                            
+                            # Check if this is a "free" entry or a paid entry
+                            amount_lower = amount_raw.lower().strip()
+                            is_free = (
+                                "free" in amount_lower or 
+                                amount_lower == "0" or 
+                                "1st" in amount_lower or 
+                                "2nd" in amount_lower or
+                                ("number of free" in charge_type.lower())
+                            )
+                            
+                            if is_free:
+                                free_cards_info.append((card_name, amount_raw))
+                            else:
+                                # Format paid amount
+                                try:
+                                    clean_amount = amount_raw.strip().replace(" ", "").replace(",", "")
+                                    if clean_amount.replace(".", "").isdigit():
+                                        amount_value = float(clean_amount)
+                                        formatted_amount = f"BDT {int(amount_value):,}" if amount_value == int(amount_value) else f"BDT {amount_value:,.2f}"
+                                    else:
+                                        formatted_amount = amount_raw
+                                except:
+                                    formatted_amount = amount_raw
+                                paid_cards_info.append((card_name, formatted_amount))
+                    
+                    # Display free cards information
+                    if free_cards_info:
+                        lines.append("\nFREE SUPPLEMENTARY CARDS:")
+                        for card_name, amount_raw in free_cards_info:
+                            if "platinum" in card_name.lower() and "visa" in card_name.lower():
+                                lines.append(f"  • {card_name}: First 2 cards are FREE")
+                            else:
+                                lines.append(f"  • {card_name}: {amount_raw}")
+                    
+                    # Display paid cards information
+                    if paid_cards_info:
+                        lines.append("\nPAID SUPPLEMENTARY CARDS (3rd and subsequent):")
+                        for card_name, formatted_amount in paid_cards_info:
+                            if "platinum" in card_name.lower() and "visa" in card_name.lower():
+                                lines.append(f"  • {card_name}: {formatted_amount} per year (for 3rd and subsequent cards)")
+                            else:
+                                lines.append(f"  • {card_name}: {formatted_amount} per year")
+                    
+                    # Add summary note
+                    if "platinum" in query_lower and "visa" in query_lower:
+                        lines.append("\n" + "="*70)
+                        lines.append("SUMMARY FOR VISA PLATINUM SUPPLEMENTARY CARDS:")
+                        lines.append("- First 2 supplementary cards: FREE")
+                        lines.append("- 3rd and subsequent supplementary cards: BDT 2,300 per year")
+                        lines.append("="*70)
+                    
+                    lines.append("")
+                    # Remove supplementary from charge_groups so we don't show it twice
+                    charge_groups = {k: v for k, v in charge_groups.items() if "SUPPLEMENTARY" not in k.upper() and "supplementary" not in k.lower()}
             
             # Format grouped results
             for charge_type, items in charge_groups.items():
@@ -1002,6 +1505,29 @@ When responding:
             lines.append("\n" + "=" * 70)
             lines.append("IMPORTANT: The above information is from the official Card Charges and Fees Schedule.")
             lines.append("This data is authoritative and should be used to answer card fee/rate questions.")
+            if is_supplementary_query:
+                lines.append("")
+                lines.append("=" * 70)
+                lines.append("🚨 CRITICAL INSTRUCTION FOR SUPPLEMENTARY CARD QUERIES 🚨")
+                lines.append("=" * 70)
+                lines.append("You MUST include BOTH pieces of information in your response:")
+                lines.append("")
+                lines.append("1. FREE SUPPLEMENTARY CARDS:")
+                lines.append("   - The FIRST 2 supplementary cards are FREE (no annual fee)")
+                lines.append("   - This applies to the first 2 additional cards issued to family members")
+                lines.append("")
+                lines.append("2. PAID SUPPLEMENTARY CARDS (3rd and subsequent):")
+                lines.append("   - Starting from the 3rd supplementary card, there IS an annual fee")
+                lines.append("   - For VISA Platinum credit cards: BDT 2,300 per year")
+                lines.append("   - This fee applies to EACH additional supplementary card beyond the first 2")
+                lines.append("")
+                lines.append("EXAMPLE CORRECT RESPONSE:")
+                lines.append("'For VISA Platinum credit cards, the first 2 supplementary cards are free.")
+                lines.append("Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year.'")
+                lines.append("")
+                lines.append("DO NOT say 'BDT 0 per year' without mentioning the fee for 3rd+ cards.")
+                lines.append("DO NOT say 'no annual fee' without clarifying it's only for the first 2 cards.")
+                lines.append("=" * 70)
             lines.append("=" * 70)
             lines.append("")
             
@@ -1013,18 +1539,48 @@ When responding:
             logger.error(f"[CARD_RATES] Error calling card rates service: {e}")
             return ""
     
-    def _format_lightrag_context(self, lightrag_response: Dict[str, Any]) -> str:
-        """Format LightRAG response into context string"""
+    def _format_lightrag_context(
+        self, 
+        lightrag_response: Dict[str, Any],
+        filter_financial_docs: bool = False
+    ) -> tuple[str, list[str]]:
+        """
+        Format LightRAG response into context string and extract sources.
+        
+        Args:
+            lightrag_response: Response from LightRAG
+            filter_financial_docs: If True, exclude chunks from annual reports/financial statements
+        
+        Returns: (context_string, sources_list)
+        """
         context_parts = []
+        sources = []
+        seen_sources = set()  # To avoid duplicates
+        excluded_count = 0  # Track how many chunks were excluded
         
         # PRIORITY 1: If we have a full response (only_need_context=False), use it directly
         # This is the most complete and formatted answer from LightRAG
         if "response" in lightrag_response and lightrag_response.get("response"):
             response_text = lightrag_response["response"]
             # If response is a complete answer (not just a prompt template), use it
+            # BUT: If filtering financial docs, check if response mentions financial content
             if response_text and not response_text.strip().startswith("---Role---"):
-                context_parts.append("Source Data:")
-                context_parts.append(response_text)
+                # For organizational overview queries, skip response if it's clearly financial
+                if filter_financial_docs:
+                    response_lower = response_text.lower()
+                    # Check if response is heavily financial-focused
+                    financial_indicators = ['annual report', 'financial statement', 'balance sheet', 
+                                          'income statement', 'cash flow', 'audit', 'subsidiary',
+                                          'fair value', 'valuation', 'board of directors report']
+                    if any(indicator in response_lower for indicator in financial_indicators):
+                        logger.info(f"[FILTER] Excluding response text (contains financial content)")
+                        # Don't add response, fall through to chunks
+                    else:
+                        context_parts.append("Source Data:")
+                        context_parts.append(response_text)
+                else:
+                    context_parts.append("Source Data:")
+                    context_parts.append(response_text)
                 # Still include entities/relationships/chunks if available for additional context
             else:
                 # Response is a prompt template, fall through to extract structured data
@@ -1064,7 +1620,7 @@ When responding:
                         if source and relation and target:
                             context_parts.append(f"- {source} → {relation} → {target}")
         
-        # Extract document chunks
+        # Extract document chunks and their sources
         if "chunks" in lightrag_response:
             chunks = lightrag_response.get("chunks", [])
             if chunks:
@@ -1074,22 +1630,91 @@ When responding:
                     context_parts.append("\n\nOriginal Texts From Document Chunks(DC):")
                 for chunk in chunks[:10]:  # Limit to top 10
                     if isinstance(chunk, dict):
+                        # Extract source from chunk metadata first (for filtering)
+                        # Try multiple possible field names for source
+                        source = (
+                            chunk.get("source") or 
+                            chunk.get("file_name") or 
+                            chunk.get("document") or 
+                            chunk.get("file") or
+                            chunk.get("doc_name") or
+                            ""
+                        )
+                        
+                        # CRITICAL: Filter out financial documents if requested (for org overview queries)
+                        if filter_financial_docs and source and self._is_financial_document(source):
+                            excluded_count += 1
+                            logger.info(f"[FILTER] Excluding chunk from financial document: {source}")
+                            continue  # Skip this chunk
+                        
                         text = chunk.get("text", chunk.get("content", ""))
                         if text:
                             context_parts.append(f"- {text}")
+                        
+                        # Add source to sources list (only if not filtered)
+                        if source and source not in seen_sources:
+                            seen_sources.add(source)
+                            sources.append(source)
+                            logger.info(f"[SOURCES] Extracted source from chunk: {source}")
+                
+                # Log filtering results
+                if filter_financial_docs and excluded_count > 0:
+                    logger.info(f"[FILTER] Excluded {excluded_count} chunks from annual reports/financial statements")
+        
+        # Extract references if available (separate from chunks)
+        # CRITICAL: Filter out financial document references for org overview queries
+        if "references" in lightrag_response:
+            references = lightrag_response.get("references", [])
+            for ref in references:
+                if isinstance(ref, str):
+                    # Filter financial documents
+                    if filter_financial_docs and self._is_financial_document(ref):
+                        logger.info(f"[FILTER] Excluding reference from financial document: {ref}")
+                        continue
+                    if ref not in seen_sources:
+                        seen_sources.add(ref)
+                        sources.append(ref)
+                elif isinstance(ref, dict):
+                    source = ref.get("source", ref.get("file_name", ref.get("document", "")))
+                    # Filter financial documents
+                    if filter_financial_docs and self._is_financial_document(source):
+                        logger.info(f"[FILTER] Excluding reference from financial document: {source}")
+                        continue
+                    if source and source not in seen_sources:
+                        seen_sources.add(source)
+                        sources.append(source)
         
         # Final fallback: use response text even if it looks like a prompt
         if not context_parts and "response" in lightrag_response:
             context_parts.append(lightrag_response["response"])
         
-        return "\n".join(context_parts) if context_parts else ""
+        context_str = "\n".join(context_parts) if context_parts else ""
+        return context_str, sources
     
-    def _improve_query_for_lightrag(self, query: str) -> str:
+    def _improve_query_for_lightrag(self, query: str, is_card_rates_query: bool = False) -> str:
         """
         Improve query phrasing for better LightRAG results
         Converts conversational queries into more specific, search-friendly formats
+        Expands synonyms to improve semantic matching
         """
         query_lower = query.lower().strip()
+        improved_query = query
+        
+        # CRITICAL: Organizational overview queries - enhance to retrieve customer-facing content
+        # Add keywords that help LightRAG find customer-facing info, not financial/investor content
+        if self._is_organizational_overview_query(query):
+            # Enhance query to bias retrieval toward customer-facing content
+            # Add terms that are more likely in customer-facing docs vs annual reports
+            customer_facing_keywords = "banking services accounts loans cards digital platforms EBLConnect customer"
+            improved_query = f"{query} {customer_facing_keywords}"
+            logger.info(f"[QUERY_ENHANCE] Enhanced organizational overview query with customer-facing keywords")
+        
+        # Note: LightRAG uses semantic search, so it should handle synonyms automatically
+        # However, we log when we detect synonym-using queries for monitoring
+        import re
+        synonym_terms = ['credited', 'paid', 'deposited', 'fee', 'charge', 'rate', 'frequency', 'schedule']
+        if any(term in query_lower for term in synonym_terms):
+            logger.info(f"[QUERY_SYNONYM] Query contains synonym terms: '{query[:80]}' - LightRAG semantic search should handle this")
         
         # Priority center queries - make them more specific
         if 'priority center' in query_lower or 'priority centre' in query_lower:
@@ -1100,7 +1725,7 @@ When responding:
                     return "How many Priority centers are there in Sylhet City and what are their details?"
             elif 'how many' in query_lower or 'number' in query_lower:
                 # Already specific enough
-                return query
+                return improved_query
         
         # Location-based queries - make them more specific
         if 'tell me about' in query_lower and ('center' in query_lower or 'centre' in query_lower):
@@ -1110,15 +1735,25 @@ When responding:
                 if loc in query_lower:
                     return f"What are the Priority Centers in {loc.capitalize()}? How many Priority Centers are in {loc.capitalize()}?"
         
-        # Return original query if no improvements needed
-        return query
+        # Return improved query
+        return improved_query
     
     async def _get_lightrag_context(
         self,
         query: str,
-        knowledge_base: Optional[str] = None
-    ) -> str:
-        """Get context from LightRAG (with caching)"""
+        knowledge_base: Optional[str] = None,
+        filter_financial_docs: bool = False
+    ) -> tuple[str, list[str]]:
+        """
+        Get context from LightRAG (with caching)
+        
+        Args:
+            query: The query string
+            knowledge_base: Knowledge base to query
+            filter_financial_docs: If True, exclude annual reports/financial statements from chunks
+        
+        Returns: (context_string, sources_list)
+        """
         kb = knowledge_base or settings.LIGHTRAG_KNOWLEDGE_BASE
         
         # Improve query phrasing for better results
@@ -1132,13 +1767,14 @@ When responding:
         cached = await self.redis_cache.get(cache_key)
         if cached:
             logger.info(f"Cache HIT for query: {improved_query[:50]}... (key: {cache_key})")
-            return self._format_lightrag_context(cached)
+            context, sources = self._format_lightrag_context(cached, filter_financial_docs=filter_financial_docs)
+            return context, sources
         
         logger.info(f"Cache MISS for query: {improved_query[:50]}... (key: {cache_key})")
         
         # Query LightRAG
         try:
-            logger.info(f"Querying LightRAG for: {improved_query[:50]}... (knowledge_base: {kb})")
+            logger.info(f"Querying LightRAG for: {improved_query[:50]}... (knowledge_base: {kb}, filter_financial={filter_financial_docs})")
             response = await self.lightrag_client.query(
                 query=improved_query,
                 knowledge_base=kb,
@@ -1155,7 +1791,8 @@ When responding:
             # Cache the response (using improved query for cache key)
             await self.redis_cache.set(cache_key, response)
             
-            return self._format_lightrag_context(response)
+            context, sources = self._format_lightrag_context(response, filter_financial_docs=filter_financial_docs)
+            return context, sources
         except Exception as e:
             error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
             logger.error(f"LightRAG query failed: {error_msg}")
@@ -1163,7 +1800,7 @@ When responding:
             logger.error(f"Query: {query[:100]}")
             
             # Return empty context on error (chatbot will still respond, just without LightRAG context)
-            return ""
+            return "", []
     
     def _build_messages(
         self,
@@ -1189,14 +1826,83 @@ When responding:
             current_datetime = self._get_current_datetime()
             datetime_info = f"\n\nCurrent Date and Time: {current_datetime}"
         
+        # Initialize reminder variables
+        org_overview_reminder = ""
+        partial_info_reminder = ""
+        currency_reminder = ""
+        bank_name_reminder = ""
+        conciseness_reminder = ""
+        semantic_reminder = ""
+        followup_reminder = ""
+        supplementary_card_reminder = ""
+        
         # Add current query with context
         if context:
-            # Add currency preservation reminder if card rates context is present
-            currency_reminder = ""
-            if "OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context:
-                currency_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL CURRENCY RULE 🚨\n" + "="*70 + "\nThe context above contains currency codes like 'BDT' and 'USD'. You MUST use the EXACT currency code from the context.\n\nEXAMPLES:\n- If context shows 'BDT 287.5', you MUST output 'BDT 287.5' (NOT ₹287.5)\n- If context shows 'BDT 1,725', you MUST output 'BDT 1,725' (NOT ₹1,725)\n- If context shows 'USD 57.5', you MUST output 'USD 57.5'\n\nNEVER replace BDT with ₹ or any other currency symbol. BDT = Bangladeshi Taka.\n" + "="*70
+            # Check if this is a supplementary card query
+            query_lower = query.lower()
+            is_supplementary_query = "supplementary" in query_lower and ("fee" in query_lower or "annual" in query_lower)
             
-            user_message = f"Context from knowledge base:\n{context}\n\nUser query: {query}{datetime_info}{currency_reminder}"
+            # Add supplementary card reminder if context contains fee-engine data
+            if is_supplementary_query and ("OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context):
+                supplementary_card_reminder = "\n\n" + "="*70 + "\n💳 CRITICAL SUPPLEMENTARY CARD FEE RULE 💳\n" + "="*70 + "\n**MANDATORY**: The user is asking about SUPPLEMENTARY card fees for VISA Platinum.\n\n**CRITICAL REQUIREMENT: You MUST ALWAYS include BOTH pieces of information:**\n1. The first 2 supplementary cards are FREE (BDT 0 per year)\n2. Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n\n**IF the context above contains information about 'supplementary card annual fee':**\n- You MUST use that information directly\n- You MUST mention BOTH the free cards (first 2) AND the paid cards (3rd+)\n- Do NOT say only 'BDT 0 per year' or 'no annual fee' without mentioning the fee for 3rd+ cards\n- Do NOT say 'the context does not provide specific information about supplementary cards'\n- Do NOT say 'I recommend contacting the bank directly' if the context has the fee\n\n**EXAMPLE CORRECT RESPONSE:**\n'For VISA Platinum credit cards, the first 2 supplementary cards are free (BDT 0 per year). Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. This fee applies to each additional supplementary card beyond the first 2.'\n\n**EXAMPLE WRONG RESPONSE:**\n'The annual fee for a supplementary VISA Platinum credit card is BDT 0 per year.' ← MISSING: fee for 3rd+ cards\n\n**EXAMPLE WRONG RESPONSE:**\n'The annual fee for the primary card is BDT X. However, the context does not provide specific information about supplementary cards.'\n" + "="*70
+            
+            # Check if this is an organizational overview query
+            is_org_overview = self._is_organizational_overview_query(query)
+            
+            # Add organizational overview filtering reminder
+            if is_org_overview:
+                org_overview_reminder = "\n\n" + "="*70 + "\n🏦 ORGANIZATIONAL OVERVIEW QUERY - CRITICAL FILTERING RULES 🏦\n" + "="*70 + "\n**MANDATORY**: This is a GENERAL/CUSTOMER-FACING overview query about Eastern Bank PLC.\n\n**INCLUDE ONLY:**\n- Establishment year\n- Country of operation\n- Core banking services (accounts, loans, cards, etc.)\n- Major customer-facing platforms (e.g., EBLConnect)\n\n**EXCLUDE (DO NOT USE):**\n- Annual report details\n- Accounting, valuation, fair value discussions\n- Subsidiaries' financial treatments\n- Management/board-level analysis\n- Investor, audit, or regulatory document content\n\n**IF MIXED CONTENT IS RETRIEVED:**\n- Prefer customer-facing content\n- Discard investor/financial-statement-only information\n- Keep tone neutral, concise, and informational (NOT marketing, NOT investor-focused)\n\n**EXAMPLE CORRECT RESPONSE:**\n'Eastern Bank PLC. was established in [year] and operates in Bangladesh. It offers core banking services including savings accounts, current accounts, loans, credit cards, and digital banking platforms like EBLConnect.'\n\n**EXAMPLE WRONG RESPONSE:**\n'Eastern Bank PLC. reported total assets of BDT X in the annual report... [financial details]... The bank's subsidiaries are accounted for using... [accounting details]'\n" + "="*70
+            
+            # Add partial information handling reminder - CRITICAL
+            query_lower = query.lower()
+            # Check if query asks for specific detail (minimum balance, interest rate, fee, etc.)
+            specific_detail_indicators = ['minimum', 'balance', 'interest', 'rate', 'fee', 'charge', 'amount', 'requirement', 'eligibility']
+            if any(indicator in query_lower for indicator in specific_detail_indicators):
+                # Check if context mentions the product/account/service
+                product_indicators = ['super hpa', 'hpa account', 'account', 'card', 'loan', 'product', 'service']
+                if any(indicator in context.lower() for indicator in product_indicators):
+                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
+            
+            # Add currency preservation reminder if card rates context is present
+            if "OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context:
+                currency_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL CURRENCY RULE 🚨\n" + "="*70 + "\nThe context above contains currency codes like 'BDT' and 'USD'. You MUST use the EXACT currency code from the context.\n\nEXAMPLES:\n- If context shows 'BDT 287.5', you MUST output 'BDT 287.5' (NOT ₹287.5)\n- If context shows 'BDT 1,725', you MUST output 'BDT 1,725' (NOT ₹1,725)\n- If context shows 'USD 57.5', you MUST output 'USD 57.5'\n\nNEVER replace BDT with ₹ or any other currency symbol. BDT = Bangladeshi Taka.\n\n**CONCISENESS RULE**: For monetary values in Bangladesh, use ONE format only (BDT + Lakhs) and state it ONCE. Do NOT repeat the amount in different formats or in explanation text.\n" + "="*70
+            
+            # Add bank name reminder if context mentions "Eastern Bank Limited"
+            if "Eastern Bank Limited" in context or "Eastern Bank Ltd" in context or "Eastern Bank PLC" in context:
+                bank_name_reminder = "\n\n" + "="*70 + "\n🏦 CRITICAL BANK NAME RULE 🏦\n" + "="*70 + "\n**MANDATORY**: The bank name is ALWAYS 'Eastern Bank PLC.' (with a period, NOT 'Eastern Bank Limited' or 'Eastern Bank Ltd.').\n\nIf the context mentions 'Eastern Bank Limited' or 'Eastern Bank Ltd.', you MUST replace it with 'Eastern Bank PLC.' in your response.\n\nAlways use 'Eastern Bank PLC.' (with period) or 'EBL' when referring to the bank.\n" + "="*70
+            
+            # Add conciseness reminder for monetary values and general conciseness
+            has_monetary_terms = any(term in context.lower() for term in ['bdt', 'lakh', 'lakhs', 'crore', 'taka', 'tk'])
+            # Also trigger for "tell me more" type queries
+            query_lower_for_conciseness = query.lower()
+            is_general_query = any(phrase in query_lower_for_conciseness for phrase in ['tell me more', 'tell me about', 'what is', 'explain', 'describe'])
+            
+            if has_monetary_terms or is_general_query:
+                conciseness_reminder = "\n\n" + "="*70 + "\n📝 CRITICAL CONCISENESS RULES - READ CAREFULLY 📝\n" + "="*70 + "\n**MANDATORY RULES - VIOLATIONS ARE FORBIDDEN:**\n\n1. **Product/Account Names**:\n   - Mention the name ONCE at the beginning (e.g., 'Special Notice Deposit (SND) accounts')\n   - Then use ONLY: 'it', 'this account', 'this product', 'the account', 'they' (for plural)\n   - FORBIDDEN: Repeating the full product name in subsequent sentences\n\n2. **FORBIDDEN FILLER PHRASES - NEVER USE THESE:**\n   - 'making them an excellent choice'\n   - 'demonstrate EBL's commitment'\n   - 'form an integral part'\n   - 'making them a critical part'\n   - 'In essence', 'As per'\n   - 'These accounts are a testament to'\n   - 'substantial popularity'\n   - 'considerable balances'\n   - 'wide range'\n   - 'diverse needs'\n   - 'commitment to providing'\n\n3. **FORBIDDEN MARKETING LANGUAGE - NEVER USE:**\n   - 'excellent choice', 'substantial', 'considerable', 'wide range', 'diverse', 'commitment', 'demonstrate', 'testament to'\n\n4. **Response Style**:\n   - Be direct: State what it IS and what it DOES\n   - Keep it to 2-4 sentences for 'tell me more' queries\n   - Focus on key features and facts, not marketing language\n   - Do NOT restate the same information in different sentences\n\n5. **Monetary Values (if applicable)**:\n   - Use ONE format: 'BDT X lakhs'\n   - State ONCE only\n\n**EXAMPLE CORRECT (2 sentences):**\n'Special Notice Deposit (SND) accounts are short-term deposit accounts for businesses requiring limited notice for withdrawals. They help manage liquidity while earning interest on short-term savings.'\n\n**EXAMPLE WRONG (repetitive, filler phrases, marketing language):**\n'Special Notice Deposit (SND) accounts are a type of savings account... These accounts have gained substantial popularity... SND accounts are part of EBL's wide range... These accounts demonstrate EBL's commitment... making them a critical part...'\n" + "="*70
+            
+            # Add semantic matching reminder for banking terms
+            query_lower = query.lower()
+            # Check if query contains terms that might have synonyms in context
+            if any(term in query_lower for term in ['credited', 'paid', 'deposited', 'fee', 'charge', 'rate', 'frequency', 'schedule']):
+                semantic_reminder = "\n\n" + "="*70 + "\n🔍 SEMANTIC MATCHING REMINDER 🔍\n" + "="*70 + "\nThe user's question may use different words than the context. Recognize semantic equivalents:\n- 'credited' = 'paid' = 'deposited' (all mean interest added to account)\n- 'fee' = 'charge' = 'cost'\n- 'rate' = 'interest rate'\n- 'frequency' = 'schedule' = 'how often' = 'when'\n\nIf the context uses 'paid' but user asks about 'credited', they mean the same thing. Use the information from context.\n" + "="*70
+            
+            # Add follow-up question reminder if conversation history exists
+            if conversation_history and len(conversation_history) > 0:
+                # Check if this looks like a follow-up question
+                followup_indicators = ['after', 'how many', 'what is', 'when', 'how often', 'how much']
+                if any(indicator in query_lower for indicator in followup_indicators):
+                    # Extract previous topic from conversation history
+                    prev_topics = []
+                    for msg in conversation_history[-4:]:  # Check last 4 messages
+                        content = msg.get("message", "").lower()
+                        # Look for account/product names
+                        if any(term in content for term in ['account', 'card', 'loan', 'deposit', 'hpa', 'super']):
+                            prev_topics.append(content[:100])  # First 100 chars
+                    
+                    if prev_topics:
+                        followup_reminder = "\n\n" + "="*70 + "\n📝 FOLLOW-UP QUESTION CONTEXT 📝\n" + "="*70 + f"\nThis appears to be a follow-up question. Previous conversation mentioned:\n{chr(10).join(prev_topics[:2])}\n\nTreat the current question as related to the same topic from previous conversation.\n" + "="*70
+            
+            user_message = f"Context from knowledge base:\n{context}\n\nUser query: {query}{datetime_info}{org_overview_reminder}{partial_info_reminder}{currency_reminder}{bank_name_reminder}{conciseness_reminder}{semantic_reminder}{followup_reminder}{supplementary_card_reminder}"
         else:
             user_message = f"{query}{datetime_info}"
         
@@ -1302,63 +2008,59 @@ When responding:
         logger.info(f"[ROUTING] ===== Processing Query (STREAMING): '{query}' =====")
         logger.info(f"[ROUTING] CODE VERSION: Corporate customer routing fix v2.0 - includes 'in the case of' pattern")
         
-        # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries FIRST
-        # These should go to LightRAG, NOT phonebook
-        is_banking_product_query = self._is_banking_product_query(query)
-        is_compliance_query = self._is_compliance_query(query)
-        is_management_query = self._is_management_query(query)
-        is_financial_query = self._is_financial_report_query(query)
-        is_milestone_query = self._is_milestone_query(query)
-        is_user_doc_query = self._is_user_document_query(query)
+        # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
+        # These should ALWAYS go to phonebook, never LightRAG
+        is_small_talk = self._is_small_talk(query)
+        is_contact_query = self._is_contact_info_query(query)
+        is_phonebook_query = self._is_phonebook_query(query)
+        is_employee_query = self._is_employee_query(query)
         
-        # Log all routing checks
-        logger.info(f"[ROUTING] Routing checks - banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
-        
-        # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
-        if is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
-            routing_type = []
-            if is_banking_product_query:
-                routing_type.append("banking_product")
-            if is_compliance_query:
-                routing_type.append("compliance")
-            if is_management_query:
-                routing_type.append("management")
-            if is_financial_query:
-                routing_type.append("financial")
-            if is_milestone_query:
-                routing_type.append("milestone")
-            if is_user_doc_query:
-                routing_type.append("user_doc")
-            logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
-            should_check_phonebook = False
-            is_phonebook_query = False
-            is_contact_query = False
-            is_employee_query = False
-            is_small_talk = False
+        # If it's a phonebook/employee/contact query, route to phonebook immediately
+        if (is_phonebook_query or is_contact_query or is_employee_query) and not is_small_talk and PHONEBOOK_DB_AVAILABLE:
+            logger.info(f"[ROUTING] ✓ Query detected as phonebook/contact/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
+            should_check_phonebook = True
         else:
-            # Check PostgreSQL phonebook FIRST for ANY contact-related query
-            # This ensures contact queries NEVER go to LightRAG - always check phonebook first
-            is_small_talk = self._is_small_talk(query)
-            is_contact_query = self._is_contact_info_query(query)
-            is_phonebook_query = self._is_phonebook_query(query)
-            is_employee_query = self._is_employee_query(query)
+            # CRITICAL: Check for organizational overview queries (these need special filtering)
+            is_org_overview_query = self._is_organizational_overview_query(query)
             
-            # Log contact-related checks
-            logger.info(f"[ROUTING] Contact checks - small_talk={is_small_talk}, contact={is_contact_query}, phonebook={is_phonebook_query}, employee={is_employee_query}, phonebook_available={PHONEBOOK_DB_AVAILABLE}")
+            # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries
+            # These should go to LightRAG, NOT phonebook
+            is_banking_product_query = self._is_banking_product_query(query)
+            is_compliance_query = self._is_compliance_query(query)
+            is_management_query = self._is_management_query(query)
+            is_financial_query = self._is_financial_report_query(query)
+            is_milestone_query = self._is_milestone_query(query)
+            is_user_doc_query = self._is_user_document_query(query)
             
-            # If it's any kind of contact/phonebook/employee query, ALWAYS check phonebook first
-            should_check_phonebook = (
-                (is_phonebook_query or is_contact_query or is_employee_query) 
-                and not is_small_talk 
-                and PHONEBOOK_DB_AVAILABLE
-            )
+            # Log all routing checks
+            logger.info(f"[ROUTING] Routing checks - org_overview={is_org_overview_query}, banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
             
-            if should_check_phonebook:
-                logger.info(f"[ROUTING] ✓ Query detected as contact/phonebook/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
+            # If it's an organizational overview query, route to LightRAG but with special filtering instructions
+            # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
+            if is_org_overview_query or is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
+                routing_type = []
+                if is_org_overview_query:
+                    routing_type.append("org_overview")
+                if is_banking_product_query:
+                    routing_type.append("banking_product")
+                if is_compliance_query:
+                    routing_type.append("compliance")
+                if is_management_query:
+                    routing_type.append("management")
+                if is_financial_query:
+                    routing_type.append("financial")
+                if is_milestone_query:
+                    routing_type.append("milestone")
+                if is_user_doc_query:
+                    routing_type.append("user_doc")
+                logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
+                should_check_phonebook = False
             elif is_small_talk:
                 logger.info(f"[ROUTING] ✓ Query detected as small talk → ROUTING TO OPENAI (no LightRAG)")
+                should_check_phonebook = False
             else:
                 logger.info(f"[ROUTING] ✓ Query not matched to special categories → ROUTING TO LIGHTRAG (default)")
+                should_check_phonebook = False
         
         logger.info(f"[ROUTING] Final decision - will_check_phonebook={should_check_phonebook}, will_use_lightrag={not should_check_phonebook and not is_small_talk}")
         
@@ -1368,13 +2070,29 @@ When responding:
                 phonebook_db = get_phonebook_db()
                 
                 # Extract search term from query
+                # For role-based queries like "branch manager of X", preserve the full context
                 import re
-                search_term = re.sub(
-                    r'\b(phone|contact|number|email|address|mobile|telephone|of|for|the)\b', 
-                    '', 
-                    query, 
-                    flags=re.IGNORECASE
-                ).strip()
+                query_lower = query.lower()
+                
+                # Check if it's a role + location query (e.g., "branch manager of Gulshan")
+                role_location_pattern = r'(branch\s+)?manager\s+(of|at)\s+(.+?)(?:\s+branch)?$'
+                match = re.search(role_location_pattern, query_lower)
+                if match:
+                    # Extract location/branch name
+                    location = match.group(3).strip()
+                    role = match.group(1) + "manager" if match.group(1) else "manager"
+                    search_term = f"{role} {location}"
+                    logger.info(f"[PHONEBOOK] Extracted role+location query: '{search_term}' from '{query}'")
+                else:
+                    # Standard extraction: remove common words but preserve role and location terms
+                    search_term = re.sub(
+                        r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were)\b', 
+                        '', 
+                        query, 
+                        flags=re.IGNORECASE
+                    ).strip()
+                    # Clean up multiple spaces
+                    search_term = re.sub(r'\s+', ' ', search_term)
                 
                 # Try multiple search strategies
                 results = phonebook_db.smart_search(search_term, limit=5)
@@ -1504,6 +2222,7 @@ When responding:
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
+        sources = []
         card_rates_context = ""
         
         if not is_small_talk:
@@ -1539,29 +2258,57 @@ When responding:
                     return  # Don't query LightRAG if entities are missing
             
             # If it's a card rates query, call card rates microservice for deterministic numbers
-            if self._is_card_rates_query(query):
-                logger.info(f"[CARD_RATES] Detected card rates query: '{query}'")
+            # CRITICAL: For card rates queries, ONLY use the microservice, skip LightRAG
+            is_card_rates_query = self._is_card_rates_query(query)
+            if is_card_rates_query:
+                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using ONLY card rates microservice (skipping LightRAG)")
                 card_rates_context = await self._get_card_rates_context(query)
                 if card_rates_context:
                     logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
+                    # Add card rates source
+                    if "Card Charges and Fees Schedule" not in sources:
+                        sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
+                    # Skip LightRAG for card rates queries - use ONLY microservice data
+                    context = ""  # Don't use LightRAG for card rates queries
+                    logger.info(f"[CARD_RATES] Using ONLY card rates microservice data, skipping LightRAG")
                 else:
-                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}'")
-            
-            # Smart routing: determine which knowledge base to use based on query content
-            # This prevents confusion between financial reports and user documents
-            if knowledge_base is None:
-                knowledge_base = self._get_knowledge_base(query)
-            
-            logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
-            context = await self._get_lightrag_context(query, knowledge_base)
-            if context:
-                logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars)")
+                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}' - will still skip LightRAG")
+                    context = ""  # Even if microservice fails, don't use LightRAG for card rates queries
             else:
-                logger.warning(f"[ROUTING] LightRAG returned empty context")
+                # For non-card-rates queries, use LightRAG as normal
+                # Smart routing: determine which knowledge base to use based on query content
+                # This prevents confusion between financial reports and user documents
+                if knowledge_base is None:
+                    knowledge_base = self._get_knowledge_base(query)
+                
+                logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
+                # CRITICAL: Filter financial documents for organizational overview queries
+                filter_financial = self._is_organizational_overview_query(query)
+                context, lightrag_sources = await self._get_lightrag_context(query, knowledge_base, filter_financial_docs=filter_financial)
+                sources.extend(lightrag_sources)  # Add LightRAG sources
+                if context:
+                    logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars, sources: {len(lightrag_sources)}, filtered_financial={filter_financial})")
+                else:
+                    logger.warning(f"[ROUTING] LightRAG returned empty context")
+                
+                # If no sources found but we have context, add knowledge base name as fallback source
+                if not sources and context and knowledge_base:
+                    sources.append(f"Knowledge Base: {knowledge_base}")
+                    logger.info(f"[SOURCES] Added knowledge base name as fallback source: {knowledge_base}")
         
         # Combine card rates context (if any) with LightRAG context
+        # CRITICAL: For card rates queries, use ONLY card rates context (don't combine with LightRAG)
         combined_context = ""
-        if card_rates_context and context:
+        if is_card_rates_query:
+            # For card rates queries, use ONLY microservice data
+            if card_rates_context:
+                combined_context = card_rates_context
+                logger.info(f"[CARD_RATES] Using ONLY card rates context: {len(card_rates_context)} chars (LightRAG skipped)")
+            else:
+                combined_context = ""  # Even if empty, don't use LightRAG for card rates queries
+                logger.warning(f"[CARD_RATES] No card rates context available - response will indicate missing information")
+        elif card_rates_context and context:
+            # For non-card-rates queries, combine both if available
             combined_context = f"{card_rates_context}\n\n{context}"
             logger.info(f"[CARD_RATES] Combined context: card_rates={len(card_rates_context)} chars, lightrag={len(context)} chars")
         elif card_rates_context:
@@ -1596,17 +2343,24 @@ When responding:
             )
             
             async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_response += content
-                    # Clean markdown formatting from content before yielding
-                    cleaned_content = self._clean_markdown_formatting(content)
-                    # Fix currency symbols if needed (use combined_context if available)
-                    if hasattr(self, '_last_combined_context'):
-                        cleaned_content = self._fix_currency_symbols(cleaned_content, self._last_combined_context)
-                    yield cleaned_content
+                try:
+                    if chunk.choices and len(chunk.choices) > 0 and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        # Clean markdown formatting from content before yielding
+                        cleaned_content = self._clean_markdown_formatting(content)
+                        # Fix currency symbols if needed (use combined_context if available)
+                        if hasattr(self, '_last_combined_context'):
+                            cleaned_content = self._fix_currency_symbols(cleaned_content, self._last_combined_context)
+                        # Fix bank name (replace "Eastern Bank Limited" with "Eastern Bank PLC.")
+                        cleaned_content = self._fix_bank_name(cleaned_content)
+                        yield cleaned_content
+                except Exception as chunk_error:
+                    logger.error(f"Error processing chunk: {chunk_error}", exc_info=True)
+                    # Continue processing other chunks instead of breaking
+                    continue
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.error(f"OpenAI API error: {e}", exc_info=True)
             error_message = "I apologize, but I'm experiencing technical difficulties. Please try again later."
             yield error_message
             full_response = error_message
@@ -1615,6 +2369,19 @@ When responding:
         full_response = self._clean_markdown_formatting(full_response)
         # Fix currency symbols as a safety net
         full_response = self._fix_currency_symbols(full_response, combined_context)
+        # Fix bank name (replace "Eastern Bank Limited" with "Eastern Bank PLC")
+        full_response = self._fix_bank_name(full_response)
+        
+        # Store sources for later retrieval (we'll send them at the end of stream)
+        # For now, we'll append sources as a special marker that frontend can parse
+        if sources:
+            # Send sources as a special JSON chunk at the end
+            import json
+            sources_json = json.dumps({"type": "sources", "sources": sources})
+            logger.info(f"[SOURCES] Sending {len(sources)} sources: {sources[:3]}...")  # Log first 3 for debugging
+            yield f"\n\n__SOURCES__{sources_json}__SOURCES__"
+        else:
+            logger.info(f"[SOURCES] No sources to send for query: '{query[:50]}...'")
         
         # Save assistant response
         db = get_db()
@@ -1680,63 +2447,59 @@ When responding:
         # ===== ROUTING DECISION LOGGING =====
         logger.info(f"[ROUTING] ===== Processing Query (SYNC): '{query}' =====")
         
-        # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries FIRST
-        # These should go to LightRAG, NOT phonebook
-        is_banking_product_query = self._is_banking_product_query(query)
-        is_compliance_query = self._is_compliance_query(query)
-        is_management_query = self._is_management_query(query)
-        is_financial_query = self._is_financial_report_query(query)
-        is_milestone_query = self._is_milestone_query(query)
-        is_user_doc_query = self._is_user_document_query(query)
+        # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
+        # These should ALWAYS go to phonebook, never LightRAG
+        is_small_talk = self._is_small_talk(query)
+        is_contact_query = self._is_contact_info_query(query)
+        is_phonebook_query = self._is_phonebook_query(query)
+        is_employee_query = self._is_employee_query(query)
         
-        # Log all routing checks
-        logger.info(f"[ROUTING] Routing checks - banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
-        
-        # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
-        if is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
-            routing_type = []
-            if is_banking_product_query:
-                routing_type.append("banking_product")
-            if is_compliance_query:
-                routing_type.append("compliance")
-            if is_management_query:
-                routing_type.append("management")
-            if is_financial_query:
-                routing_type.append("financial")
-            if is_milestone_query:
-                routing_type.append("milestone")
-            if is_user_doc_query:
-                routing_type.append("user_doc")
-            logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
-            should_check_phonebook = False
-            is_phonebook_query = False
-            is_contact_query = False
-            is_employee_query = False
-            is_small_talk = False
+        # If it's a phonebook/employee/contact query, route to phonebook immediately
+        if (is_phonebook_query or is_contact_query or is_employee_query) and not is_small_talk and PHONEBOOK_DB_AVAILABLE:
+            logger.info(f"[ROUTING] ✓ Query detected as phonebook/contact/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
+            should_check_phonebook = True
         else:
-            # Check PostgreSQL phonebook FIRST for ANY contact-related query
-            # This ensures contact queries NEVER go to LightRAG - always check phonebook first
-            is_small_talk = self._is_small_talk(query)
-            is_contact_query = self._is_contact_info_query(query)
-            is_phonebook_query = self._is_phonebook_query(query)
-            is_employee_query = self._is_employee_query(query)
+            # CRITICAL: Check for organizational overview queries (these need special filtering)
+            is_org_overview_query = self._is_organizational_overview_query(query)
             
-            # Log contact-related checks
-            logger.info(f"[ROUTING] Contact checks - small_talk={is_small_talk}, contact={is_contact_query}, phonebook={is_phonebook_query}, employee={is_employee_query}, phonebook_available={PHONEBOOK_DB_AVAILABLE}")
+            # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries
+            # These should go to LightRAG, NOT phonebook
+            is_banking_product_query = self._is_banking_product_query(query)
+            is_compliance_query = self._is_compliance_query(query)
+            is_management_query = self._is_management_query(query)
+            is_financial_query = self._is_financial_report_query(query)
+            is_milestone_query = self._is_milestone_query(query)
+            is_user_doc_query = self._is_user_document_query(query)
             
-            # If it's any kind of contact/phonebook/employee query, ALWAYS check phonebook first
-            should_check_phonebook = (
-                (is_phonebook_query or is_contact_query or is_employee_query) 
-                and not is_small_talk 
-                and PHONEBOOK_DB_AVAILABLE
-            )
+            # Log all routing checks
+            logger.info(f"[ROUTING] Routing checks - org_overview={is_org_overview_query}, banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
             
-            if should_check_phonebook:
-                logger.info(f"[ROUTING] ✓ Query detected as contact/phonebook/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
+            # If it's an organizational overview query, route to LightRAG but with special filtering instructions
+            # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
+            if is_org_overview_query or is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
+                routing_type = []
+                if is_org_overview_query:
+                    routing_type.append("org_overview")
+                if is_banking_product_query:
+                    routing_type.append("banking_product")
+                if is_compliance_query:
+                    routing_type.append("compliance")
+                if is_management_query:
+                    routing_type.append("management")
+                if is_financial_query:
+                    routing_type.append("financial")
+                if is_milestone_query:
+                    routing_type.append("milestone")
+                if is_user_doc_query:
+                    routing_type.append("user_doc")
+                logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
+                should_check_phonebook = False
             elif is_small_talk:
                 logger.info(f"[ROUTING] ✓ Query detected as small talk → ROUTING TO OPENAI (no LightRAG)")
+                should_check_phonebook = False
             else:
                 logger.info(f"[ROUTING] ✓ Query not matched to special categories → ROUTING TO LIGHTRAG (default)")
+                should_check_phonebook = False
         
         logger.info(f"[ROUTING] Final decision - will_check_phonebook={should_check_phonebook}, will_use_lightrag={not should_check_phonebook and not is_small_talk}")
         
@@ -1746,13 +2509,29 @@ When responding:
                 phonebook_db = get_phonebook_db()
                 
                 # Extract search term from query
+                # For role-based queries like "branch manager of X", preserve the full context
                 import re
-                search_term = re.sub(
-                    r'\b(phone|contact|number|email|address|mobile|telephone|of|for|the)\b', 
-                    '', 
-                    query, 
-                    flags=re.IGNORECASE
-                ).strip()
+                query_lower = query.lower()
+                
+                # Check if it's a role + location query (e.g., "branch manager of Gulshan")
+                role_location_pattern = r'(branch\s+)?manager\s+(of|at)\s+(.+?)(?:\s+branch)?$'
+                match = re.search(role_location_pattern, query_lower)
+                if match:
+                    # Extract location/branch name
+                    location = match.group(3).strip()
+                    role = match.group(1) + "manager" if match.group(1) else "manager"
+                    search_term = f"{role} {location}"
+                    logger.info(f"[PHONEBOOK] Extracted role+location query: '{search_term}' from '{query}'")
+                else:
+                    # Standard extraction: remove common words but preserve role and location terms
+                    search_term = re.sub(
+                        r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were)\b', 
+                        '', 
+                        query, 
+                        flags=re.IGNORECASE
+                    ).strip()
+                    # Clean up multiple spaces
+                    search_term = re.sub(r'\s+', ' ', search_term)
                 
                 # Try multiple search strategies
                 results = phonebook_db.smart_search(search_term, limit=5)
@@ -1882,6 +2661,7 @@ When responding:
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
+        sources = []
         card_rates_context = ""
         
         if not is_small_talk:
@@ -1917,29 +2697,57 @@ When responding:
                     }  # Don't query LightRAG if entities are missing
             
             # If it's a card rates query, call card rates microservice for deterministic numbers
-            if self._is_card_rates_query(query):
-                logger.info(f"[CARD_RATES] Detected card rates query: '{query}'")
+            # CRITICAL: For card rates queries, ONLY use the microservice, skip LightRAG
+            is_card_rates_query = self._is_card_rates_query(query)
+            if is_card_rates_query:
+                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using ONLY card rates microservice (skipping LightRAG)")
                 card_rates_context = await self._get_card_rates_context(query)
                 if card_rates_context:
                     logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
+                    # Add card rates source
+                    if "Card Charges and Fees Schedule" not in sources:
+                        sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
+                    # Skip LightRAG for card rates queries - use ONLY microservice data
+                    context = ""  # Don't use LightRAG for card rates queries
+                    logger.info(f"[CARD_RATES] Using ONLY card rates microservice data, skipping LightRAG")
                 else:
-                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}'")
-            
-            # Smart routing: determine which knowledge base to use based on query content
-            # This prevents confusion between financial reports and user documents
-            if knowledge_base is None:
-                knowledge_base = self._get_knowledge_base(query)
-            
-            logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
-            context = await self._get_lightrag_context(query, knowledge_base)
-            if context:
-                logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars)")
+                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}' - will still skip LightRAG")
+                    context = ""  # Even if microservice fails, don't use LightRAG for card rates queries
             else:
-                logger.warning(f"[ROUTING] LightRAG returned empty context")
+                # For non-card-rates queries, use LightRAG as normal
+                # Smart routing: determine which knowledge base to use based on query content
+                # This prevents confusion between financial reports and user documents
+                if knowledge_base is None:
+                    knowledge_base = self._get_knowledge_base(query)
+                
+                logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
+                # CRITICAL: Filter financial documents for organizational overview queries
+                filter_financial = self._is_organizational_overview_query(query)
+                context, lightrag_sources = await self._get_lightrag_context(query, knowledge_base, filter_financial_docs=filter_financial)
+                sources.extend(lightrag_sources)  # Add LightRAG sources
+                if context:
+                    logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars, sources: {len(lightrag_sources)}, filtered_financial={filter_financial})")
+                else:
+                    logger.warning(f"[ROUTING] LightRAG returned empty context")
+                
+                # If no sources found but we have context, add knowledge base name as fallback source
+                if not sources and context and knowledge_base:
+                    sources.append(f"Knowledge Base: {knowledge_base}")
+                    logger.info(f"[SOURCES] Added knowledge base name as fallback source: {knowledge_base}")
         
         # Combine card rates context (if any) with LightRAG context
+        # CRITICAL: For card rates queries, use ONLY card rates context (don't combine with LightRAG)
         combined_context = ""
-        if card_rates_context and context:
+        if is_card_rates_query:
+            # For card rates queries, use ONLY microservice data
+            if card_rates_context:
+                combined_context = card_rates_context
+                logger.info(f"[CARD_RATES] Using ONLY card rates context: {len(card_rates_context)} chars (LightRAG skipped)")
+            else:
+                combined_context = ""  # Even if empty, don't use LightRAG for card rates queries
+                logger.warning(f"[CARD_RATES] No card rates context available - response will indicate missing information")
+        elif card_rates_context and context:
+            # For non-card-rates queries, combine both if available
             combined_context = f"{card_rates_context}\n\n{context}"
             logger.info(f"[CARD_RATES] Combined context: card_rates={len(card_rates_context)} chars, lightrag={len(context)} chars")
         elif card_rates_context:
@@ -1980,6 +2788,8 @@ When responding:
             full_response = self._clean_markdown_formatting(full_response)
             # Fix currency symbols as a safety net
             full_response = self._fix_currency_symbols(full_response, combined_context)
+            # Fix bank name (replace "Eastern Bank Limited" with "Eastern Bank PLC")
+            full_response = self._fix_bank_name(full_response)
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             full_response = "I apologize, but I'm experiencing technical difficulties. Please try again later."
@@ -2006,6 +2816,7 @@ When responding:
         
         return {
             "response": full_response,
-            "session_id": session_id
+            "session_id": session_id,
+            "sources": sources
         }
 
