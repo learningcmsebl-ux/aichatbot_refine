@@ -10,7 +10,8 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.config import settings
-from app.api.routes import chat_router, health_router, analytics_router, debug_router
+from app.api.routes import chat_router, health_router, analytics_router, debug_router, orchestrator
+from app.api.phonebook_routes import phonebook_router
 from app.database.postgres import init_db, close_db
 from app.database.redis_client import init_redis, close_redis
 
@@ -33,6 +34,11 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     logger.info("Shutting down Bank Chatbot application...")
+    # Close LightRAG client (httpx.AsyncClient)
+    try:
+        await orchestrator.close()
+    except Exception as e:
+        logger.warning(f"Error closing orchestrator: {e}")
     await close_db()
     await close_redis()
     logger.info("Application shut down successfully")
@@ -60,6 +66,7 @@ app.include_router(health_router, prefix="/api", tags=["Health"])
 app.include_router(chat_router, prefix="/api", tags=["Chat"])
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 app.include_router(debug_router, prefix="/api", tags=["Debug"])
+app.include_router(phonebook_router, prefix="/api", tags=["Phonebook"])
 
 
 @app.get("/")

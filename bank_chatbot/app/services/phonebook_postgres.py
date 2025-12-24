@@ -279,6 +279,121 @@ class PhoneBookDB:
         logger.info(f"[OK] Imported {inserted} employees into PostgreSQL database")
         return inserted
     
+    def upsert_employee(self, employee_data: Dict) -> bool:
+        """
+        Insert or update employee record
+        
+        Args:
+            employee_data: Dictionary with employee information
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            with self.get_session() as session:
+                # Try to find existing employee by employee_id or email
+                existing = None
+                if employee_data.get('employee_id'):
+                    existing = session.query(Employee).filter(
+                        Employee.employee_id == employee_data['employee_id']
+                    ).first()
+                elif employee_data.get('email'):
+                    existing = session.query(Employee).filter(
+                        Employee.email == employee_data['email']
+                    ).first()
+                
+                if existing:
+                    # Update existing record
+                    for key, value in employee_data.items():
+                        if hasattr(existing, key) and value is not None:
+                            setattr(existing, key, value)
+                    session.commit()
+                    logger.debug(f"Updated employee: {employee_data.get('full_name', 'unknown')}")
+                    return True
+                else:
+                    # Insert new record
+                    employee = Employee(**employee_data)
+                    session.add(employee)
+                    session.commit()
+                    logger.debug(f"Inserted employee: {employee_data.get('full_name', 'unknown')}")
+                    return True
+        except Exception as e:
+            logger.error(f"Error upserting employee {employee_data.get('full_name', 'unknown')}: {e}")
+            return False
+    
+    def sync_from_ldap(self, ldap_service, clear_existing: bool = False) -> Dict[str, int]:
+        """
+        Sync employees from LDAP/AD to database
+        
+        Args:
+            ldap_service: LdapPhonebookSync instance
+            clear_existing: If True, clear all existing records before sync
+            
+        Returns:
+            Dictionary with sync statistics: {'inserted': count, 'updated': count, 'total': count}
+        """
+        stats = {'inserted': 0, 'updated': 0, 'total': 0, 'errors': 0}
+        
+        try:
+            # Get all employees from LDAP
+            logger.info("Fetching employees from LDAP...")
+            ldap_employees = ldap_service.get_all_employees()
+            stats['total'] = len(ldap_employees)
+            
+            logger.info(f"Retrieved {stats['total']} employees from LDAP")
+            
+            # Clear existing if requested
+            if clear_existing:
+                with self.get_session() as session:
+                    deleted = session.query(Employee).delete()
+                    session.commit()
+                    logger.info(f"Cleared {deleted} existing employee records")
+            
+            # Upsert each employee
+            with self.get_session() as session:
+                for emp_data in ldap_employees:
+                    try:
+                        # Check if exists
+                        existing = None
+                        if emp_data.get('employee_id'):
+                            existing = session.query(Employee).filter(
+                                Employee.employee_id == emp_data['employee_id']
+                            ).first()
+                        elif emp_data.get('email'):
+                            existing = session.query(Employee).filter(
+                                Employee.email == emp_data['email']
+                            ).first()
+                        
+                        if existing:
+                            # Update
+                            for key, value in emp_data.items():
+                                if hasattr(existing, key) and value is not None:
+                                    setattr(existing, key, value)
+                            stats['updated'] += 1
+                        else:
+                            # Insert
+                            employee = Employee(**emp_data)
+                            session.add(employee)
+                            stats['inserted'] += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to sync employee {emp_data.get('full_name', 'unknown')}: {e}")
+                        stats['errors'] += 1
+                        continue
+                
+                session.commit()
+            
+            logger.info(
+                f"LDAP sync completed: {stats['inserted']} inserted, "
+                f"{stats['updated']} updated, {stats['errors']} errors, "
+                f"{stats['total']} total from LDAP"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error syncing from LDAP: {e}", exc_info=True)
+            raise
+        
+        return stats
+    
     def search_by_name(self, name: str, limit: int = 10) -> List[Dict]:
         """Search employees by name using full-text search"""
         with self.get_session() as session:
@@ -367,9 +482,19 @@ class PhoneBookDB:
             return results
     
     def search_by_employee_id(self, emp_id: str) -> Optional[Dict]:
-        """Search by employee ID"""
+        """Search by employee ID (case-insensitive)"""
+        if not emp_id or not emp_id.strip():
+            return None
+        emp_id_clean = emp_id.strip()
         with self.get_session() as session:
-            emp = session.query(Employee).filter(Employee.employee_id == emp_id).first()
+            # Use case-insensitive search for employee IDs
+            emp = session.query(Employee).filter(
+                func.lower(Employee.employee_id) == func.lower(emp_id_clean)
+            ).first()
+            if emp:
+                logger.debug(f"Found employee by ID '{emp_id_clean}': {emp.full_name}")
+            else:
+                logger.debug(f"No employee found with ID '{emp_id_clean}'")
             if emp:
                 return {
                     'id': emp.id,
@@ -440,27 +565,46 @@ class PhoneBookDB:
                 }
             return None
     
-    def search_by_designation(self, designation: str, limit: int = 20) -> List[Dict]:
-        """Search by designation"""
+    def search_by_designation(self, designation: str, limit: int = 20, location: str = None) -> List[Dict]:
+        """
+        Search by designation, optionally filtered by location/branch (in department field)
+        
+        Args:
+            designation: Job title/role (e.g., "branch manager", "manager")
+            limit: Maximum number of results
+            location: Optional location/branch name to filter by (searches in department field)
+        """
         with self.get_session() as session:
             stop_words = ['of', 'the', 'and', '&', 'a', 'an', 'in', 'on', 'at', 'to', 'for']
             keywords = [k.strip() for k in designation.lower().split() 
                        if len(k.strip()) > 2 and k.strip() not in stop_words]
             
+            query = session.query(Employee)
+            
+            # Build designation filter
             if not keywords:
-                query = session.query(Employee).filter(
+                query = query.filter(
                     func.lower(Employee.designation).like(f'%{designation.lower()}%')
-                ).limit(limit)
+                )
             else:
                 # Build query with all keywords
                 conditions = []
                 for keyword in keywords:
                     conditions.append(func.lower(Employee.designation).like(f'%{keyword}%'))
-                
-                query = session.query(Employee)
                 for condition in conditions:
                     query = query.filter(condition)
-                query = query.limit(limit)
+            
+            # If location is provided, also filter by department/division (branch names are often in department)
+            if location:
+                location_clean = location.strip().lower()
+                # Remove common branch suffixes
+                location_clean = re.sub(r'\s+branch\s*$', '', location_clean, flags=re.IGNORECASE)
+                query = query.filter(
+                    (func.lower(Employee.department).like(f'%{location_clean}%')) |
+                    (func.lower(Employee.division).like(f'%{location_clean}%'))
+                )
+            
+            query = query.limit(limit)
             
             results = []
             for emp in query.all():
@@ -574,24 +718,67 @@ class PhoneBookDB:
         """Smart search that tries multiple strategies"""
         query_clean = query.strip()
         if not query_clean:
+            logger.debug("smart_search: Empty query")
             return []
+        
+        logger.debug(f"smart_search: Searching for '{query_clean}'")
         
         # Strategy 1: Exact name match
         exact = self.search_by_exact_name(query_clean)
         if exact:
+            logger.debug(f"smart_search: Found exact name match")
             return [exact]
         
-        # Strategy 2: Employee ID
-        if query_clean.isdigit():
-            emp = self.search_by_employee_id(query_clean)
-            if emp:
-                return [emp]
+        # Strategy 2: Employee ID (try both numeric and alphanumeric IDs)
+        # First try exact employee ID match (works for both numeric and alphanumeric IDs like "cr_app5_test")
+        logger.debug(f"smart_search: Trying employee ID search")
+        emp = self.search_by_employee_id(query_clean)
+        if emp:
+            logger.debug(f"smart_search: Found employee ID match: {emp.get('full_name')}")
+            return [emp]
+        else:
+            logger.debug(f"smart_search: No employee ID match")
         
-        # Strategy 3: Email
+        # Also try if it's all digits (legacy support)
+        if query_clean.isdigit():
+            # Already tried above, but keep for clarity
+            pass
+        
+        # Strategy 3: Email (exact match or email-like format)
         if '@' in query_clean:
             emp = self.search_by_email(query_clean)
             if emp:
                 return [emp]
+        
+        # Strategy 3b: Email-like format (firstname.lastname pattern) - search in email field
+        # Pattern: contains a dot and looks like firstname.lastname (e.g., "rajib.bhowmik")
+        if '.' in query_clean and not query_clean.startswith('.') and not query_clean.endswith('.'):
+            # Check if it looks like an email format (alphanumeric with dot)
+            if re.match(r'^[a-z0-9_]+\.[a-z0-9_]+$', query_clean.lower()):
+                logger.debug(f"smart_search: Detected email-like format '{query_clean}', searching in email field")
+                with self.get_session() as session:
+                    # Search for email containing this pattern
+                    emp = session.query(Employee).filter(
+                        func.lower(Employee.email).like(f'%{query_clean.lower()}%')
+                    ).first()
+                    if emp:
+                        logger.debug(f"smart_search: Found employee by email pattern: {emp.full_name}")
+                        return [{
+                            'id': emp.id,
+                            'employee_id': emp.employee_id,
+                            'full_name': emp.full_name,
+                            'first_name': emp.first_name,
+                            'last_name': emp.last_name,
+                            'designation': emp.designation,
+                            'department': emp.department,
+                            'division': emp.division,
+                            'email': emp.email,
+                            'telephone': emp.telephone,
+                            'pabx': emp.pabx,
+                            'ip_phone': emp.ip_phone,
+                            'mobile': emp.mobile,
+                            'group_email': emp.group_email
+                        }]
         
         # Strategy 4: Mobile number
         if re.match(r'^[\d\s-]+$', query_clean) and len(re.sub(r'[\s-]', '', query_clean)) >= 10:
@@ -599,7 +786,7 @@ class PhoneBookDB:
             if emp:
                 return [emp]
         
-        # Strategy 5: Designation search
+        # Strategy 5: Designation search (with optional location/branch filtering)
         role_keywords = [
             'head of', 'head', 'manager', 'director', 'officer', 'executive',
             'president', 'ceo', 'cfo', 'coo', 'svp', 'avp', 'vp', 'evp',
@@ -609,7 +796,52 @@ class PhoneBookDB:
         has_role_keyword = any(keyword in query_lower for keyword in role_keywords)
         
         if has_role_keyword:
-            designation_results = self.search_by_designation(query_clean, limit)
+            # Try to parse role + location pattern (e.g., "branch manager gulshan avenue")
+            # Common patterns: "role location", "role of location", "role at location"
+            location = None
+            designation_part = query_clean
+            
+            # Pattern 1: "branch manager gulshan avenue" - location after role
+            # Pattern 2: "manager of gulshan" - location after "of"
+            # Pattern 3: "manager at gulshan" - location after "at"
+            location_patterns = [
+                r'(branch\s+)?manager\s+(of|at)\s+(.+?)(?:\s+branch)?$',
+                r'(.*\s+)?manager\s+(of|at)\s+(.+?)(?:\s+branch)?$',
+            ]
+            
+            for pattern in location_patterns:
+                match = re.search(pattern, query_lower)
+                if match:
+                    location = match.group(3).strip() if match.lastindex >= 3 else None
+                    if location:
+                        # Extract just the role part (before "of" or "at")
+                        role_match = re.search(r'^(.+?)\s+(of|at)\s+', query_clean, re.IGNORECASE)
+                        if role_match:
+                            designation_part = role_match.group(1).strip()
+                        logger.info(f"[PHONEBOOK] Parsed role+location: designation='{designation_part}', location='{location}'")
+                        break
+            
+            # If no explicit "of/at" pattern, try to detect location-like words after role
+            if not location:
+                # Common location/branch indicators
+                location_indicators = ['gulshan', 'dhanmondi', 'uttara', 'banani', 'motijheel', 
+                                      'branch', 'avenue', 'road', 'street', 'dhaka', 'chittagong']
+                words = query_clean.lower().split()
+                role_end_idx = None
+                for i, word in enumerate(words):
+                    if any(role_kw in ' '.join(words[:i+1]) for role_kw in role_keywords):
+                        role_end_idx = i
+                
+                if role_end_idx is not None and role_end_idx + 1 < len(words):
+                    # Check if remaining words look like a location
+                    remaining = ' '.join(words[role_end_idx + 1:])
+                    if any(indicator in remaining for indicator in location_indicators):
+                        location = ' '.join(words[role_end_idx + 1:])
+                        designation_part = ' '.join(words[:role_end_idx + 1])
+                        logger.info(f"[PHONEBOOK] Detected location from remaining words: designation='{designation_part}', location='{location}'")
+            
+            # Search by designation with optional location filter
+            designation_results = self.search_by_designation(designation_part, limit, location=location)
             if designation_results:
                 dept_keywords = ['payment', 'banking', 'operations', 'ict', 'it', 'hr', 'finance']
                 has_dept_keyword = any(keyword in query_lower for keyword in dept_keywords)

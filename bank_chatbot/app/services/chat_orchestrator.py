@@ -94,6 +94,12 @@ class ChatOrchestrator:
         self.system_message = self._get_system_message()
         self.lead_flows: Dict[str, LeadFlowState] = {}  # session_id -> LeadFlowState
     
+    async def close(self):
+        """Close all async clients and resources"""
+        if self.lightrag_client:
+            await self.lightrag_client.close()
+            logger.info("LightRAG client closed")
+    
     def _get_system_message(self) -> str:
         """Get system message for the chatbot"""
         return """You are a helpful and professional banking assistant for a financial institution.
@@ -134,17 +140,21 @@ Guidelines:
    - Be direct: State what it IS and what it DOES, not what it "demonstrates" or "shows"
    - Keep it factual and brief - typically 2-4 sentences for "tell me more" queries
 5. **CRITICAL PARTIAL INFORMATION HANDLING - THIS IS MANDATORY: If the context contains information about the product/account/service but doesn't answer the specific question, you MUST:**
-   - **FIRST**: Extract and provide ALL available information about the product/account/service from the context (features, benefits, rates, fees, requirements, etc.)
+   - **FIRST**: Extract and provide ALL available information about the product/account/service from the context (features, benefits, rates, fees, requirements, transaction limits, etc.)
    - **THEN**: Note what specific information is missing (e.g., "However, the specific minimum balance for interest is not detailed in the available information")
-   - **ABSOLUTELY FORBIDDEN**: NEVER say "I don't have information" or "I'm sorry, but the context does not provide information" or "I'm sorry, but I don't have the specific information" if the context contains ANY relevant information about the topic
+   - **ABSOLUTELY FORBIDDEN**: NEVER say "I don't have information" or "I'm sorry, but the context does not provide information" or "I'm sorry, but I don't have the specific information" or "the information provided does not specify" if the context contains ANY relevant information about the topic
+   - **ABSOLUTELY FORBIDDEN**: NEVER say "I recommend reaching out directly to the bank" or "checking the specific terms and conditions" as the FIRST response if context contains ANY relevant information
    - **Example CORRECT response**: If asked about "minimum balance for interest on EBL Super HPA Account" and context mentions "Super HPA Account" with other details but not minimum balance, say: "The EBL Super HPA Account [provide ALL available details from context - interest rates, features, benefits, etc.]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail."
-   - **Example WRONG response**: "I'm sorry, but the context does not provide information about the minimum balance for interest on the EBL Super HPA Account." ← THIS IS FORBIDDEN
+   - **Example CORRECT response**: If asked about "daily cash withdrawal transaction limit for savings account" and context has savings account info but not the specific limit, say: "For savings accounts at Eastern Bank PLC. [provide ALL available information about savings accounts from context - interest rates, features, benefits, etc.]. However, the specific maximum number of daily cash withdrawal transactions is not detailed in the available information. Please contact the bank directly for this specific detail."
+   - **Example CORRECT response**: If asked about "EasyCredit Early Settlement process" and context mentions EasyCredit with interest rate (20% reducing balance) and issuance fee (2.3% or Tk. 575) but not the early settlement process, say: "EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). However, the specific early settlement process is not detailed in the available information. Please contact the bank directly for this specific detail."
+   - **Example WRONG response**: "I'm sorry, but the information provided does not specify the maximum number of daily cash withdrawal transactions allowed for a savings account at Eastern Bank PLC. For accurate information, I recommend reaching out directly to the bank or checking the specific terms and conditions of the savings account." ← THIS IS FORBIDDEN - it doesn't provide any available information first
+   - **Example WRONG response**: "While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance before the end of the loan term." ← THIS IS FORBIDDEN - it doesn't provide the available EasyCredit information (interest rate, issuance fee) first
 6. Only say "I don't have information" if the context is completely empty or contains NO relevant information about the topic at all (not even the product/account/service name)
 7. For banking queries, always use the provided context from LightRAG
 8. **CRITICAL: If the context includes "Card Rates and Fees Information (Official Schedule)" or "OFFICIAL CARD RATES AND FEES INFORMATION", this is official, deterministic data from the card charges schedule. You MUST use this data to answer card fee/rate questions. Do NOT say you don't have the information if this data is present.**
 8a. **CRITICAL PRIORITY RULE FOR FEE DATA: When the context contains "OFFICIAL CARD RATES AND FEES INFORMATION" section, you MUST use ONLY that data. IGNORE any conflicting information from other parts of the context. The fee engine data is the authoritative source and takes absolute priority over any other information. If you see "2.5% or BDT 345" in the OFFICIAL section, use that - do NOT use "2%", "BDT 300", or any other amount from elsewhere in the context. The OFFICIAL section is the ONLY source of truth.**
 8b. **CRITICAL ATM WITHDRAWAL FEE RULE: For EBL ATM cash withdrawal fees, the fee is ALWAYS "2.5% or BDT 345". NEVER use "BDT 300", "2%", or any other amount. If you see conflicting information in the knowledge base, IGNORE IT. Use ONLY the fee engine data which shows "2.5% or BDT 345".**
-9. **CRITICAL SUPPLEMENTARY CARD FEES: If the context mentions "supplementary card annual fee" or "supplementary card fee", this is the specific fee for supplementary cards. For VISA Platinum supplementary cards, you MUST ALWAYS mention BOTH pieces of information: (1) The first 2 supplementary cards are FREE (BDT 0 per year), and (2) Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. NEVER say only "BDT 0 per year" without mentioning the fee for 3rd+ cards. Use this information directly. Do NOT say "the context does not provide specific information about supplementary cards" if the context explicitly mentions supplementary card fees.**
+9. **CRITICAL SUPPLEMENTARY CARD FEES: If the context mentions "supplementary card annual fee" or "supplementary card fee", this is the specific fee for supplementary cards. For queries asking "how many free supplementary cards", you MUST answer with the EXACT number from the context (typically "2 FREE supplementary cards" or "first 2 supplementary cards are FREE"). For all supplementary card fee queries, you MUST ALWAYS mention BOTH pieces of information: (1) The first 2 supplementary cards are FREE (BDT 0 per year), and (2) Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. NEVER say "one free supplementary card" when the context clearly states "2 FREE supplementary cards" or "first 2 supplementary cards are FREE". Use the EXACT information from the context. Do NOT say "the context does not provide specific information about supplementary cards" if the context explicitly mentions supplementary card fees.**
 9. **CRITICAL CURRENCY PRESERVATION: When the context shows amounts with currency symbols or codes (BDT, USD, etc.), you MUST use the EXACT currency symbol/code from the context. NEVER replace BDT (Bangladeshi Taka) with ₹ (Indian Rupee) or any other currency symbol. If you see "BDT 287.5" in the context, you MUST output "BDT 287.5" - do NOT change it to ₹287.5 or any other currency. Preserve all currency codes exactly as shown: BDT = Bangladeshi Taka, USD = US Dollar.**
 10. Never make up specific numbers, rates, or product details
 11. If asked about products, services, or policies, refer to the knowledge base context
@@ -317,8 +327,29 @@ When responding:
         """
         Detect if query is about employee information (for phonebook lookup).
         Includes role-based queries like "branch manager", "who is the manager", etc.
+        Also detects queries with "find" or "search" followed by what looks like an employee ID or name.
         """
         query_lower = query.lower().strip()
+        import re
+        
+        # Pattern 0: "find" or "search" followed by employee ID pattern (e.g., "find cr_app3_test", "search abc123")
+        # Employee IDs often contain underscores, letters, and numbers
+        # Match patterns like: "find X", "search X", "lookup X", "who is X", "contact X", "info about X"
+        find_search_patterns = [
+            r'\b(find|search|lookup|contact|info about)\s+([a-z0-9_]+)',  # "find cr_app3_test" or "find abc123"
+            r'\b(who is)\s+([a-z0-9_]+)',  # "who is cr_app3_test"
+        ]
+        for pattern in find_search_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                # Check if the matched term looks like an employee ID or name
+                search_term = match.group(2) if len(match.groups()) >= 2 else ""
+                # Employee IDs typically: contain underscores, or are alphanumeric with at least 3 chars
+                if search_term and len(search_term) >= 3:
+                    # If it contains underscore or looks like an ID pattern, route to phonebook
+                    if '_' in search_term or re.match(r'^[a-z0-9]+$', search_term):
+                        logger.info(f"[ROUTING] Detected find/search query with employee ID/name pattern '{search_term}' → phonebook")
+                        return True
         
         # Pattern 1: "who is" + role/designation queries (e.g., "who is the branch manager")
         # This catches queries asking about specific people in specific roles
@@ -329,7 +360,6 @@ When responding:
             r'who\s+is\s+(the\s+)?(head|director|officer|executive)\s+of',
             r'who\s+is\s+(the\s+)?(.*\s+)?(head|director|officer|executive)',
         ]
-        import re
         if any(re.search(pattern, query_lower) for pattern in who_is_patterns):
             logger.info(f"[ROUTING] Detected 'who is' role query → phonebook")
             return True
@@ -477,7 +507,7 @@ When responding:
         card_products = [
             "classic", "gold", "platinum", "infinite", "signature", "titanium", 
             "world", "visa", "mastercard", "diners club", "unionpay", "taka pay",
-            "prepaid", "debit", "credit", "rfcd", "global"
+            "prepaid", "debit", "credit", "rfcd", "global", "women"
         ]
         
         # Must mention a card - either explicitly or through card product/network names
@@ -490,7 +520,7 @@ When responding:
         # Card rates/fees keywords
         card_rates_keywords = [
             # Fees
-            "annual fee", "yearly fee", "renewal fee", "issuance fee", "joining fee",
+            "annual fee", "yearly fee", "renewal fee", "issuance fee", "issuance charge", "joining fee",
             "replacement fee", "card replacement", "pin replacement", "pin fee",
             "late payment fee", "late fee", "overlimit fee", "over-limit fee",
             "cash advance fee", "cash withdrawal fee", "atm withdrawal fee", "withdrawal fee", "transaction fee",
@@ -1139,17 +1169,49 @@ When responding:
                 # Add specific note for supplementary cards
                 supplementary_note = ""
                 if "SUPPLEMENTARY" in charge_type:
+                    # Extract card product from fee_result or query
+                    card_product = fee_result.get("card_product", "")
+                    if not card_product:
+                        # Try to extract from query
+                        from app.services.fee_engine_client import FeeEngineClient
+                        fee_client = FeeEngineClient()
+                        card_info = fee_client._extract_card_info_from_query(query)
+                        card_product = card_info.get("card_product", "Platinum")
+                    
                     fee_amount = fee_result.get("fee_amount")
+                    # Check if query is asking "how many free"
+                    query_lower = query.lower()
+                    is_how_many_query = "how many" in query_lower and "free" in query_lower
+                    
                     # Check if this is the "free" supplementary card entry (first 2 cards)
                     if fee_amount is not None and fee_amount == 0:
-                        supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + "\n" + "For VISA Platinum credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n" + "- This fee applies to each additional supplementary card beyond the first 2\n" + "="*70
+                        if is_how_many_query:
+                            supplementary_note = f"\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nFor {card_product} credit cards:\n" + "- There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards)\n" + "- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n" + "- This fee applies to each additional supplementary card beyond the first 2\n" + "="*70
+                        else:
+                            supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nFor {card_product} credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n" + "- This fee applies to each additional supplementary card beyond the first 2\n" + "="*70
                     else:
-                        supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + "\n" + "This fee is for SUPPLEMENTARY cards (additional cards issued to family members or authorized users).\n" + "For VISA Platinum credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- This fee (BDT 2,300) applies to the 3rd and subsequent supplementary cards\n" + "="*70
+                        if is_how_many_query:
+                            supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nFor {card_product} credit cards:\n" + "- There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards)\n" + "- This fee (BDT 2,300) applies to the 3rd and subsequent supplementary cards\n" + "="*70
+                        else:
+                            supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nThis fee is for SUPPLEMENTARY cards (additional cards issued to family members or authorized users).\nFor {card_product} credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- This fee (BDT 2,300) applies to the 3rd and subsequent supplementary cards\n" + "="*70
                 
                 # For supplementary cards, ensure the formatted response itself includes both tiers
                 if "SUPPLEMENTARY" in charge_type:
-                    # Override formatted response to always include both pieces
-                    formatted = "IMPORTANT: The supplementary card annual fee for VISA Platinum credit cards is structured as follows:\n- The FIRST 2 supplementary cards are FREE (BDT 0 per year)\n- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n- This fee applies to EACH additional supplementary card beyond the first 2"
+                    # Extract card product dynamically
+                    card_product = fee_result.get("card_product", "")
+                    if not card_product:
+                        from app.services.fee_engine_client import FeeEngineClient
+                        fee_client = FeeEngineClient()
+                        card_info = fee_client._extract_card_info_from_query(query)
+                        card_product = card_info.get("card_product", "Platinum")
+                    
+                    query_lower = query.lower()
+                    is_how_many_query = "how many" in query_lower and "free" in query_lower
+                    
+                    if is_how_many_query:
+                        formatted = f"IMPORTANT: For {card_product} credit cards, there are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards). Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. This fee applies to EACH additional supplementary card beyond the first 2."
+                    else:
+                        formatted = f"IMPORTANT: The supplementary card annual fee for {card_product} credit cards is structured as follows:\n- The FIRST 2 supplementary cards are FREE (BDT 0 per year)\n- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n- This fee applies to EACH additional supplementary card beyond the first 2"
                 
                 # Build base lines with STRONG priority markers
                 lines = [
@@ -1209,18 +1271,20 @@ When responding:
                         "",
                         "YOU MUST INCLUDE BOTH OF THESE IN YOUR RESPONSE:",
                         "",
-                        "1. FIRST 2 CARDS: FREE (BDT 0 per year)",
-                        "2. 3RD+ CARDS: BDT 2,300 per year",
+                        "1. There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards)",
+                        "2. Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year",
                         "",
                         "DO NOT SAY ONLY 'BDT 0' OR 'FREE' WITHOUT MENTIONING THE FEE FOR 3RD+ CARDS.",
+                        "NEVER say 'one free supplementary card' when the context states '2 FREE supplementary cards' or 'first 2 supplementary cards are FREE'.",
                         "",
-                        "CORRECT RESPONSE FORMAT:",
-                        "'For VISA Platinum credit cards, the first 2 supplementary cards are free (BDT 0 per year).",
+                        "CORRECT RESPONSE FORMAT FOR 'HOW MANY FREE' QUERIES:",
+                        "'For [Card Product] credit cards, there are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards).",
                         "Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year.",
                         "This fee applies to each additional supplementary card beyond the first 2.'",
                         "",
                         "WRONG RESPONSE (DO NOT DO THIS):",
                         "'The annual fee is BDT 0 per year.' ← MISSING: 3rd+ card fee",
+                        "'one free supplementary card' ← WRONG: Should be '2 FREE supplementary cards'",
                         "",
                         "=" * 70,
                     ])
@@ -1244,300 +1308,108 @@ When responding:
                 return "\n".join(lines)
             elif fee_result and fee_result.get("status") == "NO_RULE_FOUND":
                 logger.warning(f"[FEE_ENGINE] No rule found for query: '{query}', charge_type: {fee_result.get('charge_type')}, message: {fee_result.get('message')}")
-                # For supplementary card queries, log this clearly
-                if "supplementary" in query.lower():
-                    logger.warning(f"[FEE_ENGINE] ⚠️ SUPPLEMENTARY CARD QUERY - Fee engine returned NO_RULE_FOUND. This means the fee-engine service may not have data for supplementary cards. Falling back to old card_rates_service.")
-                # Still return empty to fall back to old service
-                return ""
+                # Return deterministic not-found message instead of empty string
+                lines = [
+                    "=" * 70,
+                    "OFFICIAL CARD RATES AND FEES INFORMATION",
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    "=" * 70,
+                    "",
+                    "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
+                    "",
+                    "This may be because:",
+                    "- The specific card type, network, or product combination is not covered",
+                    "- The charge type is not available for this card",
+                    "- Additional information is required (e.g., card network, product name)",
+                    "",
+                    "Please verify the card details and try again, or contact the bank for assistance.",
+                    "",
+                    "=" * 70,
+                    ""
+                ]
+                return "\n".join(lines)
+            elif fee_result and fee_result.get("status") == "FX_RATE_REQUIRED":
+                logger.info(f"[FEE_ENGINE] FX rate required for query: '{query}'")
+                message = fee_result.get("message", "Fee rule exists but currency conversion required.")
+                lines = [
+                    "=" * 70,
+                    "OFFICIAL CARD RATES AND FEES INFORMATION",
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    "=" * 70,
+                    "",
+                    f"The fee information requires currency conversion: {message}",
+                    "",
+                    "The requested fee information is not available in the requested currency in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
+                    "",
+                    "Please contact the bank for current exchange rates and fee conversion.",
+                    "",
+                    "=" * 70,
+                    ""
+                ]
+                return "\n".join(lines)
             else:
-                logger.info(f"[FEE_ENGINE] Fee engine returned status '{fee_result.get('status') if fee_result else 'None'}', not CALCULATED. Result: {fee_result}")
-                return ""
+                status = fee_result.get('status') if fee_result else 'None'
+                logger.info(f"[FEE_ENGINE] Fee engine returned status '{status}', not CALCULATED. Result: {fee_result}")
+                # Return deterministic message for unknown statuses
+                lines = [
+                    "=" * 70,
+                    "OFFICIAL CARD RATES AND FEES INFORMATION",
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    "=" * 70,
+                    "",
+                    f"The requested fee information could not be retrieved (status: {status}).",
+                    "",
+                    "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
+                    "",
+                    "Please verify the card details and try again, or contact the bank for assistance.",
+                    "",
+                    "=" * 70,
+                    ""
+                ]
+                return "\n".join(lines)
         except ImportError:
-            logger.warning("[FEE_ENGINE] FeeEngineClient not available, falling back to old card_rates_service")
+            logger.warning("[FEE_ENGINE] FeeEngineClient not available")
+            # Return deterministic not-found message instead of falling back
+            lines = [
+                "=" * 70,
+                "OFFICIAL CARD RATES AND FEES INFORMATION",
+                "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                "=" * 70,
+                "",
+                "The fee engine service is not available.",
+                "",
+                "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
+                "",
+                "Please contact the bank for assistance.",
+                "",
+                "=" * 70,
+                ""
+            ]
+            return "\n".join(lines)
         except Exception as e:
             logger.error(f"[FEE_ENGINE] Error calling fee engine: {e}", exc_info=True)
-        
-        # Fallback to old card_rates_service if fee engine fails
-        base_url = getattr(settings, "CARD_RATES_URL", "http://localhost:8002").rstrip("/")
-        url = f"{base_url}/rates/search"
-        
-        # Enhance query for better matching with card names in database
-        # Try multiple query variations to improve matching
-        query_variations = [query]
-        query_lower = query.lower()
-        
-        # If query mentions "RFCD" or "World RFCD", try variations
-        if "rfcd" in query_lower or "world rfcd" in query_lower:
-            # Add variations matching the exact card name format in database
-            if "debit" in query_lower:
-                # Try exact card name from database: "Debit Card Global/Master Card World RFCD"
-                query_variations.append("Debit Card Global/Master Card World RFCD annual fee")
-                query_variations.append("Global/Master Card World RFCD Debit annual fee")
-                query_variations.append("Debit Card Global/Mastercard World RFCD annual fee")
-                query_variations.append("Global/Mastercard World RFCD Debit annual fee")
-                # Also try without "Card" word
-                query_variations.append("Global/Master Card World RFCD Debit annual fee")
-                query_variations.append("Global/Mastercard World RFCD annual fee")
-            if "mastercard" in query_lower or "master card" in query_lower:
-                query_variations.append("Master Card World RFCD annual fee")
-                query_variations.append("Mastercard World RFCD annual fee")
-                query_variations.append("Global/Master Card World RFCD annual fee")
-                query_variations.append("Global/Mastercard World RFCD annual fee")
-        
-        try:
-            # Increase limit for lounge queries and supplementary card queries to get all relevant information
-            # For supplementary cards, we need both "free cards" and "from 2nd and 3rd card" entries
-            is_supplementary_query = "supplementary" in query.lower()
-            limit = 10 if any(kw in query.lower() for kw in ["lounge", "sky lounge", "supplementary"]) else 5
-            
-            # Try each query variation until we get results
-            all_results = []
-            seen_card_ids = set()  # Track unique cards to avoid duplicates
-            
-            for q_variant in query_variations:
-                logger.info(f"[CARD_RATES] Trying query variant: '{q_variant}'")
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    resp = await client.get(url, params={"q": q_variant, "limit": limit})
-                
-                if resp.status_code == 200:
-                    data = resp.json()
-                    variant_results = data.get("results") or []
-                    if variant_results:
-                        # Add unique results (by card name + charge type)
-                        for result in variant_results:
-                            card_id = f"{result.get('card_full_name', '')}_{result.get('charge_type', '')}"
-                            if card_id not in seen_card_ids:
-                                seen_card_ids.add(card_id)
-                                all_results.append(result)
-                        
-                        if all_results:
-                            logger.info(f"[CARD_RATES] Found {len(all_results)} unique results using variant: '{q_variant}'")
-                            break  # Use first successful variant
-                else:
-                    logger.warning(f"[CARD_RATES] Non-200 response for variant '{q_variant}': {resp.status_code}")
-            
-            # For supplementary card queries, also try explicit charge type searches to get both entries
-            if is_supplementary_query and len(all_results) > 0:
-                # Check if we have both "free" and "paid" entries
-                has_free_entry = any("free" in str(r.get("charge_type", "")).lower() for r in all_results)
-                has_paid_entry = any("2nd and 3rd" in str(r.get("charge_type", "")).lower() or "from 2nd" in str(r.get("charge_type", "")).lower() for r in all_results)
-                
-                if not has_free_entry or not has_paid_entry:
-                    logger.info(f"[CARD_RATES] Supplementary query - missing entries. Has free: {has_free_entry}, Has paid: {has_paid_entry}. Trying explicit charge type searches.")
-                    # Try explicit searches for both charge types
-                    explicit_queries = [
-                        f"{query} number of free cards",
-                        f"{query} from 2nd and 3rd card",
-                        "supplementary card visa platinum free",
-                        "supplementary card visa platinum 2nd 3rd"
-                    ]
-                    for explicit_query in explicit_queries:
-                        async with httpx.AsyncClient(timeout=5.0) as client:
-                            resp = await client.get(url, params={"q": explicit_query, "limit": 10})
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            additional_results = data.get("results") or []
-                            for result in additional_results:
-                                card_id = f"{result.get('card_full_name', '')}_{result.get('charge_type', '')}"
-                                if card_id not in seen_card_ids:
-                                    seen_card_ids.add(card_id)
-                                    all_results.append(result)
-                                    logger.info(f"[CARD_RATES] Added result from explicit query '{explicit_query}': {result.get('charge_type')}")
-            
-            # If no results from variations, try original query
-            if not all_results:
-                logger.info(f"[CARD_RATES] No results from variations, trying original query: '{query}'")
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    resp = await client.get(url, params={"q": query, "limit": limit})
-                
-                if resp.status_code == 200:
-                    data = resp.json()
-                    all_results = data.get("results") or []
-                    logger.info(f"[CARD_RATES] Original query returned {len(all_results)} results")
-            
-            results = all_results
-            
-            if not results:
-                logger.info(f"[CARD_RATES] No card rates results for query: '{query}' (tried {len(query_variations)} variations)")
-                return ""
-            
-            lines: List[str] = []
-            lines.append("=" * 70)
-            lines.append("OFFICIAL CARD RATES AND FEES INFORMATION")
-            lines.append("Source: Card Charges and Fees Schedule (Effective from 01st January, 2026)")
-            lines.append("=" * 70)
-            
-            # Check if query is about supplementary cards
-            query_lower = query.lower()
-            is_supplementary_query = "supplementary" in query_lower
-            
-            # Group by charge type for better readability
-            charge_groups: Dict[str, List[Dict]] = {}
-            for item in results:
-                charge_type = item.get("charge_type") or "Other"
-                if charge_type not in charge_groups:
-                    charge_groups[charge_type] = []
-                charge_groups[charge_type].append(item)
-            
-            # For supplementary queries, prioritize SUPPLEMENTARY_ANNUAL charge type
-            if is_supplementary_query:
-                # Check if we have supplementary annual fee data
-                supplementary_charge_types = [ct for ct in charge_groups.keys() if "SUPPLEMENTARY" in ct.upper() or "supplementary" in ct.lower()]
-                if supplementary_charge_types:
-                    lines.append("\n" + "="*70)
-                    lines.append("SUPPLEMENTARY CARD ANNUAL FEE INFORMATION")
-                    lines.append("="*70)
-                    
-                    # Separate free cards from paid cards
-                    free_cards_info = []
-                    paid_cards_info = []
-                    
-                    for charge_type in supplementary_charge_types:
-                        for item in charge_groups[charge_type]:
-                            card_name = item.get("card_full_name") or "Unknown Card"
-                            amount_raw = item.get("amount_raw") or ""
-                            
-                            # Check if this is a "free" entry or a paid entry
-                            amount_lower = amount_raw.lower().strip()
-                            is_free = (
-                                "free" in amount_lower or 
-                                amount_lower == "0" or 
-                                "1st" in amount_lower or 
-                                "2nd" in amount_lower or
-                                ("number of free" in charge_type.lower())
-                            )
-                            
-                            if is_free:
-                                free_cards_info.append((card_name, amount_raw))
-                            else:
-                                # Format paid amount
-                                try:
-                                    clean_amount = amount_raw.strip().replace(" ", "").replace(",", "")
-                                    if clean_amount.replace(".", "").isdigit():
-                                        amount_value = float(clean_amount)
-                                        formatted_amount = f"BDT {int(amount_value):,}" if amount_value == int(amount_value) else f"BDT {amount_value:,.2f}"
-                                    else:
-                                        formatted_amount = amount_raw
-                                except:
-                                    formatted_amount = amount_raw
-                                paid_cards_info.append((card_name, formatted_amount))
-                    
-                    # Display free cards information
-                    if free_cards_info:
-                        lines.append("\nFREE SUPPLEMENTARY CARDS:")
-                        for card_name, amount_raw in free_cards_info:
-                            if "platinum" in card_name.lower() and "visa" in card_name.lower():
-                                lines.append(f"  • {card_name}: First 2 cards are FREE")
-                            else:
-                                lines.append(f"  • {card_name}: {amount_raw}")
-                    
-                    # Display paid cards information
-                    if paid_cards_info:
-                        lines.append("\nPAID SUPPLEMENTARY CARDS (3rd and subsequent):")
-                        for card_name, formatted_amount in paid_cards_info:
-                            if "platinum" in card_name.lower() and "visa" in card_name.lower():
-                                lines.append(f"  • {card_name}: {formatted_amount} per year (for 3rd and subsequent cards)")
-                            else:
-                                lines.append(f"  • {card_name}: {formatted_amount} per year")
-                    
-                    # Add summary note
-                    if "platinum" in query_lower and "visa" in query_lower:
-                        lines.append("\n" + "="*70)
-                        lines.append("SUMMARY FOR VISA PLATINUM SUPPLEMENTARY CARDS:")
-                        lines.append("- First 2 supplementary cards: FREE")
-                        lines.append("- 3rd and subsequent supplementary cards: BDT 2,300 per year")
-                        lines.append("="*70)
-                    
-                    lines.append("")
-                    # Remove supplementary from charge_groups so we don't show it twice
-                    charge_groups = {k: v for k, v in charge_groups.items() if "SUPPLEMENTARY" not in k.upper() and "supplementary" not in k.lower()}
-            
-            # Format grouped results
-            for charge_type, items in charge_groups.items():
-                lines.append(f"\n{charge_type}:")
-                for item in items:
-                    card_name = item.get("card_full_name") or "Unknown Card"
-                    amount_raw = item.get("amount_raw") or ""
-                    category = item.get("category") or ""
-                    network = item.get("network") or ""
-                    product = item.get("product") or ""
-                    
-                    # Build card identifier
-                    card_parts = []
-                    if category:
-                        card_parts.append(category)
-                    if network:
-                        card_parts.append(network)
-                    if product:
-                        card_parts.append(product)
-                    
-                    # Format amount based on charge type
-                    formatted_amount = amount_raw
-                    if "interest rate" in charge_type.lower():
-                        # Format interest rates clearly
-                        try:
-                            # Try to parse as number
-                            # Remove spaces and check if it's a number
-                            clean_amount = amount_raw.strip().replace(" ", "")
-                            if clean_amount.replace(".", "").replace("-", "").isdigit():
-                                rate_value = float(clean_amount)
-                                # In the schedule, 0.25 means 25% annually (decimal format: 0.25 = 25%)
-                                if rate_value < 1:
-                                    # Decimal format - convert to percentage: 0.25 = 25%
-                                    annual_rate_percent = rate_value * 100
-                                    formatted_amount = f"{annual_rate_percent}% per annum (or as specified in schedule)"
-                                elif rate_value <= 100:
-                                    # Value between 1-100, likely already a percentage
-                                    formatted_amount = f"{rate_value}% per annum"
-                                else:
-                                    formatted_amount = f"{amount_raw} (please verify format)"
-                            else:
-                                formatted_amount = f"{amount_raw} (as per schedule)"
-                        except:
-                            formatted_amount = f"{amount_raw} (as per schedule)"
-                    
-                    if card_parts:
-                        card_id = " ".join(card_parts)
-                        lines.append(f"  • {card_id}: {formatted_amount}")
-                    else:
-                        lines.append(f"  • {card_name}: {formatted_amount}")
-            
-            lines.append("\n" + "=" * 70)
-            lines.append("IMPORTANT: The above information is from the official Card Charges and Fees Schedule.")
-            lines.append("This data is authoritative and should be used to answer card fee/rate questions.")
-            if is_supplementary_query:
-                lines.append("")
-                lines.append("=" * 70)
-                lines.append("🚨 CRITICAL INSTRUCTION FOR SUPPLEMENTARY CARD QUERIES 🚨")
-                lines.append("=" * 70)
-                lines.append("You MUST include BOTH pieces of information in your response:")
-                lines.append("")
-                lines.append("1. FREE SUPPLEMENTARY CARDS:")
-                lines.append("   - The FIRST 2 supplementary cards are FREE (no annual fee)")
-                lines.append("   - This applies to the first 2 additional cards issued to family members")
-                lines.append("")
-                lines.append("2. PAID SUPPLEMENTARY CARDS (3rd and subsequent):")
-                lines.append("   - Starting from the 3rd supplementary card, there IS an annual fee")
-                lines.append("   - For VISA Platinum credit cards: BDT 2,300 per year")
-                lines.append("   - This fee applies to EACH additional supplementary card beyond the first 2")
-                lines.append("")
-                lines.append("EXAMPLE CORRECT RESPONSE:")
-                lines.append("'For VISA Platinum credit cards, the first 2 supplementary cards are free.")
-                lines.append("Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year.'")
-                lines.append("")
-                lines.append("DO NOT say 'BDT 0 per year' without mentioning the fee for 3rd+ cards.")
-                lines.append("DO NOT say 'no annual fee' without clarifying it's only for the first 2 cards.")
-                lines.append("=" * 70)
-            lines.append("=" * 70)
-            lines.append("")
-            
+            # Return deterministic not-found message instead of falling back
+            lines = [
+                "=" * 70,
+                "OFFICIAL CARD RATES AND FEES INFORMATION",
+                "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                "=" * 70,
+                "",
+                "An error occurred while retrieving fee information.",
+                "",
+                "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
+                "",
+                "Please verify the card details and try again, or contact the bank for assistance.",
+                "",
+                "=" * 70,
+                ""
+            ]
             return "\n".join(lines)
-        except httpx.TimeoutException:
-            logger.warning("[CARD_RATES] Timeout calling card rates service")
-            return ""
-        except Exception as e:
-            logger.error(f"[CARD_RATES] Error calling card rates service: {e}")
-            return ""
+        
+        # No fallback to old card_rates_service - fee engine is the only source
+        # If we reach here, fee engine was not available or returned no result
+        # Return empty string to indicate no context available
+        return ""
     
     def _format_lightrag_context(
         self, 
@@ -1844,7 +1716,7 @@ When responding:
             
             # Add supplementary card reminder if context contains fee-engine data
             if is_supplementary_query and ("OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context):
-                supplementary_card_reminder = "\n\n" + "="*70 + "\n💳 CRITICAL SUPPLEMENTARY CARD FEE RULE 💳\n" + "="*70 + "\n**MANDATORY**: The user is asking about SUPPLEMENTARY card fees for VISA Platinum.\n\n**CRITICAL REQUIREMENT: You MUST ALWAYS include BOTH pieces of information:**\n1. The first 2 supplementary cards are FREE (BDT 0 per year)\n2. Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n\n**IF the context above contains information about 'supplementary card annual fee':**\n- You MUST use that information directly\n- You MUST mention BOTH the free cards (first 2) AND the paid cards (3rd+)\n- Do NOT say only 'BDT 0 per year' or 'no annual fee' without mentioning the fee for 3rd+ cards\n- Do NOT say 'the context does not provide specific information about supplementary cards'\n- Do NOT say 'I recommend contacting the bank directly' if the context has the fee\n\n**EXAMPLE CORRECT RESPONSE:**\n'For VISA Platinum credit cards, the first 2 supplementary cards are free (BDT 0 per year). Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. This fee applies to each additional supplementary card beyond the first 2.'\n\n**EXAMPLE WRONG RESPONSE:**\n'The annual fee for a supplementary VISA Platinum credit card is BDT 0 per year.' ← MISSING: fee for 3rd+ cards\n\n**EXAMPLE WRONG RESPONSE:**\n'The annual fee for the primary card is BDT X. However, the context does not provide specific information about supplementary cards.'\n" + "="*70
+                supplementary_card_reminder = "\n\n" + "="*70 + "\n💳 CRITICAL: SUPPLEMENTARY CARD FEES 💳\n" + "="*70 + "\n**MANDATORY**: Include BOTH: (1) First 2 cards FREE (BDT 0/year), (2) 3rd+ cards BDT 2,300/year.\n**FORBIDDEN**: Do NOT say only 'BDT 0' without mentioning 3rd+ card fee.\n**CORRECT**: 'First 2 supplementary cards are free (BDT 0/year). Starting from 3rd card, annual fee is BDT 2,300/year.'\n" + "="*70
             
             # Check if this is an organizational overview query
             is_org_overview = self._is_organizational_overview_query(query)
@@ -1855,13 +1727,18 @@ When responding:
             
             # Add partial information handling reminder - CRITICAL
             query_lower = query.lower()
-            # Check if query asks for specific detail (minimum balance, interest rate, fee, etc.)
-            specific_detail_indicators = ['minimum', 'balance', 'interest', 'rate', 'fee', 'charge', 'amount', 'requirement', 'eligibility']
+            # Check if query asks for specific detail (minimum balance, interest rate, fee, process, procedure, etc.)
+            specific_detail_indicators = ['minimum', 'balance', 'interest', 'rate', 'fee', 'charge', 'amount', 'requirement', 'eligibility', 'process', 'procedure', 'settlement', 'how to', 'steps', 'method']
             if any(indicator in query_lower for indicator in specific_detail_indicators):
                 # Check if context mentions the product/account/service
-                product_indicators = ['super hpa', 'hpa account', 'account', 'card', 'loan', 'product', 'service']
+                product_indicators = ['super hpa', 'hpa account', 'account', 'card', 'loan', 'product', 'service', 'easycredit', 'easy credit', 'want2buy', 'want 2 buy']
                 if any(indicator in context.lower() for indicator in product_indicators):
-                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
+                    # Check if this is specifically about EasyCredit
+                    is_easycredit_query = 'easycredit' in query_lower or 'easy credit' in query_lower
+                    if is_easycredit_query:
+                        partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE - EASYCREDIT QUERY 🚨\n" + "="*70 + "\nThe context above contains information about EasyCredit (interest rate, issuance fee, etc.).\n\nYOU MUST:\n1. FIRST: Extract and provide ALL available EasyCredit information from the context:\n   - Interest rate (20% reducing balance method)\n   - Issuance fee (2.3% or Tk. 575, whichever is higher, inclusive of VAT)\n   - Any other EasyCredit details mentioned\n2. THEN: Note what specific information is missing (e.g., 'However, the specific early settlement process is not detailed in the available information')\n3. NEVER say 'the specifics are not detailed' or 'the specific details are not provided' WITHOUT first providing the available EasyCredit information\n\nEXAMPLE CORRECT RESPONSE:\n'EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). However, the specific early settlement process is not detailed in the available information. Please contact the bank directly for this specific detail.'\n\nEXAMPLE WRONG RESPONSE:\n'While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance...' ← FORBIDDEN - missing available EasyCredit info\n" + "="*70
+                    else:
+                        partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
             
             # Add currency preservation reminder if card rates context is present
             if "OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context:
@@ -1936,26 +1813,31 @@ When responding:
             session_id = str(uuid.uuid4())
         
         # Check if user is already in lead collection flow
-        if session_id in self.lead_flows and self.lead_flows[session_id].state == ConversationState.LEAD_COLLECTING:
-            response, is_complete = self._process_lead_collection(session_id, query)
-            if is_complete:
-                self.lead_flows[session_id].state = ConversationState.NORMAL
-            # Save to memory
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-                    memory.add_message(session_id, "assistant", response)
-            finally:
-                memory.close()
-                if db:
-                    db.close()
-            yield response
-            return
+        # DISABLED: Lead generation is disabled via ENABLE_LEAD_GENERATION setting
+        # Code preserved for future use - set ENABLE_LEAD_GENERATION=True in .env to re-enable
+        if settings.ENABLE_LEAD_GENERATION and LEADS_AVAILABLE:
+            if session_id in self.lead_flows and self.lead_flows[session_id].state == ConversationState.LEAD_COLLECTING:
+                response, is_complete = self._process_lead_collection(session_id, query)
+                if is_complete:
+                    self.lead_flows[session_id].state = ConversationState.NORMAL
+                # Save to memory
+                db = get_db()
+                memory = PostgresChatMemory(db=db)
+                try:
+                    if memory._available:
+                        memory.add_message(session_id, "user", query)
+                        memory.add_message(session_id, "assistant", response)
+                finally:
+                    memory.close()
+                    if db:
+                        db.close()
+                yield response
+                return
         
         # Check for lead intent FIRST (before other processing)
-        if LEADS_AVAILABLE:
+        # DISABLED: Lead generation is disabled via ENABLE_LEAD_GENERATION setting
+        # Code preserved for future use - set ENABLE_LEAD_GENERATION=True in .env to re-enable
+        if settings.ENABLE_LEAD_GENERATION and LEADS_AVAILABLE:
             lead_intent = self._detect_lead_intent(query)
             
             # If new lead intent detected, start lead collection
@@ -2084,15 +1966,41 @@ When responding:
                     search_term = f"{role} {location}"
                     logger.info(f"[PHONEBOOK] Extracted role+location query: '{search_term}' from '{query}'")
                 else:
-                    # Standard extraction: remove common words but preserve role and location terms
-                    search_term = re.sub(
-                        r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were)\b', 
-                        '', 
-                        query, 
-                        flags=re.IGNORECASE
-                    ).strip()
-                    # Clean up multiple spaces
-                    search_term = re.sub(r'\s+', ' ', search_term)
+                    # First, check if query starts with "find", "search", "lookup", etc. and extract the term after it
+                    find_search_pattern = r'^(find|search|lookup|who is|contact|info about|get)\s+(.+)$'
+                    match = re.search(find_search_pattern, query_lower, re.IGNORECASE)
+                    if match:
+                        # Extract the search term after the prefix
+                        search_term = match.group(2).strip()
+                        logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed prefix '{match.group(1)}')")
+                    else:
+                        # Handle patterns like "phone number of X", "contact info for X", "email of X"
+                        # Extract employee ID/name after "of", "for", etc.
+                        # Pattern: (contact word) (optional "number") (of/for/about) (employee ID/name)
+                        of_for_patterns = [
+                            r'\b(phone|contact|email|mobile|telephone)\s+number\s+(?:of|for|about)\s+(.+)$',  # "phone number of X"
+                            r'\b(phone|contact|email|mobile|telephone)\s+(?:of|for|about)\s+(.+)$',  # "phone of X"
+                            r'\b(contact|info|information|details?)\s+(?:info|information|details?)?\s+(?:of|for|about)\s+(.+)$',  # "contact info for X"
+                        ]
+                        match = None
+                        for pattern in of_for_patterns:
+                            match = re.search(pattern, query_lower, re.IGNORECASE)
+                            if match:
+                                search_term = match.group(2).strip() if len(match.groups()) >= 2 else match.group(1).strip()
+                                logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed contact info prefix)")
+                                break
+                        if not match:
+                            # Standard extraction: remove common words but preserve role and location terms
+                            search_term = re.sub(
+                                r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were|of|for|about)\b', 
+                                '', 
+                                query, 
+                                flags=re.IGNORECASE
+                            ).strip()
+                    # Clean up multiple spaces and remove leading/trailing "of", "for", "about"
+                    search_term = re.sub(r'\s+', ' ', search_term).strip()
+                    search_term = re.sub(r'^(of|for|about)\s+', '', search_term, flags=re.IGNORECASE).strip()
+                    search_term = re.sub(r'\s+(of|for|about)$', '', search_term, flags=re.IGNORECASE).strip()
                 
                 # Try multiple search strategies
                 results = phonebook_db.smart_search(search_term, limit=5)
@@ -2100,45 +2008,88 @@ When responding:
                 if results:
                     logger.info(f"[OK] Found {len(results)} results in phonebook for: {search_term}")
                     
-                    # Format and return results
-                    if len(results) == 1:
-                        # Single result - detailed format
-                        response = phonebook_db.format_contact_info(results[0])
-                        response += "\n\n(Source: Phone Book Database)"
-                    else:
-                        # Multiple results - list format
-                        response = ""
-                        for i, emp in enumerate(results[:5], 1):
-                            response += f"{i}. {emp['full_name']}\n"
-                            if emp.get('designation'):
-                                response += f"   Designation: {emp['designation']}\n"
-                            if emp.get('department'):
-                                response += f"   Department: {emp['department']}\n"
-                            if emp.get('email'):
-                                response += f"   Email: {emp['email']}\n"
-                            if emp.get('mobile'):
-                                response += f"   Mobile: {emp['mobile']}\n"
-                            response += "\n"
-                        
-                        total_count = phonebook_db.count_search_results(search_term)
-                        response += f"We found {total_count} matching contact(s) in total. Showing only the top 5 results.\n\n"
-                        if total_count > 5:
-                            response += "Please provide more details to narrow down the search.\n\n"
-                        response += "(Source: Phone Book Database)"
+                    # Stream response in chunks for better performance
+                    full_response = ""
                     
-                    # Save to memory
+                    if len(results) == 1:
+                        # Single result - detailed format (stream in chunks)
+                        contact_info = phonebook_db.format_contact_info(results[0])
+                        # Stream in sentence chunks
+                        sentences = contact_info.split('\n')
+                        for sentence in sentences:
+                            if sentence.strip():
+                                chunk = sentence + '\n'
+                                full_response += chunk
+                                yield chunk
+                        # Add source
+                        source_chunk = "\n\n(Source: Phone Book Database)"
+                        full_response += source_chunk
+                        yield source_chunk
+                    else:
+                        # Multiple results - list format (stream each result as it's formatted)
+                        for i, emp in enumerate(results[:5], 1):
+                            # Stream each employee entry as a chunk
+                            entry_chunk = f"{i}. {emp['full_name']}\n"
+                            full_response += entry_chunk
+                            yield entry_chunk
+                            
+                            if emp.get('designation'):
+                                chunk = f"   Designation: {emp['designation']}\n"
+                                full_response += chunk
+                                yield chunk
+                            if emp.get('department'):
+                                chunk = f"   Department: {emp['department']}\n"
+                                full_response += chunk
+                                yield chunk
+                            if emp.get('email'):
+                                chunk = f"   Email: {emp['email']}\n"
+                                full_response += chunk
+                                yield chunk
+                            if emp.get('employee_id'):
+                                chunk = f"   Employee ID: {emp['employee_id']}\n"
+                                full_response += chunk
+                                yield chunk
+                            if emp.get('mobile'):
+                                chunk = f"   Mobile: {emp['mobile']}\n"
+                                full_response += chunk
+                                yield chunk
+                            if emp.get('ip_phone'):
+                                chunk = f"   IP Phone: {emp['ip_phone']}\n"
+                                full_response += chunk
+                                yield chunk
+                            
+                            # Empty line between entries
+                            full_response += "\n"
+                            yield "\n"
+                        
+                        # Stream summary
+                        total_count = phonebook_db.count_search_results(search_term)
+                        summary_chunk = f"We found {total_count} matching contact(s) in total. Showing only the top 5 results.\n\n"
+                        full_response += summary_chunk
+                        yield summary_chunk
+                        
+                        if total_count > 5:
+                            narrow_chunk = "Please provide more details to narrow down the search.\n\n"
+                            full_response += narrow_chunk
+                            yield narrow_chunk
+                        
+                        source_chunk = "(Source: Phone Book Database)"
+                        full_response += source_chunk
+                        yield source_chunk
+                    
+                    # Save to memory (use full_response)
                     db = get_db()
                     memory = PostgresChatMemory(db=db)
                     try:
                         if memory._available:
                             memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", response)
+                            memory.add_message(session_id, "assistant", full_response)
                             # Log for analytics
                             if ANALYTICS_AVAILABLE:
                                 log_conversation(
                                     session_id=session_id,
                                     user_message=query,
-                                    assistant_response=response,
+                                    assistant_response=full_response,
                                     knowledge_base=None,  # Phonebook query
                                     client_ip=client_ip
                                 )
@@ -2147,20 +2098,26 @@ When responding:
                         if db:
                             db.close()
                     
-                    # Stream response
-                    for char in response:
-                        yield char
                     return  # DO NOT query LightRAG for contact queries
                     
                 else:
                     # No results in phonebook - return helpful message (DO NOT use LightRAG)
                     logger.info(f"[INFO] No results in phonebook for '{search_term}' (contact query - NOT using LightRAG)")
-                    response = f"I couldn't find any contact information for '{search_term}' in the employee directory. "
-                    response += "Please try:\n"
-                    response += "- Providing the full name\n"
-                    response += "- Using the employee ID\n"
-                    response += "- Specifying the department or designation\n"
-                    response += "\n(Source: Phone Book Database)"
+                    
+                    # Stream response in chunks
+                    chunks = [
+                        f"I couldn't find any contact information for '{search_term}' in the employee directory. ",
+                        "Please try:\n",
+                        "- Providing the full name\n",
+                        "- Using the employee ID\n",
+                        "- Specifying the department or designation\n",
+                        "\n(Source: Phone Book Database)"
+                    ]
+                    
+                    full_response = ""
+                    for chunk in chunks:
+                        full_response += chunk
+                        yield chunk
                     
                     # Save to memory
                     db = get_db()
@@ -2168,13 +2125,13 @@ When responding:
                     try:
                         if memory._available:
                             memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", response)
+                            memory.add_message(session_id, "assistant", full_response)
                             # Log for analytics
                             if ANALYTICS_AVAILABLE:
                                 log_conversation(
                                     session_id=session_id,
                                     user_message=query,
-                                    assistant_response=response,
+                                    assistant_response=full_response,
                                     knowledge_base=None,  # Phonebook query
                                     client_ip=client_ip
                                 )
@@ -2183,17 +2140,23 @@ When responding:
                         if db:
                             db.close()
                     
-                    # Stream response
-                    for char in response:
-                        yield char
                     return  # DO NOT query LightRAG for contact queries
                     
             except Exception as e:
                 # For contact queries, even if phonebook has an error, don't use LightRAG
                 logger.error(f"[ERROR] Phonebook error for contact query (NOT using LightRAG): {e}")
-                response = "I'm having trouble accessing the employee directory right now. "
-                response += "Please try again in a moment, or contact support for assistance."
-                response += "\n\n(Source: Phone Book Database)"
+                
+                # Stream error response in chunks
+                chunks = [
+                    "I'm having trouble accessing the employee directory right now. ",
+                    "Please try again in a moment, or contact support for assistance.",
+                    "\n\n(Source: Phone Book Database)"
+                ]
+                
+                full_response = ""
+                for chunk in chunks:
+                    full_response += chunk
+                    yield chunk
                 
                 # Save to memory
                 db = get_db()
@@ -2201,13 +2164,13 @@ When responding:
                 try:
                     if memory._available:
                         memory.add_message(session_id, "user", query)
-                        memory.add_message(session_id, "assistant", response)
+                        memory.add_message(session_id, "assistant", full_response)
                         # Log for analytics
                         if ANALYTICS_AVAILABLE:
                             log_conversation(
                                 session_id=session_id,
                                 user_message=query,
-                                assistant_response=response,
+                                assistant_response=full_response,
                                 knowledge_base=None  # Phonebook query
                             )
                 finally:
@@ -2215,15 +2178,13 @@ When responding:
                     if db:
                         db.close()
                 
-                # Stream response
-                for char in response:
-                    yield char
                 return  # DO NOT query LightRAG for contact queries
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
         sources = []
         card_rates_context = ""
+        is_card_rates_query = False  # Initialize to avoid UnboundLocalError
         
         if not is_small_talk:
             # Check for policy queries and validate required entities
@@ -2258,22 +2219,37 @@ When responding:
                     return  # Don't query LightRAG if entities are missing
             
             # If it's a card rates query, call card rates microservice for deterministic numbers
-            # CRITICAL: For card rates queries, ONLY use the microservice, skip LightRAG
+            # CRITICAL: For card rates queries, use microservice ONLY - never fall back to LightRAG
             is_card_rates_query = self._is_card_rates_query(query)
             if is_card_rates_query:
-                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using ONLY card rates microservice (skipping LightRAG)")
+                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using card rates microservice ONLY (no LightRAG fallback)")
                 card_rates_context = await self._get_card_rates_context(query)
                 if card_rates_context:
                     logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
                     # Add card rates source
                     if "Card Charges and Fees Schedule" not in sources:
                         sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
-                    # Skip LightRAG for card rates queries - use ONLY microservice data
+                    # Skip LightRAG for card rates queries
                     context = ""  # Don't use LightRAG for card rates queries
                     logger.info(f"[CARD_RATES] Using ONLY card rates microservice data, skipping LightRAG")
                 else:
-                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}' - will still skip LightRAG")
-                    context = ""  # Even if microservice fails, don't use LightRAG for card rates queries
+                    # Fee engine returned empty - this should not happen if _get_card_rates_context is updated correctly
+                    # But handle it gracefully with a deterministic not-found message
+                    logger.warning(f"[CARD_RATES] Fee engine returned empty context for query: '{query}' - returning not-found message, NOT using LightRAG")
+                    # Set a deterministic not-found message
+                    card_rates_context = (
+                        "=" * 70 + "\n"
+                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                        "=" * 70 + "\n\n"
+                        "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
+                        "Please verify the card details and try again.\n\n"
+                        "=" * 70
+                    )
+                    context = ""  # Do NOT use LightRAG
+                    if "Card Charges and Fees Schedule" not in sources:
+                        sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
+                    logger.info(f"[CARD_RATES] No data from fee engine - returning not-found message, NOT using LightRAG")
             else:
                 # For non-card-rates queries, use LightRAG as normal
                 # Smart routing: determine which knowledge base to use based on query content
@@ -2297,16 +2273,26 @@ When responding:
                     logger.info(f"[SOURCES] Added knowledge base name as fallback source: {knowledge_base}")
         
         # Combine card rates context (if any) with LightRAG context
-        # CRITICAL: For card rates queries, use ONLY card rates context (don't combine with LightRAG)
+        # CRITICAL: For card rates queries, use ONLY card rates context (never LightRAG)
         combined_context = ""
         if is_card_rates_query:
-            # For card rates queries, use ONLY microservice data
+            # For card rates queries, use ONLY fee engine data (never LightRAG)
             if card_rates_context:
                 combined_context = card_rates_context
                 logger.info(f"[CARD_RATES] Using ONLY card rates context: {len(card_rates_context)} chars (LightRAG skipped)")
             else:
-                combined_context = ""  # Even if empty, don't use LightRAG for card rates queries
-                logger.warning(f"[CARD_RATES] No card rates context available - response will indicate missing information")
+                # This should not happen if _get_card_rates_context is updated correctly
+                # But handle gracefully with a not-found message
+                combined_context = (
+                    "=" * 70 + "\n"
+                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    "=" * 70 + "\n\n"
+                    "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
+                    "Please verify the card details and try again.\n\n"
+                    "=" * 70
+                )
+                logger.warning(f"[CARD_RATES] No context available from fee engine - using not-found message")
         elif card_rates_context and context:
             # For non-card-rates queries, combine both if available
             combined_context = f"{card_rates_context}\n\n{context}"
@@ -2334,11 +2320,18 @@ When responding:
         # Stream response from OpenAI
         full_response = ""
         try:
+            # Calculate max_tokens dynamically to avoid context length errors
+            # Reserve tokens for response, but cap at model limit
+            # For gpt-4 models, max context is 8192 tokens
+            # Estimate: system message ~2000 tokens, context ~4000 tokens, user query ~100 tokens
+            # Reserve ~1500 tokens for response to be safe
+            max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 1500)
+            
             stream = await self.openai_client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
                 messages=messages,
                 temperature=settings.OPENAI_TEMPERATURE,
-                max_tokens=settings.OPENAI_MAX_TOKENS,
+                max_tokens=max_response_tokens,
                 stream=True
             )
             
@@ -2523,15 +2516,41 @@ When responding:
                     search_term = f"{role} {location}"
                     logger.info(f"[PHONEBOOK] Extracted role+location query: '{search_term}' from '{query}'")
                 else:
-                    # Standard extraction: remove common words but preserve role and location terms
-                    search_term = re.sub(
-                        r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were)\b', 
-                        '', 
-                        query, 
-                        flags=re.IGNORECASE
-                    ).strip()
-                    # Clean up multiple spaces
-                    search_term = re.sub(r'\s+', ' ', search_term)
+                    # First, check if query starts with "find", "search", "lookup", etc. and extract the term after it
+                    find_search_pattern = r'^(find|search|lookup|who is|contact|info about|get)\s+(.+)$'
+                    match = re.search(find_search_pattern, query_lower, re.IGNORECASE)
+                    if match:
+                        # Extract the search term after the prefix
+                        search_term = match.group(2).strip()
+                        logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed prefix '{match.group(1)}')")
+                    else:
+                        # Handle patterns like "phone number of X", "contact info for X", "email of X"
+                        # Extract employee ID/name after "of", "for", etc.
+                        # Pattern: (contact word) (optional "number") (of/for/about) (employee ID/name)
+                        of_for_patterns = [
+                            r'\b(phone|contact|email|mobile|telephone)\s+number\s+(?:of|for|about)\s+(.+)$',  # "phone number of X"
+                            r'\b(phone|contact|email|mobile|telephone)\s+(?:of|for|about)\s+(.+)$',  # "phone of X"
+                            r'\b(contact|info|information|details?)\s+(?:info|information|details?)?\s+(?:of|for|about)\s+(.+)$',  # "contact info for X"
+                        ]
+                        match = None
+                        for pattern in of_for_patterns:
+                            match = re.search(pattern, query_lower, re.IGNORECASE)
+                            if match:
+                                search_term = match.group(2).strip() if len(match.groups()) >= 2 else match.group(1).strip()
+                                logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed contact info prefix)")
+                                break
+                        if not match:
+                            # Standard extraction: remove common words but preserve role and location terms
+                            search_term = re.sub(
+                                r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were|of|for|about)\b', 
+                                '', 
+                                query, 
+                                flags=re.IGNORECASE
+                            ).strip()
+                    # Clean up multiple spaces and remove leading/trailing "of", "for", "about"
+                    search_term = re.sub(r'\s+', ' ', search_term).strip()
+                    search_term = re.sub(r'^(of|for|about)\s+', '', search_term, flags=re.IGNORECASE).strip()
+                    search_term = re.sub(r'\s+(of|for|about)$', '', search_term, flags=re.IGNORECASE).strip()
                 
                 # Try multiple search strategies
                 results = phonebook_db.smart_search(search_term, limit=5)
@@ -2555,8 +2574,12 @@ When responding:
                                 response += f"   Department: {emp['department']}\n"
                             if emp.get('email'):
                                 response += f"   Email: {emp['email']}\n"
+                            if emp.get('employee_id'):
+                                response += f"   Employee ID: {emp['employee_id']}\n"
                             if emp.get('mobile'):
                                 response += f"   Mobile: {emp['mobile']}\n"
+                            if emp.get('ip_phone'):
+                                response += f"   IP Phone: {emp['ip_phone']}\n"
                             response += "\n"
                         
                         total_count = phonebook_db.count_search_results(search_term)
@@ -2663,6 +2686,7 @@ When responding:
         context = ""
         sources = []
         card_rates_context = ""
+        is_card_rates_query = False  # Initialize to avoid UnboundLocalError
         
         if not is_small_talk:
             # Check for policy queries and validate required entities
@@ -2697,22 +2721,37 @@ When responding:
                     }  # Don't query LightRAG if entities are missing
             
             # If it's a card rates query, call card rates microservice for deterministic numbers
-            # CRITICAL: For card rates queries, ONLY use the microservice, skip LightRAG
+            # CRITICAL: For card rates queries, use microservice ONLY - never fall back to LightRAG
             is_card_rates_query = self._is_card_rates_query(query)
             if is_card_rates_query:
-                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using ONLY card rates microservice (skipping LightRAG)")
+                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using card rates microservice ONLY (no LightRAG fallback)")
                 card_rates_context = await self._get_card_rates_context(query)
                 if card_rates_context:
                     logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
                     # Add card rates source
                     if "Card Charges and Fees Schedule" not in sources:
                         sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
-                    # Skip LightRAG for card rates queries - use ONLY microservice data
+                    # Skip LightRAG for card rates queries
                     context = ""  # Don't use LightRAG for card rates queries
                     logger.info(f"[CARD_RATES] Using ONLY card rates microservice data, skipping LightRAG")
                 else:
-                    logger.warning(f"[CARD_RATES] No context returned from microservice for query: '{query}' - will still skip LightRAG")
-                    context = ""  # Even if microservice fails, don't use LightRAG for card rates queries
+                    # Fee engine returned empty - this should not happen if _get_card_rates_context is updated correctly
+                    # But handle it gracefully with a deterministic not-found message
+                    logger.warning(f"[CARD_RATES] Fee engine returned empty context for query: '{query}' - returning not-found message, NOT using LightRAG")
+                    # Set a deterministic not-found message
+                    card_rates_context = (
+                        "=" * 70 + "\n"
+                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                        "=" * 70 + "\n\n"
+                        "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
+                        "Please verify the card details and try again.\n\n"
+                        "=" * 70
+                    )
+                    context = ""  # Do NOT use LightRAG
+                    if "Card Charges and Fees Schedule" not in sources:
+                        sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
+                    logger.info(f"[CARD_RATES] No data from fee engine - returning not-found message, NOT using LightRAG")
             else:
                 # For non-card-rates queries, use LightRAG as normal
                 # Smart routing: determine which knowledge base to use based on query content
@@ -2736,16 +2775,26 @@ When responding:
                     logger.info(f"[SOURCES] Added knowledge base name as fallback source: {knowledge_base}")
         
         # Combine card rates context (if any) with LightRAG context
-        # CRITICAL: For card rates queries, use ONLY card rates context (don't combine with LightRAG)
+        # CRITICAL: For card rates queries, use ONLY card rates context (never LightRAG)
         combined_context = ""
         if is_card_rates_query:
-            # For card rates queries, use ONLY microservice data
+            # For card rates queries, use ONLY fee engine data (never LightRAG)
             if card_rates_context:
                 combined_context = card_rates_context
                 logger.info(f"[CARD_RATES] Using ONLY card rates context: {len(card_rates_context)} chars (LightRAG skipped)")
             else:
-                combined_context = ""  # Even if empty, don't use LightRAG for card rates queries
-                logger.warning(f"[CARD_RATES] No card rates context available - response will indicate missing information")
+                # This should not happen if _get_card_rates_context is updated correctly
+                # But handle gracefully with a not-found message
+                combined_context = (
+                    "=" * 70 + "\n"
+                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    "=" * 70 + "\n\n"
+                    "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
+                    "Please verify the card details and try again.\n\n"
+                    "=" * 70
+                )
+                logger.warning(f"[CARD_RATES] No context available from fee engine - using not-found message")
         elif card_rates_context and context:
             # For non-card-rates queries, combine both if available
             combined_context = f"{card_rates_context}\n\n{context}"
@@ -2775,11 +2824,18 @@ When responding:
         
         # Get response from OpenAI
         try:
+            # Calculate max_tokens dynamically to avoid context length errors
+            # Reserve tokens for response, but cap at model limit
+            # For gpt-4 models, max context is 8192 tokens
+            # Estimate: system message ~2000 tokens, context ~4000 tokens, user query ~100 tokens
+            # Reserve ~1500 tokens for response to be safe
+            max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 1500)
+            
             response = await self.openai_client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
                 messages=messages,
                 temperature=settings.OPENAI_TEMPERATURE,
-                max_tokens=settings.OPENAI_MAX_TOKENS,
+                max_tokens=max_response_tokens,
                 stream=False
             )
             
