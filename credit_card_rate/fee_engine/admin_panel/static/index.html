@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Engine Admin Panel</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💳 Fee Engine Admin Panel</h1>
+            <p>Manage Card Rates and Fees</p>
+        </header>
+
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <h2>Admin Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <div id="loginError" class="error-message"></div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content (hidden until login) -->
+        <div id="mainContent" style="display: none;">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('card-fees')">Card Fees</button>
+                <button class="tab-btn" onclick="switchTab('retail-assets')">Retail Asset Charges</button>
+                <button class="tab-btn" onclick="switchTab('branches')">Branches</button>
+                <button class="tab-btn" onclick="switchTab('machines')">ATM/CRM/RTDM</button>
+                <button class="tab-btn" onclick="switchTab('priority-centers')">Priority Centers</button>
+            </div>
+
+            <!-- Card Fees Tab -->
+            <div id="card-fees-tab" class="tab-content active">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Charge Type:</label>
+                        <select id="filterChargeType">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Card Category:</label>
+                        <select id="filterCardCategory">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Card Network:</label>
+                        <select id="filterCardNetwork">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Card Product:</label>
+                        <select id="filterCardProduct">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Product Line:</label>
+                        <select id="filterProductLine">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="filterStatus">
+                            <option value="">Active Only</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="applyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="clearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="addNewRule" class="btn btn-success">+ Add New Rule</button>
+                </div>
+            </div>
+
+            <!-- Rules Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>Fee Rules</h2>
+                    <div class="table-info">
+                        <span id="totalCount">Total: 0</span>
+                        <span id="showingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="rulesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Charge Type</th>
+                                <th>Category</th>
+                                <th>Network</th>
+                                <th>Product</th>
+                                <th>Fee Value</th>
+                                <th>Unit</th>
+                                <th>Basis</th>
+                                <th>Effective From</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rulesTableBody">
+                            <tr>
+                                <td colspan="11" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="prevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="pageInfo">Page 1</span>
+                    <button id="nextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+
+            <!-- Retail Asset Charges Tab -->
+            <div id="retail-assets-tab" class="tab-content">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Loan Product:</label>
+                        <select id="retailFilterLoanProduct">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Charge Type:</label>
+                        <select id="retailFilterChargeType">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="retailFilterStatus">
+                            <option value="">Active Only</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="retailApplyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="retailClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="addNewRetailCharge" class="btn btn-success">+ Add New Charge</button>
+                </div>
+            </div>
+
+            <!-- Charges Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>Retail Asset Charges</h2>
+                    <div class="table-info">
+                        <span id="retailTotalCount">Total: 0</span>
+                        <span id="retailShowingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="retailChargesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Loan Product</th>
+                                <th>Charge Type</th>
+                                <th>Description</th>
+                                <th>Fee Value</th>
+                                <th>Unit</th>
+                                <th>Effective From</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="retailChargesTableBody">
+                            <tr>
+                                <td colspan="9" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="retailPrevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="retailPageInfo">Page 1</span>
+                    <button id="retailNextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+
+            <!-- Branches Tab -->
+            <div id="branches-tab" class="tab-content">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>City:</label>
+                        <select id="branchFilterCity">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Region:</label>
+                        <select id="branchFilterRegion">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="branchFilterSearch" placeholder="Search branches...">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="branchApplyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="branchClearFilters" class="btn btn-secondary">Clear</button>
+                </div>
+            </div>
+
+            <!-- Branches Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>Branches</h2>
+                    <div class="table-info">
+                        <span id="branchTotalCount">Total: 0</span>
+                        <span id="branchShowingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="branchesTable">
+                        <thead>
+                            <tr>
+                                <th>Branch Code</th>
+                                <th>Branch Name</th>
+                                <th>Address</th>
+                                <th>City</th>
+                                <th>Region</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="branchesTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="branchPrevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="branchPageInfo">Page 1</span>
+                    <button id="branchNextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+
+            <!-- ATM/CRM/RTDM Tab -->
+            <div id="machines-tab" class="tab-content">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Machine Type:</label>
+                        <select id="machineFilterType">
+                            <option value="">All</option>
+                            <option value="atm">ATM</option>
+                            <option value="crm">CRM</option>
+                            <option value="rtdm">RTDM</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>City:</label>
+                        <select id="machineFilterCity">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Region:</label>
+                        <select id="machineFilterRegion">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="machineFilterSearch" placeholder="Search machines...">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="machineApplyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="machineClearFilters" class="btn btn-secondary">Clear</button>
+                </div>
+            </div>
+
+            <!-- Machines Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>ATM/CRM/RTDM Locations</h2>
+                    <div class="table-info">
+                        <span id="machineTotalCount">Total: 0</span>
+                        <span id="machineShowingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="machinesTable">
+                        <thead>
+                            <tr>
+                                <th>Machine Type</th>
+                                <th>Count</th>
+                                <th>Address</th>
+                                <th>City</th>
+                                <th>Region</th>
+                            </tr>
+                        </thead>
+                        <tbody id="machinesTableBody">
+                            <tr>
+                                <td colspan="5" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="machinePrevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="machinePageInfo">Page 1</span>
+                    <button id="machineNextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+
+            <!-- Priority Centers Tab -->
+            <div id="priority-centers-tab" class="tab-content">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>City:</label>
+                        <select id="priorityFilterCity">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Region:</label>
+                        <select id="priorityFilterRegion">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="priorityFilterSearch" placeholder="Search priority centers...">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="priorityApplyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="priorityClearFilters" class="btn btn-secondary">Clear</button>
+                </div>
+            </div>
+
+            <!-- Priority Centers Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>Priority Centers</h2>
+                    <div class="table-info">
+                        <span id="priorityTotalCount">Total: 0</span>
+                        <span id="priorityShowingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="priorityCentersTable">
+                        <thead>
+                            <tr>
+                                <th>Center Name</th>
+                                <th>City</th>
+                                <th>Region</th>
+                            </tr>
+                        </thead>
+                        <tbody id="priorityCentersTableBody">
+                            <tr>
+                                <td colspan="3" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="priorityPrevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="priorityPageInfo">Page 1</span>
+                    <button id="priorityNextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div id="editModal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Edit Fee Rule</h2>
+                    <button class="close-btn" onclick="closeEditModal()">&times;</button>
+                </div>
+                <form id="editForm">
+                    <input type="hidden" id="editFeeId">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="editChargeType">Charge Type *</label>
+                            <input type="text" id="editChargeType" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editCardCategory">Card Category *</label>
+                            <select id="editCardCategory" required>
+                                <option value="CREDIT">CREDIT</option>
+                                <option value="DEBIT">DEBIT</option>
+                                <option value="PREPAID">PREPAID</option>
+                                <option value="ANY">ANY</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editCardNetwork">Card Network *</label>
+                            <input type="text" id="editCardNetwork" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editCardProduct">Card Product *</label>
+                            <input type="text" id="editCardProduct" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editFullCardName">Full Card Name</label>
+                            <input type="text" id="editFullCardName">
+                        </div>
+                        <div class="form-group">
+                            <label for="editFeeValue">Fee Value *</label>
+                            <input type="number" id="editFeeValue" step="0.0001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editFeeUnit">Fee Unit *</label>
+                            <select id="editFeeUnit" required>
+                                <option value="BDT">BDT</option>
+                                <option value="USD">USD</option>
+                                <option value="PERCENT">PERCENT</option>
+                                <option value="COUNT">COUNT</option>
+                                <option value="TEXT">TEXT</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editFeeBasis">Fee Basis *</label>
+                            <select id="editFeeBasis" required>
+                                <option value="PER_TXN">PER_TXN</option>
+                                <option value="PER_YEAR">PER_YEAR</option>
+                                <option value="PER_MONTH">PER_MONTH</option>
+                                <option value="PER_VISIT">PER_VISIT</option>
+                                <option value="ON_OUTSTANDING">ON_OUTSTANDING</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editMinFeeValue">Min Fee Value</label>
+                            <input type="number" id="editMinFeeValue" step="0.0001">
+                        </div>
+                        <div class="form-group">
+                            <label for="editMinFeeUnit">Min Fee Unit</label>
+                            <select id="editMinFeeUnit">
+                                <option value="">None</option>
+                                <option value="BDT">BDT</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editMaxFeeValue">Max Fee Value</label>
+                            <input type="number" id="editMaxFeeValue" step="0.0001">
+                        </div>
+                        <div class="form-group">
+                            <label for="editFreeEntitlementCount">Free Entitlement Count</label>
+                            <input type="number" id="editFreeEntitlementCount">
+                        </div>
+                        <div class="form-group">
+                            <label for="editConditionType">Condition Type *</label>
+                            <select id="editConditionType" required>
+                                <option value="NONE">NONE</option>
+                                <option value="WHICHEVER_HIGHER">WHICHEVER_HIGHER</option>
+                                <option value="FREE_UPTO_N">FREE_UPTO_N</option>
+                                <option value="NOTE_BASED">NOTE_BASED</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editNoteReference">Note Reference</label>
+                            <input type="text" id="editNoteReference">
+                        </div>
+                        <div class="form-group">
+                            <label for="editPriority">Priority *</label>
+                            <input type="number" id="editPriority" value="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editStatus">Status *</label>
+                            <select id="editStatus" required>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editProductLine">Product Line *</label>
+                            <select id="editProductLine" required>
+                                <option value="CREDIT_CARDS">CREDIT_CARDS</option>
+                                <option value="SKYBANKING">SKYBANKING</option>
+                                <option value="PRIORITY_BANKING">PRIORITY_BANKING</option>
+                                <option value="RETAIL_ASSETS">RETAIL_ASSETS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editEffectiveFrom">Effective From *</label>
+                            <input type="date" id="editEffectiveFrom" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editEffectiveTo">Effective To</label>
+                            <input type="date" id="editEffectiveTo">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="editRemarks">Remarks</label>
+                            <textarea id="editRemarks" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div id="editError" class="error-message"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
+
