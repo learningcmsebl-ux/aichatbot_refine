@@ -1,0 +1,80 @@
+services:
+  fee-engine:
+    build:
+      context: .
+      dockerfile: fee_engine/Dockerfile
+    container_name: fee-engine-service
+    ports:
+      - "8003:8003"
+    volumes:
+      # Mount application code for automatic updates (no rebuild needed)
+      - ./fee_engine/fee_engine_service.py:/app/fee_engine_service.py
+    environment:
+      # PostgreSQL Configuration
+      # Use host.docker.internal to access PostgreSQL on host machine (Windows/Mac)
+      # Use localhost or container name for Linux
+      POSTGRES_HOST: host.docker.internal
+      # Note: On Windows/Mac, use host.docker.internal to access host PostgreSQL
+      # On Linux, you may need to use the actual host IP or container name
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-chatbot_db}
+      POSTGRES_USER: ${POSTGRES_USER:-chatbot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot_password_123}
+      
+      # Fee Engine Configuration
+      FEE_ENGINE_PORT: ${FEE_ENGINE_PORT:-8003}
+      FEE_ENGINE_HOST: ${FEE_ENGINE_HOST:-0.0.0.0}
+      
+      # Database URL (optional - service will construct from POSTGRES_* vars if not set)
+      FEE_ENGINE_DB_URL: ${FEE_ENGINE_DB_URL:-}
+    networks:
+      - fee-engine-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8003/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  fee-engine-admin:
+    build:
+      context: .
+      dockerfile: fee_engine/admin_panel/Dockerfile
+    container_name: fee-engine-admin-panel
+    ports:
+      - "8009:8009"
+    volumes:
+      # Mount application code for automatic updates (no rebuild needed)
+      - ./fee_engine/admin_panel/admin_api.py:/app/admin_panel/admin_api.py
+      # Mount static files (HTML, JS, CSS) for automatic updates
+      - ./fee_engine/admin_panel/static:/app/admin_panel/static
+    environment:
+      # PostgreSQL Configuration
+      POSTGRES_HOST: host.docker.internal
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-chatbot_db}
+      POSTGRES_USER: ${POSTGRES_USER:-chatbot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot_password_123}
+      
+      # Admin Panel Configuration
+      ADMIN_PANEL_PORT: ${ADMIN_PANEL_PORT:-8009}
+      ADMIN_PANEL_HOST: ${ADMIN_PANEL_HOST:-0.0.0.0}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      
+      # Database URL (optional)
+      FEE_ENGINE_DB_URL: ${FEE_ENGINE_DB_URL:-}
+    networks:
+      - fee-engine-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8009/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  fee-engine-network:
+    driver: bridge

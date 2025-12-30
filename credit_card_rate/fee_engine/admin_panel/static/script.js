@@ -14,6 +14,12 @@ let retailTotalCharges = 0;
 let retailCurrentFilters = {};
 let retailFiltersData = null;
 
+// Skybanking Fees state
+let skybankingCurrentPage = 0;
+let skybankingTotalFees = 0;
+let skybankingCurrentFilters = {};
+let skybankingFiltersData = null;
+
 // Location service state
 let branchCurrentPage = 0;
 let branchTotalLocations = 0;
@@ -70,6 +76,8 @@ function testAuth() {
             loadRules();
             loadRetailAssetFilters();
             loadRetailAssetCharges();
+            loadSkybankingFilters();
+            loadSkybankingFees();
             loadLocationFilters();
             loadBranches();
             loadMachines();
@@ -90,6 +98,37 @@ function setupEventListeners() {
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
     document.getElementById('addNewRule').addEventListener('click', showAddModal);
+    
+    // Export buttons
+    const exportCardFeesBtn = document.getElementById('exportCardFees');
+    if (exportCardFeesBtn) {
+        exportCardFeesBtn.addEventListener('click', exportCardFeesToCSV);
+    }
+    
+    const exportRetailChargesBtn = document.getElementById('exportRetailCharges');
+    if (exportRetailChargesBtn) {
+        exportRetailChargesBtn.addEventListener('click', exportRetailChargesToCSV);
+    }
+    
+    const exportSkybankingFeesBtn = document.getElementById('exportSkybankingFees');
+    if (exportSkybankingFeesBtn) {
+        exportSkybankingFeesBtn.addEventListener('click', exportSkybankingFeesToCSV);
+    }
+    
+    const exportBranchesBtn = document.getElementById('exportBranches');
+    if (exportBranchesBtn) {
+        exportBranchesBtn.addEventListener('click', exportBranchesToCSV);
+    }
+    
+    const exportMachinesBtn = document.getElementById('exportMachines');
+    if (exportMachinesBtn) {
+        exportMachinesBtn.addEventListener('click', exportMachinesToCSV);
+    }
+    
+    const exportPriorityCentersBtn = document.getElementById('exportPriorityCenters');
+    if (exportPriorityCentersBtn) {
+        exportPriorityCentersBtn.addEventListener('click', exportPriorityCentersToCSV);
+    }
     
     // Pagination
     document.getElementById('prevPage').addEventListener('click', () => {
@@ -113,6 +152,40 @@ function setupEventListeners() {
     document.getElementById('retailApplyFilters').addEventListener('click', applyRetailFilters);
     document.getElementById('retailClearFilters').addEventListener('click', clearRetailFilters);
     document.getElementById('addNewRetailCharge').addEventListener('click', showAddRetailModal);
+    
+    // Skybanking Fees filters
+    const skybankingApplyFilters = document.getElementById('skybankingApplyFilters');
+    const skybankingClearFilters = document.getElementById('skybankingClearFilters');
+    const skybankingAddNewFee = document.getElementById('skybankingAddNewFee');
+    if (skybankingApplyFilters) {
+        skybankingApplyFilters.addEventListener('click', applySkybankingFilters);
+    }
+    if (skybankingClearFilters) {
+        skybankingClearFilters.addEventListener('click', clearSkybankingFilters);
+    }
+    if (skybankingAddNewFee) {
+        skybankingAddNewFee.addEventListener('click', showAddSkybankingModal);
+    }
+    
+    // Skybanking pagination
+    const skybankingPrevPage = document.getElementById('skybankingPrevPage');
+    const skybankingNextPage = document.getElementById('skybankingNextPage');
+    if (skybankingPrevPage) {
+        skybankingPrevPage.addEventListener('click', () => {
+            if (skybankingCurrentPage > 0) {
+                skybankingCurrentPage--;
+                loadSkybankingFees();
+            }
+        });
+    }
+    if (skybankingNextPage) {
+        skybankingNextPage.addEventListener('click', () => {
+            if ((skybankingCurrentPage + 1) * pageSize < skybankingTotalFees) {
+                skybankingCurrentPage++;
+                loadSkybankingFees();
+            }
+        });
+    }
     
     // Location service filters
     document.getElementById('branchApplyFilters').addEventListener('click', applyBranchFilters);
@@ -195,6 +268,10 @@ function switchTab(tabName) {
     } else if (tabName === 'retail-assets') {
         document.getElementById('retail-assets-tab').classList.add('active');
         document.querySelector('.tab-btn[onclick="switchTab(\'retail-assets\')"]').classList.add('active');
+    } else if (tabName === 'skybanking-fees') {
+        document.getElementById('skybanking-fees-tab').classList.add('active');
+        document.querySelector('.tab-btn[onclick="switchTab(\'skybanking-fees\')"]').classList.add('active');
+        loadSkybankingFees();
     } else if (tabName === 'branches') {
         document.getElementById('branches-tab').classList.add('active');
         document.querySelector('.tab-btn[onclick="switchTab(\'branches\')"]').classList.add('active');
@@ -287,6 +364,8 @@ async function loadFilters() {
 
 function populateSelect(selectId, options) {
     const select = document.getElementById(selectId);
+    if (!select) return;
+    
     // Keep the "All" option
     const allOption = select.options[0];
     select.innerHTML = '';
@@ -520,6 +599,10 @@ async function handleSave(e) {
         
         closeEditModal();
         loadRules();
+        // Reload skybanking fees if product line is SKYBANKING
+        if (formData.product_line === 'SKYBANKING') {
+            loadSkybankingFees();
+        }
     } catch (error) {
         errorDiv.textContent = 'Error: ' + error.message;
         errorDiv.classList.add('show');
@@ -728,10 +811,156 @@ function showAddRetailModal() {
     alert('Add new retail asset charge functionality coming soon!');
 }
 
+// Skybanking Fees Functions
+async function loadSkybankingFilters() {
+    try {
+        skybankingFiltersData = await apiCall('/api/filters');
+        
+        // Populate skybanking filter dropdowns
+        const chargeTypeSelect = document.getElementById('skybankingFilterChargeType');
+        const productSelect = document.getElementById('skybankingFilterProduct');
+        const networkSelect = document.getElementById('skybankingFilterNetwork');
+        
+        if (chargeTypeSelect && skybankingFiltersData.charge_types) {
+            populateSelect('skybankingFilterChargeType', skybankingFiltersData.charge_types);
+        }
+        if (productSelect && skybankingFiltersData.card_products) {
+            populateSelect('skybankingFilterProduct', skybankingFiltersData.card_products);
+        }
+        if (networkSelect && skybankingFiltersData.card_networks) {
+            populateSelect('skybankingFilterNetwork', skybankingFiltersData.card_networks);
+        }
+    } catch (error) {
+        console.error('Error loading skybanking filters:', error);
+    }
+}
+
+async function loadSkybankingFees() {
+    const tbody = document.getElementById('skybankingFeesTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading...</td></tr>';
+    
+    try {
+        const params = new URLSearchParams({
+            limit: pageSize,
+            offset: skybankingCurrentPage * pageSize,
+            product_line: 'SKYBANKING',
+            ...skybankingCurrentFilters
+        });
+        
+        const data = await apiCall(`/api/rules?${params}`);
+        skybankingTotalFees = data.total;
+        
+        updateSkybankingPagination();
+        renderSkybankingFees(data.rules);
+        
+        const totalCountEl = document.getElementById('skybankingTotalCount');
+        const showingCountEl = document.getElementById('skybankingShowingCount');
+        if (totalCountEl) totalCountEl.textContent = `Total: ${skybankingTotalFees}`;
+        if (showingCountEl) showingCountEl.textContent = `Showing: ${data.rules.length}`;
+    } catch (error) {
+        console.error('Error loading skybanking fees:', error);
+        tbody.innerHTML = `<tr><td colspan="10" class="loading" style="color: red;">Error: ${error.message}</td></tr>`;
+    }
+}
+
+function renderSkybankingFees(fees) {
+    const tbody = document.getElementById('skybankingFeesTableBody');
+    if (!tbody) return;
+    
+    if (fees.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No fees found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = fees.map(fee => `
+        <tr>
+            <td>${fee.charge_type}</td>
+            <td>${fee.card_product || '-'}</td>
+            <td>${fee.card_network || '-'}</td>
+            <td>${formatNumber(fee.fee_value)}</td>
+            <td>${fee.fee_unit}</td>
+            <td>${fee.fee_basis}</td>
+            <td>${fee.condition_type !== 'NONE' ? 'Yes' : 'No'}</td>
+            <td><span class="status-badge status-${fee.status.toLowerCase()}">${fee.status}</span></td>
+            <td>${fee.effective_from}</td>
+            <td class="actions-cell">
+                <button class="btn btn-primary btn-small" onclick="editRule('${fee.fee_id}')">Edit</button>
+                <button class="btn btn-danger btn-small" onclick="deleteRule('${fee.fee_id}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateSkybankingPagination() {
+    const prevBtn = document.getElementById('skybankingPrevPage');
+    const nextBtn = document.getElementById('skybankingNextPage');
+    const pageInfo = document.getElementById('skybankingPageInfo');
+    
+    if (prevBtn) prevBtn.disabled = skybankingCurrentPage === 0;
+    if (nextBtn) nextBtn.disabled = (skybankingCurrentPage + 1) * pageSize >= skybankingTotalFees;
+    
+    if (pageInfo) {
+        const start = skybankingCurrentPage * pageSize + 1;
+        const end = Math.min((skybankingCurrentPage + 1) * pageSize, skybankingTotalFees);
+        pageInfo.textContent = `Page ${skybankingCurrentPage + 1} (${start}-${end} of ${skybankingTotalFees})`;
+    }
+}
+
+function applySkybankingFilters() {
+    skybankingCurrentFilters = {};
+    
+    const chargeType = document.getElementById('skybankingFilterChargeType');
+    const product = document.getElementById('skybankingFilterProduct');
+    const network = document.getElementById('skybankingFilterNetwork');
+    const statusFilter = document.getElementById('skybankingFilterStatus');
+    
+    if (chargeType && chargeType.value) skybankingCurrentFilters.charge_type = chargeType.value;
+    if (product && product.value) skybankingCurrentFilters.card_product = product.value;
+    if (network && network.value) skybankingCurrentFilters.card_network = network.value;
+    if (statusFilter && statusFilter.value) skybankingCurrentFilters.status_filter = statusFilter.value;
+    
+    skybankingCurrentPage = 0;
+    loadSkybankingFees();
+}
+
+function clearSkybankingFilters() {
+    const chargeType = document.getElementById('skybankingFilterChargeType');
+    const product = document.getElementById('skybankingFilterProduct');
+    const network = document.getElementById('skybankingFilterNetwork');
+    const statusFilter = document.getElementById('skybankingFilterStatus');
+    
+    if (chargeType) chargeType.value = '';
+    if (product) product.value = '';
+    if (network) network.value = '';
+    if (statusFilter) statusFilter.value = '';
+    
+    skybankingCurrentFilters = {};
+    skybankingCurrentPage = 0;
+    loadSkybankingFees();
+}
+
+function showAddSkybankingModal() {
+    // Clear form
+    document.getElementById('editForm').reset();
+    document.getElementById('editFeeId').value = '';
+    
+    // Set defaults for Skybanking
+    document.getElementById('editCardCategory').value = 'ANY';
+    document.getElementById('editFeeUnit').value = 'BDT';
+    document.getElementById('editFeeBasis').value = 'PER_TXN';
+    document.getElementById('editConditionType').value = 'NONE';
+    document.getElementById('editPriority').value = '100';
+    document.getElementById('editStatus').value = 'ACTIVE';
+    document.getElementById('editProductLine').value = 'SKYBANKING';
+    document.getElementById('editEffectiveFrom').value = new Date().toISOString().split('T')[0];
+    
+    document.getElementById('editModal').style.display = 'block';
+    document.getElementById('modalTitle').textContent = 'Add New Skybanking Fee';
+}
 
 // Location Service Functions
-// Note: Variables are declared at the top of the file (lines 18-27)
-
 async function loadLocationFilters() {
     try {
         locationFiltersData = await apiCall('/api/locations/filters');
@@ -750,9 +979,9 @@ async function loadLocationFilters() {
             });
         }
  
- // Populate machine filters
- const machineCitySelect = document.getElementById('machineFilterCity');
- const machineRegionSelect = document.getElementById('machineFilterRegion');
+        // Populate machine filters
+        const machineCitySelect = document.getElementById('machineFilterCity');
+        const machineRegionSelect = document.getElementById('machineFilterRegion');
         if (machineCitySelect && machineRegionSelect) {
             machineCitySelect.innerHTML = '<option value="">All</option>';
             machineRegionSelect.innerHTML = '<option value="">All</option>';
@@ -777,22 +1006,22 @@ async function loadLocationFilters() {
                 priorityRegionSelect.innerHTML += `<option value="${region}">${region}</option>`;
             });
         }
- } catch (error) {
- console.error('Error loading location filters:', error);
- }
+    } catch (error) {
+        console.error('Error loading location filters:', error);
+    }
 }
 
 async function loadBranches() {
     try {
- const params = new URLSearchParams({
- type: 'branch',
- limit: pageSize,
- offset: branchCurrentPage * pageSize
- });
+        const params = new URLSearchParams({
+            type: 'branch',
+            limit: pageSize,
+            offset: branchCurrentPage * pageSize
+        });
  
- if (branchCurrentFilters.city) params.append('city', branchCurrentFilters.city);
- if (branchCurrentFilters.region) params.append('region', branchCurrentFilters.region);
- if (branchCurrentFilters.search) params.append('search', branchCurrentFilters.search);
+        if (branchCurrentFilters.city) params.append('city', branchCurrentFilters.city);
+        if (branchCurrentFilters.region) params.append('region', branchCurrentFilters.region);
+        if (branchCurrentFilters.search) params.append('search', branchCurrentFilters.search);
  
         const data = await apiCall(`/api/locations?${params.toString()}`);
         
@@ -821,26 +1050,26 @@ async function loadBranches() {
             });
         }
  
- document.getElementById('branchPrevPage').disabled = branchCurrentPage === 0;
- document.getElementById('branchNextPage').disabled = (branchCurrentPage + 1) * pageSize >= branchTotalLocations;
- } catch (error) {
- console.error('Error loading branches:', error);
- const tbody = document.getElementById('branchesTableBody');
+        document.getElementById('branchPrevPage').disabled = branchCurrentPage === 0;
+        document.getElementById('branchNextPage').disabled = (branchCurrentPage + 1) * pageSize >= branchTotalLocations;
+    } catch (error) {
+        console.error('Error loading branches:', error);
+        const tbody = document.getElementById('branchesTableBody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="error">Error loading branches</td></tr>';
- }
+    }
 }
 
 async function loadMachines() {
     try {
- const params = new URLSearchParams({
- limit: pageSize,
- offset: machineCurrentPage * pageSize
- });
+        const params = new URLSearchParams({
+            limit: pageSize,
+            offset: machineCurrentPage * pageSize
+        });
  
- if (machineCurrentFilters.type) params.append('type', machineCurrentFilters.type);
- if (machineCurrentFilters.city) params.append('city', machineCurrentFilters.city);
- if (machineCurrentFilters.region) params.append('region', machineCurrentFilters.region);
- if (machineCurrentFilters.search) params.append('search', machineCurrentFilters.search);
+        if (machineCurrentFilters.type) params.append('type', machineCurrentFilters.type);
+        if (machineCurrentFilters.city) params.append('city', machineCurrentFilters.city);
+        if (machineCurrentFilters.region) params.append('region', machineCurrentFilters.region);
+        if (machineCurrentFilters.search) params.append('search', machineCurrentFilters.search);
  
         const data = await apiCall(`/api/locations?${params.toString()}`);
         
@@ -868,26 +1097,26 @@ async function loadMachines() {
             });
         }
  
- document.getElementById('machinePrevPage').disabled = machineCurrentPage === 0;
- document.getElementById('machineNextPage').disabled = (machineCurrentPage + 1) * pageSize >= machineTotalLocations;
- } catch (error) {
- console.error('Error loading machines:', error);
- const tbody = document.getElementById('machinesTableBody');
+        document.getElementById('machinePrevPage').disabled = machineCurrentPage === 0;
+        document.getElementById('machineNextPage').disabled = (machineCurrentPage + 1) * pageSize >= machineTotalLocations;
+    } catch (error) {
+        console.error('Error loading machines:', error);
+        const tbody = document.getElementById('machinesTableBody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="error">Error loading machines</td></tr>';
- }
+    }
 }
 
 async function loadPriorityCenters() {
     try {
- const params = new URLSearchParams({
- type: 'priority_center',
- limit: pageSize,
- offset: priorityCurrentPage * pageSize
- });
+        const params = new URLSearchParams({
+            type: 'priority_center',
+            limit: pageSize,
+            offset: priorityCurrentPage * pageSize
+        });
  
- if (priorityCurrentFilters.city) params.append('city', priorityCurrentFilters.city);
- if (priorityCurrentFilters.region) params.append('region', priorityCurrentFilters.region);
- if (priorityCurrentFilters.search) params.append('search', priorityCurrentFilters.search);
+        if (priorityCurrentFilters.city) params.append('city', priorityCurrentFilters.city);
+        if (priorityCurrentFilters.region) params.append('region', priorityCurrentFilters.region);
+        if (priorityCurrentFilters.search) params.append('search', priorityCurrentFilters.search);
  
         const data = await apiCall(`/api/locations?${params.toString()}`);
         
@@ -913,83 +1142,398 @@ async function loadPriorityCenters() {
             });
         }
  
- document.getElementById('priorityPrevPage').disabled = priorityCurrentPage === 0;
- document.getElementById('priorityNextPage').disabled = (priorityCurrentPage + 1) * pageSize >= priorityTotalLocations;
- } catch (error) {
- console.error('Error loading priority centers:', error);
- const tbody = document.getElementById('priorityCentersTableBody');
+        document.getElementById('priorityPrevPage').disabled = priorityCurrentPage === 0;
+        document.getElementById('priorityNextPage').disabled = (priorityCurrentPage + 1) * pageSize >= priorityTotalLocations;
+    } catch (error) {
+        console.error('Error loading priority centers:', error);
+        const tbody = document.getElementById('priorityCentersTableBody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="error">Error loading priority centers</td></tr>';
- }
+    }
 }
 
 function applyBranchFilters() {
- branchCurrentFilters = {};
- const city = document.getElementById('branchFilterCity').value;
- const region = document.getElementById('branchFilterRegion').value;
- const search = document.getElementById('branchFilterSearch').value;
+    branchCurrentFilters = {};
+    const city = document.getElementById('branchFilterCity').value;
+    const region = document.getElementById('branchFilterRegion').value;
+    const search = document.getElementById('branchFilterSearch').value;
  
- if (city) branchCurrentFilters.city = city;
- if (region) branchCurrentFilters.region = region;
- if (search) branchCurrentFilters.search = search;
+    if (city) branchCurrentFilters.city = city;
+    if (region) branchCurrentFilters.region = region;
+    if (search) branchCurrentFilters.search = search;
  
- branchCurrentPage = 0;
- loadBranches();
+    branchCurrentPage = 0;
+    loadBranches();
 }
 
 function clearBranchFilters() {
- document.getElementById('branchFilterCity').value = '';
- document.getElementById('branchFilterRegion').value = '';
- document.getElementById('branchFilterSearch').value = '';
- branchCurrentFilters = {};
- branchCurrentPage = 0;
- loadBranches();
+    document.getElementById('branchFilterCity').value = '';
+    document.getElementById('branchFilterRegion').value = '';
+    document.getElementById('branchFilterSearch').value = '';
+    branchCurrentFilters = {};
+    branchCurrentPage = 0;
+    loadBranches();
 }
 
 function applyMachineFilters() {
- machineCurrentFilters = {};
- const type = document.getElementById('machineFilterType').value;
- const city = document.getElementById('machineFilterCity').value;
- const region = document.getElementById('machineFilterRegion').value;
- const search = document.getElementById('machineFilterSearch').value;
+    machineCurrentFilters = {};
+    const type = document.getElementById('machineFilterType').value;
+    const city = document.getElementById('machineFilterCity').value;
+    const region = document.getElementById('machineFilterRegion').value;
+    const search = document.getElementById('machineFilterSearch').value;
  
- if (type) machineCurrentFilters.type = type;
- if (city) machineCurrentFilters.city = city;
- if (region) machineCurrentFilters.region = region;
- if (search) machineCurrentFilters.search = search;
+    if (type) machineCurrentFilters.type = type;
+    if (city) machineCurrentFilters.city = city;
+    if (region) machineCurrentFilters.region = region;
+    if (search) machineCurrentFilters.search = search;
  
- machineCurrentPage = 0;
- loadMachines();
+    machineCurrentPage = 0;
+    loadMachines();
 }
 
 function clearMachineFilters() {
- document.getElementById('machineFilterType').value = '';
- document.getElementById('machineFilterCity').value = '';
- document.getElementById('machineFilterRegion').value = '';
- document.getElementById('machineFilterSearch').value = '';
- machineCurrentFilters = {};
- machineCurrentPage = 0;
- loadMachines();
+    document.getElementById('machineFilterType').value = '';
+    document.getElementById('machineFilterCity').value = '';
+    document.getElementById('machineFilterRegion').value = '';
+    document.getElementById('machineFilterSearch').value = '';
+    machineCurrentFilters = {};
+    machineCurrentPage = 0;
+    loadMachines();
 }
 
 function applyPriorityFilters() {
- priorityCurrentFilters = {};
- const city = document.getElementById('priorityFilterCity').value;
- const region = document.getElementById('priorityFilterRegion').value;
- const search = document.getElementById('priorityFilterSearch').value;
+    priorityCurrentFilters = {};
+    const city = document.getElementById('priorityFilterCity').value;
+    const region = document.getElementById('priorityFilterRegion').value;
+    const search = document.getElementById('priorityFilterSearch').value;
  
- if (city) priorityCurrentFilters.city = city;
- if (region) priorityCurrentFilters.region = region;
- if (search) priorityCurrentFilters.search = search;
+    if (city) priorityCurrentFilters.city = city;
+    if (region) priorityCurrentFilters.region = region;
+    if (search) priorityCurrentFilters.search = search;
  
- priorityCurrentPage = 0;
- loadPriorityCenters();
+    priorityCurrentPage = 0;
+    loadPriorityCenters();
 }
 
 function clearPriorityFilters() {
- document.getElementById('priorityFilterCity').value = '';
- document.getElementById('priorityFilterRegion').value = '';
- document.getElementById('priorityFilterSearch').value = '';
- priorityCurrentFilters = {};
- priorityCurrentPage = 0;
- loadPriorityCenters();
+    document.getElementById('priorityFilterCity').value = '';
+    document.getElementById('priorityFilterRegion').value = '';
+    document.getElementById('priorityFilterSearch').value = '';
+    priorityCurrentFilters = {};
+    priorityCurrentPage = 0;
+    loadPriorityCenters();
 }
+
+// Export Functions
+function exportCardFeesToCSV() {
+    try {
+        // Build query parameters from current filters
+        const params = new URLSearchParams();
+        if (currentFilters.charge_type) params.append('charge_type', currentFilters.charge_type);
+        if (currentFilters.card_category) params.append('card_category', currentFilters.card_category);
+        if (currentFilters.card_network) params.append('card_network', currentFilters.card_network);
+        if (currentFilters.card_product) params.append('card_product', currentFilters.card_product);
+        if (currentFilters.product_line) params.append('product_line', currentFilters.product_line);
+        if (currentFilters.status_filter) params.append('status_filter', currentFilters.status_filter);
+        
+        const url = `/api/export/rules?${params.toString()}`;
+        
+        // Use fetch with authentication instead of window.open to ensure proper routing
+        fetch(url, {
+            headers: {
+                'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.detail || 'Export failed: ' + response.statusText);
+                });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `card_fees_export_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        })
+        .catch(error => {
+            console.error('Error exporting card fees:', error);
+            alert('Error exporting card fees: ' + error.message);
+        });
+    } catch (error) {
+        console.error('Error exporting card fees:', error);
+        alert('Error exporting card fees. Please try again.');
+    }
+}
+
+function exportRetailChargesToCSV() {
+    try {
+        // Build query parameters from current filters
+        const params = new URLSearchParams();
+        if (retailCurrentFilters.loan_product) params.append('loan_product', retailCurrentFilters.loan_product);
+        if (retailCurrentFilters.charge_type) params.append('charge_type', retailCurrentFilters.charge_type);
+        if (retailCurrentFilters.status_filter) params.append('status_filter', retailCurrentFilters.status_filter);
+        
+        const url = `/api/export/retail-asset-charges?${params.toString()}`;
+        
+        // Use fetch with authentication
+        fetch(url, {
+            headers: {
+                'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.detail || 'Export failed: ' + response.statusText);
+                });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `retail_asset_charges_export_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        })
+        .catch(error => {
+            console.error('Error exporting retail asset charges:', error);
+            alert('Error exporting retail asset charges: ' + error.message);
+        });
+    } catch (error) {
+        console.error('Error exporting retail asset charges:', error);
+        alert('Error exporting retail asset charges. Please try again.');
+    }
+}
+
+function exportSkybankingFeesToCSV() {
+    try {
+        // Build query parameters from current filters
+        const params = new URLSearchParams();
+        params.append('product_line', 'SKYBANKING');
+        if (skybankingCurrentFilters.charge_type) params.append('charge_type', skybankingCurrentFilters.charge_type);
+        if (skybankingCurrentFilters.card_product) params.append('card_product', skybankingCurrentFilters.card_product);
+        if (skybankingCurrentFilters.card_network) params.append('card_network', skybankingCurrentFilters.card_network);
+        if (skybankingCurrentFilters.status_filter) params.append('status_filter', skybankingCurrentFilters.status_filter);
+        
+        const url = `/api/export/rules?${params.toString()}`;
+        
+        // Use fetch with authentication
+        fetch(url, {
+            headers: {
+                'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.detail || 'Export failed: ' + response.statusText);
+                });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `skybanking_fees_export_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        })
+        .catch(error => {
+            console.error('Error exporting Skybanking fees:', error);
+            alert('Error exporting Skybanking fees: ' + error.message);
+        });
+    } catch (error) {
+        console.error('Error exporting Skybanking fees:', error);
+        alert('Error exporting Skybanking fees. Please try again.');
+    }
+}
+
+function exportBranchesToCSV() {
+    try {
+        // Build query parameters from current filters
+        const params = new URLSearchParams();
+        const cityFilter = document.getElementById('branchFilterCity');
+        const regionFilter = document.getElementById('branchFilterRegion');
+        const searchFilter = document.getElementById('branchFilterSearch');
+        
+        if (cityFilter && cityFilter.value) params.append('city', cityFilter.value);
+        if (regionFilter && regionFilter.value) params.append('region', regionFilter.value);
+        if (searchFilter && searchFilter.value) params.append('search', searchFilter.value);
+        
+        const url = `/api/export/locations/branches?${params.toString()}`;
+        
+        // Try window.open first (browser will handle auth if user is logged in)
+        const newWindow = window.open(url, '_blank');
+        
+        // If popup was blocked or failed, use fetch as fallback
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            // Get credentials from localStorage
+            if (!authCredentials) {
+                alert('Authentication required to export data.');
+                return;
+            }
+            
+            fetch(url, {
+                credentials: 'include',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Export failed: ' + response.statusText);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `branches_export_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+            })
+            .catch(error => {
+                console.error('Error exporting branches:', error);
+                alert('Error exporting branches: ' + error.message);
+            });
+        }
+    } catch (error) {
+        console.error('Error exporting branches:', error);
+        alert('Error exporting branches. Please try again.');
+    }
+}
+
+function exportMachinesToCSV() {
+    try {
+        // Build query parameters from current filters
+        const params = new URLSearchParams();
+        const typeFilter = document.getElementById('machineFilterType');
+        const cityFilter = document.getElementById('machineFilterCity');
+        const regionFilter = document.getElementById('machineFilterRegion');
+        const searchFilter = document.getElementById('machineFilterSearch');
+        
+        if (typeFilter && typeFilter.value) params.append('type', typeFilter.value);
+        if (cityFilter && cityFilter.value) params.append('city', cityFilter.value);
+        if (regionFilter && regionFilter.value) params.append('region', regionFilter.value);
+        if (searchFilter && searchFilter.value) params.append('search', searchFilter.value);
+        
+        const url = `/api/export/locations/machines?${params.toString()}`;
+        
+        // Try window.open first (browser will handle auth if user is logged in)
+        const newWindow = window.open(url, '_blank');
+        
+        // If popup was blocked or failed, use fetch as fallback
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            // Get credentials from localStorage
+            if (!authCredentials) {
+                alert('Authentication required to export data.');
+                return;
+            }
+            
+            fetch(url, {
+                credentials: 'include',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Export failed: ' + response.statusText);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `machines_export_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+            })
+            .catch(error => {
+                console.error('Error exporting machines:', error);
+                alert('Error exporting machines: ' + error.message);
+            });
+        }
+    } catch (error) {
+        console.error('Error exporting machines:', error);
+        alert('Error exporting machines. Please try again.');
+    }
+}
+
+function exportPriorityCentersToCSV() {
+    try {
+        // Build query parameters from current filters
+        const params = new URLSearchParams();
+        const cityFilter = document.getElementById('priorityFilterCity');
+        const regionFilter = document.getElementById('priorityFilterRegion');
+        const searchFilter = document.getElementById('priorityFilterSearch');
+        
+        if (cityFilter && cityFilter.value) params.append('city', cityFilter.value);
+        if (regionFilter && regionFilter.value) params.append('region', regionFilter.value);
+        if (searchFilter && searchFilter.value) params.append('search', searchFilter.value);
+        
+        const url = `/api/export/locations/priority-centers?${params.toString()}`;
+        
+        // Try window.open first (browser will handle auth if user is logged in)
+        const newWindow = window.open(url, '_blank');
+        
+        // If popup was blocked or failed, use fetch as fallback
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            // Get credentials from localStorage
+            if (!authCredentials) {
+                alert('Authentication required to export data.');
+                return;
+            }
+            
+            fetch(url, {
+                credentials: 'include',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Export failed: ' + response.statusText);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `priority_centers_export_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+            })
+            .catch(error => {
+                console.error('Error exporting priority centers:', error);
+                alert('Error exporting priority centers: ' + error.message);
+            });
+        }
+    } catch (error) {
+        console.error('Error exporting priority centers:', error);
+        alert('Error exporting priority centers. Please try again.');
+    }
+}
+
