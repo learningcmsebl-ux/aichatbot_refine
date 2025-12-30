@@ -951,6 +951,106 @@ def get_location_db():
     finally:
         db.close()
 
+# Get single branch - must be before /api/locations to avoid routing conflicts
+@app.get("/api/locations/branches/{branch_id}", dependencies=[Depends(verify_admin)])
+async def get_branch(
+    branch_id: str,
+    db: Session = Depends(get_location_db)
+):
+    """Get a single branch by ID"""
+    if not LOCATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Location service not available")
+    
+    try:
+        branch = db.query(Branch).filter(Branch.branch_id == branch_id).first()
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        
+        return {
+            "id": str(branch.branch_id),
+            "code": branch.branch_code,
+            "name": branch.branch_name,
+            "address": {
+                "street": branch.address.street_address,
+                "city": branch.address.city.city_name,
+                "region": branch.address.city.region.region_name,
+                "zip_code": branch.address.zip_code
+            },
+            "status": branch.status,
+            "is_head_office": branch.is_head_office
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting branch: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting branch: {str(e)}")
+
+# Get single machine - must be before /api/locations to avoid routing conflicts
+@app.get("/api/locations/machines/{machine_id}", dependencies=[Depends(verify_admin)])
+async def get_machine(
+    machine_id: str,
+    db: Session = Depends(get_location_db)
+):
+    """Get a single machine by ID"""
+    if not LOCATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Location service not available")
+    
+    try:
+        from uuid import UUID as UUIDType
+        try:
+            machine_uuid = UUIDType(machine_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid machine ID format")
+        machine = db.query(Machine).filter(Machine.machine_id == machine_uuid).first()
+        if not machine:
+            raise HTTPException(status_code=404, detail="Machine not found")
+        
+        return {
+            "id": str(machine.machine_id),
+            "machine_type": machine.machine_type,
+            "machine_count": machine.machine_count,
+            "address": {
+                "street": machine.address.street_address,
+                "city": machine.address.city.city_name,
+                "region": machine.address.city.region.region_name,
+                "zip_code": machine.address.zip_code
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting machine: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting machine: {str(e)}")
+
+# Get single priority center - must be before /api/locations to avoid routing conflicts
+@app.get("/api/locations/priority-centers/{priority_id}", dependencies=[Depends(verify_admin)])
+async def get_priority_center(
+    priority_id: str,
+    db: Session = Depends(get_location_db)
+):
+    """Get a single priority center by ID"""
+    if not LOCATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Location service not available")
+    
+    try:
+        priority = db.query(PriorityCenter).filter(PriorityCenter.priority_center_id == priority_id).first()
+        if not priority:
+            raise HTTPException(status_code=404, detail="Priority center not found")
+        
+        return {
+            "id": str(priority.priority_center_id),
+            "name": priority.center_name or priority.city.city_name,
+            "address": {
+                "city": priority.city.city_name,
+                "region": priority.city.region.region_name
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting priority center: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting priority center: {str(e)}")
+
 @app.get("/api/locations", dependencies=[Depends(verify_admin)])
 async def get_locations(
     type: Optional[str] = Query(None, description="Location type: branch, atm, crm, rtdm, priority_center, head_office"),
@@ -1173,39 +1273,6 @@ async def get_location_filters(db: Session = Depends(get_location_db)):
         raise HTTPException(status_code=500, detail=f"Error getting location filters: {str(e)}")
 
 # Get single branch
-@app.get("/api/locations/branches/{branch_id}", dependencies=[Depends(verify_admin)])
-async def get_branch(
-    branch_id: str,
-    db: Session = Depends(get_location_db)
-):
-    """Get a single branch by ID"""
-    if not LOCATION_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Location service not available")
-    
-    try:
-        branch = db.query(Branch).filter(Branch.branch_id == branch_id).first()
-        if not branch:
-            raise HTTPException(status_code=404, detail="Branch not found")
-        
-        return {
-            "id": str(branch.branch_id),
-            "code": branch.branch_code,
-            "name": branch.branch_name,
-            "address": {
-                "street": branch.address.street_address,
-                "city": branch.address.city.city_name,
-                "region": branch.address.city.region.region_name,
-                "zip_code": branch.address.zip_code
-            },
-            "status": branch.status,
-            "is_head_office": branch.is_head_office
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting branch: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error getting branch: {str(e)}")
-
 # Pydantic models for location updates
 class BranchUpdate(BaseModel):
     branch_code: Optional[str] = None
@@ -1327,38 +1394,6 @@ async def update_branch(
         logger.error(f"Error updating branch: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error updating branch: {str(e)}")
 
-# Get single machine
-@app.get("/api/locations/machines/{machine_id}", dependencies=[Depends(verify_admin)])
-async def get_machine(
-    machine_id: str,
-    db: Session = Depends(get_location_db)
-):
-    """Get a single machine by ID"""
-    if not LOCATION_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Location service not available")
-    
-    try:
-        machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
-        if not machine:
-            raise HTTPException(status_code=404, detail="Machine not found")
-        
-        return {
-            "id": str(machine.machine_id),
-            "machine_type": machine.machine_type,
-            "machine_count": machine.machine_count,
-            "address": {
-                "street": machine.address.street_address,
-                "city": machine.address.city.city_name,
-                "region": machine.address.city.region.region_name,
-                "zip_code": machine.address.zip_code
-            }
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting machine: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error getting machine: {str(e)}")
-
 # Update machine
 @app.put("/api/locations/machines/{machine_id}", dependencies=[Depends(verify_admin)])
 async def update_machine(
@@ -1371,7 +1406,12 @@ async def update_machine(
         raise HTTPException(status_code=503, detail="Location service not available")
     
     try:
-        machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+        from uuid import UUID as UUIDType
+        try:
+            machine_uuid = UUIDType(machine_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid machine ID format")
+        machine = db.query(Machine).filter(Machine.machine_id == machine_uuid).first()
         if not machine:
             raise HTTPException(status_code=404, detail="Machine not found")
         
@@ -1448,35 +1488,6 @@ async def update_machine(
         db.rollback()
         logger.error(f"Error updating machine: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error updating machine: {str(e)}")
-
-# Get single priority center
-@app.get("/api/locations/priority-centers/{priority_id}", dependencies=[Depends(verify_admin)])
-async def get_priority_center(
-    priority_id: str,
-    db: Session = Depends(get_location_db)
-):
-    """Get a single priority center by ID"""
-    if not LOCATION_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Location service not available")
-    
-    try:
-        priority = db.query(PriorityCenter).filter(PriorityCenter.priority_center_id == priority_id).first()
-        if not priority:
-            raise HTTPException(status_code=404, detail="Priority center not found")
-        
-        return {
-            "id": str(priority.priority_center_id),
-            "name": priority.center_name or priority.city.city_name,
-            "address": {
-                "city": priority.city.city_name,
-                "region": priority.city.region.region_name
-            }
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting priority center: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error getting priority center: {str(e)}")
 
 # Update priority center
 @app.put("/api/locations/priority-centers/{priority_id}", dependencies=[Depends(verify_admin)])
@@ -1666,7 +1677,12 @@ async def get_skybanking_fee(
 ):
     """Get a single Skybanking fee by ID"""
     try:
-        fee = db.query(SkybankingFeeMaster).filter(SkybankingFeeMaster.fee_id == fee_id).first()
+        from uuid import UUID as UUIDType
+        try:
+            fee_uuid = UUIDType(fee_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid fee ID format")
+        fee = db.query(SkybankingFeeMaster).filter(SkybankingFeeMaster.fee_id == fee_uuid).first()
         if not fee:
             raise HTTPException(status_code=404, detail="Skybanking fee not found")
         
@@ -1739,7 +1755,12 @@ async def update_skybanking_fee(
 ):
     """Update a Skybanking fee"""
     try:
-        fee = db.query(SkybankingFeeMaster).filter(SkybankingFeeMaster.fee_id == fee_id).first()
+        from uuid import UUID as UUIDType
+        try:
+            fee_uuid = UUIDType(fee_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid fee ID format")
+        fee = db.query(SkybankingFeeMaster).filter(SkybankingFeeMaster.fee_id == fee_uuid).first()
         if not fee:
             raise HTTPException(status_code=404, detail="Skybanking fee not found")
         
@@ -1792,7 +1813,12 @@ async def delete_skybanking_fee(
 ):
     """Delete a Skybanking fee"""
     try:
-        fee = db.query(SkybankingFeeMaster).filter(SkybankingFeeMaster.fee_id == fee_id).first()
+        from uuid import UUID as UUIDType
+        try:
+            fee_uuid = UUIDType(fee_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid fee ID format")
+        fee = db.query(SkybankingFeeMaster).filter(SkybankingFeeMaster.fee_id == fee_uuid).first()
         if not fee:
             raise HTTPException(status_code=404, detail="Skybanking fee not found")
         

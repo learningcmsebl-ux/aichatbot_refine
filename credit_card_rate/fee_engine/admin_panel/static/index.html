@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fee Engine Admin Panel</title>
+    <title>Fee and Location Engine</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>💳 Fee Engine Admin Panel</h1>
-            <p>Manage Card Rates and Fees</p>
+            <h1>💳 Fee and Location Engine</h1>
+            <p>Manage Card Rates, Fees, and Locations</p>
         </header>
 
         <!-- Login Modal -->
@@ -38,6 +38,7 @@
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('card-fees')">Card Fees</button>
                 <button class="tab-btn" onclick="switchTab('retail-assets')">Retail Asset Charges</button>
+                <button class="tab-btn" onclick="switchTab('skybanking-fees')">Skybanking Fees</button>
                 <button class="tab-btn" onclick="switchTab('branches')">Branches</button>
                 <button class="tab-btn" onclick="switchTab('machines')">ATM/CRM/RTDM</button>
                 <button class="tab-btn" onclick="switchTab('priority-centers')">Priority Centers</button>
@@ -91,6 +92,7 @@
                 <div class="filter-actions">
                     <button id="applyFilters" class="btn btn-primary">Apply Filters</button>
                     <button id="clearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="exportCardFees" class="btn btn-info">📥 Export to CSV</button>
                     <button id="addNewRule" class="btn btn-success">+ Add New Rule</button>
                 </div>
             </div>
@@ -166,6 +168,7 @@
                 <div class="filter-actions">
                     <button id="retailApplyFilters" class="btn btn-primary">Apply Filters</button>
                     <button id="retailClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="exportRetailCharges" class="btn btn-info">📥 Export to CSV</button>
                     <button id="addNewRetailCharge" class="btn btn-success">+ Add New Charge</button>
                 </div>
             </div>
@@ -235,6 +238,7 @@
                 <div class="filter-actions">
                     <button id="branchApplyFilters" class="btn btn-primary">Apply Filters</button>
                     <button id="branchClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="exportBranches" class="btn btn-info" onclick="exportBranchesToCSV()">📥 Export to CSV</button>
                 </div>
             </div>
 
@@ -257,11 +261,12 @@
                                 <th>City</th>
                                 <th>Region</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="branchesTableBody">
                             <tr>
-                                <td colspan="6" class="loading">Loading...</td>
+                                <td colspan="7" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -309,6 +314,7 @@
                 <div class="filter-actions">
                     <button id="machineApplyFilters" class="btn btn-primary">Apply Filters</button>
                     <button id="machineClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="exportMachines" class="btn btn-info" onclick="exportMachinesToCSV()">📥 Export to CSV</button>
                 </div>
             </div>
 
@@ -330,11 +336,12 @@
                                 <th>Address</th>
                                 <th>City</th>
                                 <th>Region</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="machinesTableBody">
                             <tr>
-                                <td colspan="5" class="loading">Loading...</td>
+                                <td colspan="6" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -373,6 +380,7 @@
                 <div class="filter-actions">
                     <button id="priorityApplyFilters" class="btn btn-primary">Apply Filters</button>
                     <button id="priorityClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="exportPriorityCenters" class="btn btn-info" onclick="exportPriorityCentersToCSV()">📥 Export to CSV</button>
                 </div>
             </div>
 
@@ -392,11 +400,12 @@
                                 <th>Center Name</th>
                                 <th>City</th>
                                 <th>Region</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="priorityCentersTableBody">
                             <tr>
-                                <td colspan="3" class="loading">Loading...</td>
+                                <td colspan="4" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -405,6 +414,87 @@
                     <button id="priorityPrevPage" class="btn btn-secondary" disabled>Previous</button>
                     <span id="priorityPageInfo">Page 1</span>
                     <button id="priorityNextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+
+            <!-- Skybanking Fees Tab -->
+            <div id="skybanking-fees-tab" class="tab-content">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Charge Type:</label>
+                        <select id="skybankingFilterChargeType">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Product:</label>
+                        <select id="skybankingFilterProduct">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Network:</label>
+                        <select id="skybankingFilterNetwork">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="skybankingFilterStatus">
+                            <option value="">Active Only</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="skybankingApplyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="skybankingClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="exportSkybankingFees" class="btn btn-info">📥 Export to CSV</button>
+                    <button id="skybankingAddNewFee" class="btn btn-success">+ Add New Fee</button>
+                </div>
+            </div>
+
+            <!-- Skybanking Fees Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>Skybanking Fees</h2>
+                    <div class="table-info">
+                        <span id="skybankingTotalCount">Total: 0</span>
+                        <span id="skybankingShowingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="skybankingFeesTable">
+                        <thead>
+                            <tr>
+                                <th>Charge Type</th>
+                                <th>Product Name</th>
+                                <th>Network</th>
+                                <th>Fee Amount</th>
+                                <th>Fee Unit</th>
+                                <th>Fee Basis</th>
+                                <th>Conditional</th>
+                                <th>Status</th>
+                                <th>Effective From</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="skybankingFeesTableBody">
+                            <tr>
+                                <td colspan="10" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="skybankingPrevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="skybankingPageInfo">Page 1</span>
+                    <button id="skybankingNextPage" class="btn btn-secondary">Next</button>
                 </div>
             </div>
             </div>
@@ -542,6 +632,210 @@
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- Edit Branch Modal -->
+    <div id="editBranchModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Edit Branch</h2>
+            <form id="editBranchForm">
+                <input type="hidden" id="editBranchId">
+                <div class="form-group">
+                    <label for="editBranchCode">Branch Code:</label>
+                    <input type="text" id="editBranchCode" required>
+                </div>
+                <div class="form-group">
+                    <label for="editBranchName">Branch Name:</label>
+                    <input type="text" id="editBranchName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editBranchStreet">Street Address:</label>
+                    <input type="text" id="editBranchStreet" required>
+                </div>
+                <div class="form-group">
+                    <label for="editBranchCity">City:</label>
+                    <select id="editBranchCity" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="editBranchRegion">Region:</label>
+                    <select id="editBranchRegion" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="editBranchZipCode">ZIP Code:</label>
+                    <input type="text" id="editBranchZipCode">
+                </div>
+                <div class="form-group">
+                    <label for="editBranchStatus">Status:</label>
+                    <select id="editBranchStatus" required>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editBranchIsHeadOffice"> Is Head Office
+                    </label>
+                </div>
+                <div id="editBranchError" class="error-message"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditBranchModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Machine Modal -->
+    <div id="editMachineModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Edit Machine</h2>
+            <form id="editMachineForm">
+                <input type="hidden" id="editMachineId">
+                <div class="form-group">
+                    <label for="editMachineType">Machine Type:</label>
+                    <select id="editMachineType" required>
+                        <option value="ATM">ATM</option>
+                        <option value="CRM">CRM</option>
+                        <option value="RTDM">RTDM</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editMachineCount">Count:</label>
+                    <input type="number" id="editMachineCount" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="editMachineStreet">Street Address:</label>
+                    <input type="text" id="editMachineStreet" required>
+                </div>
+                <div class="form-group">
+                    <label for="editMachineCity">City:</label>
+                    <select id="editMachineCity" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="editMachineRegion">Region:</label>
+                    <select id="editMachineRegion" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="editMachineZipCode">ZIP Code:</label>
+                    <input type="text" id="editMachineZipCode">
+                </div>
+                <div id="editMachineError" class="error-message"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditMachineModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Priority Center Modal -->
+    <div id="editPriorityModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Edit Priority Center</h2>
+            <form id="editPriorityForm">
+                <input type="hidden" id="editPriorityId">
+                <div class="form-group">
+                    <label for="editPriorityName">Center Name:</label>
+                    <input type="text" id="editPriorityName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editPriorityCity">City:</label>
+                    <select id="editPriorityCity" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="editPriorityRegion">Region:</label>
+                    <select id="editPriorityRegion" required></select>
+                </div>
+                <div id="editPriorityError" class="error-message"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditPriorityModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Retail Asset Charge Modal -->
+    <div id="editRetailModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Edit Retail Asset Charge</h2>
+                <button class="close-btn" onclick="closeEditRetailModal()">&times;</button>
+            </div>
+            <form id="editRetailForm">
+                <input type="hidden" id="editRetailChargeId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editRetailLoanProduct">Loan Product *</label>
+                        <input type="text" id="editRetailLoanProduct" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailLoanProductName">Loan Product Name *</label>
+                        <input type="text" id="editRetailLoanProductName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailChargeType">Charge Type *</label>
+                        <input type="text" id="editRetailChargeType" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailChargeDescription">Charge Description *</label>
+                        <textarea id="editRetailChargeDescription" rows="2" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeValue">Fee Value</label>
+                        <input type="number" id="editRetailFeeValue" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeUnit">Fee Unit *</label>
+                        <select id="editRetailFeeUnit" required>
+                            <option value="BDT">BDT</option>
+                            <option value="USD">USD</option>
+                            <option value="PERCENT">PERCENT</option>
+                            <option value="COUNT">COUNT</option>
+                            <option value="TEXT">TEXT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeBasis">Fee Basis *</label>
+                        <select id="editRetailFeeBasis" required>
+                            <option value="PER_TXN">PER_TXN</option>
+                            <option value="PER_YEAR">PER_YEAR</option>
+                            <option value="PER_MONTH">PER_MONTH</option>
+                            <option value="PER_REQUEST">PER_REQUEST</option>
+                            <option value="ON_OUTSTANDING">ON_OUTSTANDING</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailStatus">Status *</label>
+                        <select id="editRetailStatus" required>
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="INACTIVE">INACTIVE</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailEffectiveFrom">Effective From *</label>
+                        <input type="date" id="editRetailEffectiveFrom" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailEffectiveTo">Effective To</label>
+                        <input type="date" id="editRetailEffectiveTo">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailPriority">Priority</label>
+                        <input type="number" id="editRetailPriority" value="100">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="editRetailRemarks">Remarks</label>
+                        <textarea id="editRetailRemarks" rows="3"></textarea>
+                    </div>
+                </div>
+                <div id="editRetailError" class="error-message"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditRetailModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 
