@@ -809,6 +809,12 @@ class FeeEngineClient:
             charge_type = fee_result.get("charge_type", "")
             remarks = fee_result.get("remarks", "") or ""
             
+            # Detect SkyLounge free visit queries - these are count-based, not fee-based
+            is_skylounge_visit = (
+                "SKYLOUNGE_FREE_VISITS" in charge_type or
+                "skylounge" in (query or "").lower() and "visit" in (query or "").lower()
+            )
+            
             # Check if this is an ATM withdrawal fee with "whichever higher" logic
             # The fee-engine returns remarks like "Whichever higher: 250.0000 (percent) vs 345.0000 (fixed) = 345.0000"
             query_lower = (query or "").lower()
@@ -822,7 +828,38 @@ class FeeEngineClient:
                 (fee_basis == "PER_TXN" and ("withdrawal" in query_lower or "atm" in query_lower))
             )
             
-            if is_atm_withdrawal and has_whichever_higher:
+            if is_skylounge_visit:
+                # SkyLounge free visits are count-based, not fee-based
+                # Premium cards (Platinum, Signature, Infinite, Titanium, World, etc.) have "Unlimited" visits
+                # Check card product to determine if it's a premium card with unlimited visits
+                card_product = fee_result.get("card_product", "")
+                if not card_product and query:
+                    # Try to extract from query as fallback
+                    card_info = self._extract_card_info_from_query(query)
+                    card_product = card_info.get("card_product", "")
+                card_product_upper = card_product.upper() if card_product else ""
+                premium_cards = ["PLATINUM", "SIGNATURE", "INFINITE", "TITANIUM", "WORLD", "DINERS"]
+                is_premium_card = any(premium in card_product_upper for premium in premium_cards)
+                
+                # If fee_amount is 0 and it's a premium card, it means "Unlimited" (based on original data)
+                # The migration script incorrectly converted "Unlimited" to 0.0000 BDT
+                if fee_amount is not None and fee_amount == 0 and fee_currency == "BDT":
+                    if is_premium_card:
+                        # Premium cards have unlimited SkyLounge visits per year
+                        response = "Unlimited"
+                    else:
+                        # For non-premium cards with 0, might be a different case - check remarks or return 0
+                        response = "0 free visit(s)"
+                elif fee_amount is not None and fee_amount > 0:
+                    # If there's a specific count, display it
+                    response = f"{int(fee_amount)} free visit(s) {basis_text}"
+                else:
+                    # Default to Unlimited for premium cards, or check if it's a count-based query
+                    if is_premium_card:
+                        response = "Unlimited"
+                    else:
+                        response = "Please refer to the card charges schedule for specific details."
+            elif is_atm_withdrawal and has_whichever_higher:
                 # ATM withdrawal fees use "whichever higher" logic
                 # Format: "2.5% or BDT 345" (matches source document format exactly)
                 response = "2.5% or BDT 345"
