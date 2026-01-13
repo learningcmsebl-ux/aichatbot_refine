@@ -37,14 +37,6 @@ except ImportError:
 from app.services.lightrag_client import LightRAGClient
 from app.services.location_client import LocationClient
 
-# Import lead management
-try:
-    from app.database.leads import LeadManager, LeadType, LeadStatus
-    LEADS_AVAILABLE = True
-except ImportError as e:
-    LEADS_AVAILABLE = False
-    logger.warning(f"Lead management not available: {e}")
-
 # Import phonebook (PostgreSQL)
 try:
     import sys
@@ -139,6 +131,39 @@ class ChatOrchestrator:
             await self.redis_cache.clear_disambiguation_state(state_key)
         finally:
             self._local_disambiguation_state.pop(state_key, None)
+    
+    async def _persist_turn(
+        self,
+        session_id: str,
+        user_text: str,
+        assistant_text: str,
+        knowledge_base: Optional[str] = None,
+        client_ip: Optional[str] = None
+    ) -> None:
+        """Persist user and assistant messages to PostgresChatMemory and optionally log analytics."""
+        db = get_db()
+        memory = PostgresChatMemory(db=db)
+        try:
+            if memory._available:
+                memory.add_message(session_id, "user", user_text)
+                memory.add_message(session_id, "assistant", assistant_text)
+                if ANALYTICS_AVAILABLE and (knowledge_base is not None or client_ip is not None):
+                    log_conversation(
+                        session_id=session_id,
+                        user_message=user_text,
+                        assistant_response=assistant_text,
+                        knowledge_base=knowledge_base,
+                        client_ip=client_ip
+                    )
+        finally:
+            memory.close()
+            if db:
+                db.close()
+    
+    async def _stream_text(self, text: str, chunk_size: int = 100) -> AsyncGenerator[str, None]:
+        """Stream text in chunks."""
+        for i in range(0, len(text), chunk_size):
+            yield text[i:i + chunk_size]
     
     async def close(self):
         """Close all async clients and resources"""
@@ -1441,6 +1466,16 @@ When responding:
         import re
         query_lower = query.strip().lower()
         
+        # Stopwords that should not be used for matching (common words in answer_text)
+        STOPWORDS = {
+            "fee", "card", "bdt", "usd", "per", "transaction", "amount", "charge", "on", "the", "a", "an",
+            "for", "of", "in", "at", "to", "from", "with", "by", "or", "and", "is", "are", "was", "were",
+            "balance", "outstanding", "year", "month", "day", "leaves", "leaf", "page", "schedule"
+        }
+        
+        # Minimum token length for keyword matching (ignore very short tokens)
+        MIN_TOKEN_LENGTH = 3
+        
         # Fix A: Extract leading number with regex to handle "1.", "1)", "1. Fast Cash...", etc.
         # Match patterns like: "1", "1.", "1)", "1. Fast Cash", "1) Fast Cash", etc.
         m = re.match(r"^\s*(\d+)\s*[\.\)]?\s*", query_lower)
@@ -1462,7 +1497,7 @@ When responding:
             card_product_name = option.get("card_product_name", "").lower()
             charge_context = option.get("charge_context", "").lower()
             charge_description = option.get("charge_description", "").lower()
-            answer_text = option.get("answer_text", "").lower()
+            # NOTE: answer_text is NOT used for keyword matching (contains common words like "fee", "bdt", "per")
             
             # Check if query contains loan product keywords
             keywords_to_check = []
@@ -1470,20 +1505,29 @@ When responding:
                 keywords_to_check.append(loan_product)
             if loan_product_name:
                 keywords_to_check.append(loan_product_name)
-                # Also check individual words from product name
-                keywords_to_check.extend(loan_product_name.split())
+                # Also check individual words from product name (filter stopwords and short tokens)
+                for word in loan_product_name.split():
+                    if len(word) >= MIN_TOKEN_LENGTH and word not in STOPWORDS:
+                        keywords_to_check.append(word)
             if card_product:
                 keywords_to_check.append(card_product)
-                keywords_to_check.extend(card_product.split())
+                # Filter stopwords and short tokens from card product words
+                for word in card_product.split():
+                    if len(word) >= MIN_TOKEN_LENGTH and word not in STOPWORDS:
+                        keywords_to_check.append(word)
             if card_product_name:
                 keywords_to_check.append(card_product_name)
-                keywords_to_check.extend(card_product_name.split())
+                # Filter stopwords and short tokens from card product name words
+                for word in card_product_name.split():
+                    if len(word) >= MIN_TOKEN_LENGTH and word not in STOPWORDS:
+                        keywords_to_check.append(word)
             if charge_description:
                 keywords_to_check.append(charge_description)
-                keywords_to_check.extend(charge_description.split())
-            if answer_text:
-                keywords_to_check.append(answer_text)
-                keywords_to_check.extend(answer_text.split())
+                # Filter stopwords and short tokens from charge description words
+                for word in charge_description.split():
+                    if len(word) >= MIN_TOKEN_LENGTH and word not in STOPWORDS:
+                        keywords_to_check.append(word)
+            # REMOVED: answer_text.split() - answer_text contains common words that cause false matches
             
             # Check for common loan product keyword mappings
             loan_product_keywords = {
@@ -1551,7 +1595,9 @@ When responding:
                 
                 # Store disambiguation state for session
                 # FIX #3: Use deduped_options from formatted response if available (matches UI exactly)
-                if session_id:
+                # PHASE 2 FIX: Always use conversation_key for state storage (not session_id check)
+                state_key = conversation_key if conversation_key else session_id
+                if state_key:
                     # Always initialize these to avoid UnboundLocalError when using deduped_options
                     is_context_disambiguation = False
                     is_description_disambiguation = False
@@ -1642,8 +1688,7 @@ When responding:
                         prompt_message = formatted  # This is the exact message to reuse
                         
                         # CRITICAL: Store state BEFORE returning (ensures state is available for next message)
-                        # FIX #1: Use conversation_key for disambiguation state (stable across turns)
-                        state_key = conversation_key if conversation_key else session_id
+                        # PHASE 2 FIX: Always use conversation_key for disambiguation state (stable across turns)
                         stored = await self.redis_cache.store_disambiguation_state(
                             session_id=state_key,
                             product_line="RETAIL_ASSETS",
@@ -2405,8 +2450,6 @@ When responding:
             disambiguation_type = pending_disambiguation.get("disambiguation_type")  # "LOAN_PRODUCT" / "CHARGE_CONTEXT" / "DESCRIPTION"
             prompt_message = pending_disambiguation.get("prompt_message")  # Stored prompt message
             extra = pending_disambiguation.get("extra") or {}
-            extra = pending_disambiguation.get("extra") or {}
-            extra = pending_disambiguation.get("extra") or {}
             
             logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
             
@@ -2451,22 +2494,11 @@ When responding:
                     
                     # Stream response
                     full_response = fee_context
-                    chunk_size = 100
-                    for i in range(0, len(fee_context), chunk_size):
-                        chunk = fee_context[i:i+chunk_size]
+                    async for chunk in self._stream_text(fee_context):
                         yield chunk
                     
-                    # Save to memory (FIX #1: use effective_session_id for memory operations)
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(effective_session_id, "user", query)
-                            memory.add_message(effective_session_id, "assistant", full_response)
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    # Save to memory
+                    await self._persist_turn(effective_session_id, query, full_response)
                     
                     # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
                     return
@@ -2475,17 +2507,8 @@ When responding:
                     error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
                     yield error_msg
                     
-                    # Save to memory (FIX #1: use effective_session_id for memory operations)
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(effective_session_id, "user", query)
-                            memory.add_message(effective_session_id, "assistant", error_msg)
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    # Save to memory
+                    await self._persist_turn(effective_session_id, query, error_msg)
                     
                     # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
                     return
@@ -2522,21 +2545,11 @@ When responding:
                     )
 
                 full_response = fee_context
-                chunk_size = 100
-                for i in range(0, len(fee_context), chunk_size):
-                    yield fee_context[i : i + chunk_size]
+                async for chunk in self._stream_text(fee_context):
+                    yield chunk
 
-                # Save to memory (use effective_session_id)
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(effective_session_id, "user", query)
-                        memory.add_message(effective_session_id, "assistant", full_response)
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                # Save to memory
+                await self._persist_turn(effective_session_id, query, full_response)
 
                 return
             else:
@@ -2580,17 +2593,8 @@ When responding:
                 
                 yield disambiguation_msg
                 
-                # Save to memory (FIX #1: use effective_session_id for memory operations)
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(effective_session_id, "user", query)
-                        memory.add_message(effective_session_id, "assistant", disambiguation_msg)
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                # Save to memory
+                await self._persist_turn(effective_session_id, query, disambiguation_msg)
                 
                 # 🚨 TERMINAL EXIT - Do not proceed to RAG, cards, or any other routing while disambiguation is pending
                 return
@@ -2604,16 +2608,7 @@ When responding:
                 if is_complete:
                     self.lead_flows[session_id].state = ConversationState.NORMAL
                 # Save to memory
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(session_id, "user", query)
-                        memory.add_message(session_id, "assistant", response)
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                await self._persist_turn(session_id, query, response)
                 yield response
                 return
         
@@ -2637,16 +2632,7 @@ When responding:
                 # Start with first question
                 first_question = flow.questions[0]["question"]
                 # Save to memory
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(session_id, "user", query)
-                        memory.add_message(session_id, "assistant", first_question)
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                await self._persist_turn(session_id, query, first_question)
                 yield first_question
                 return
         
@@ -2689,17 +2675,6 @@ When responding:
             # Build messages with location context only
             messages = self._build_messages(query, combined_context, conversation_history)
             
-            # Save user message
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-            finally:
-                memory.close()
-                if db:
-                    db.close()
-            
             # Stream response from OpenAI with location data only
             full_response = ""
             try:
@@ -2723,16 +2698,8 @@ When responding:
                 yield error_msg
                 full_response = error_msg
             
-            # Save assistant response
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "assistant", full_response)
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+            # Save to memory
+            await self._persist_turn(session_id, query, full_response)
             
             return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
@@ -2755,30 +2722,11 @@ When responding:
             
             # Stream response in chunks
             full_response = fee_context
-            chunk_size = 100
-            for i in range(0, len(fee_context), chunk_size):
-                chunk = fee_context[i:i+chunk_size]
+            async for chunk in self._stream_text(fee_context):
                 yield chunk
             
             # Save to memory
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-                    memory.add_message(session_id, "assistant", full_response)
-                    if ANALYTICS_AVAILABLE:
-                        log_conversation(
-                            session_id=session_id,
-                            user_message=query,
-                            assistant_response=full_response,
-                            knowledge_base=None,
-                            client_ip=client_ip
-                        )
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
             
             return  # EXIT - do not proceed to other routing
         
@@ -2803,30 +2751,11 @@ When responding:
             
             # Stream response in chunks
             full_response = fee_context
-            chunk_size = 100
-            for i in range(0, len(fee_context), chunk_size):
-                chunk = fee_context[i:i+chunk_size]
+            async for chunk in self._stream_text(fee_context):
                 yield chunk
             
             # Save to memory
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-                    memory.add_message(session_id, "assistant", full_response)
-                    if ANALYTICS_AVAILABLE:
-                        log_conversation(
-                            session_id=session_id,
-                            user_message=query,
-                            assistant_response=full_response,
-                            knowledge_base=None,
-                            client_ip=client_ip
-                        )
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
             
             return  # EXIT - do not proceed to other routing
         
@@ -2861,29 +2790,11 @@ When responding:
             # Anti-hallucination hard guard:
             # Stream the fee engine output directly (NO OpenAI call, NO paraphrasing).
             full_response = combined_context
-            chunk_size = 100
-            for i in range(0, len(full_response), chunk_size):
-                yield full_response[i:i + chunk_size]
+            async for chunk in self._stream_text(full_response):
+                yield chunk
 
             # Save to memory
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-                    memory.add_message(session_id, "assistant", full_response)
-                    if ANALYTICS_AVAILABLE:
-                        log_conversation(
-                            session_id=session_id,
-                            user_message=query,
-                            assistant_response=full_response,
-                            knowledge_base=None,
-                            client_ip=client_ip
-                        )
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
 
             return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
@@ -3128,26 +3039,8 @@ When responding:
                         full_response += source_chunk
                         yield source_chunk
                     
-                    # Save to memory (use full_response)
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", full_response)
-                            # Log for analytics
-                            if ANALYTICS_AVAILABLE:
-                                log_conversation(
-                                    session_id=session_id,
-                                    user_message=query,
-                                    assistant_response=full_response,
-                                    knowledge_base=None,  # Phonebook query
-                                    client_ip=client_ip
-                                )
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    # Save to memory
+                    await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
                     
                     return  # DO NOT query LightRAG for contact queries
                     
@@ -3171,25 +3064,7 @@ When responding:
                         yield chunk
                     
                     # Save to memory
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", full_response)
-                            # Log for analytics
-                            if ANALYTICS_AVAILABLE:
-                                log_conversation(
-                                    session_id=session_id,
-                                    user_message=query,
-                                    assistant_response=full_response,
-                                    knowledge_base=None,  # Phonebook query
-                                    client_ip=client_ip
-                                )
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
                     
                     return  # DO NOT query LightRAG for contact queries
                     
@@ -3210,24 +3085,7 @@ When responding:
                     yield chunk
                 
                 # Save to memory
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(session_id, "user", query)
-                        memory.add_message(session_id, "assistant", full_response)
-                        # Log for analytics
-                        if ANALYTICS_AVAILABLE:
-                            log_conversation(
-                                session_id=session_id,
-                                user_message=query,
-                                assistant_response=full_response,
-                                knowledge_base=None  # Phonebook query
-                            )
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                await self._persist_turn(session_id, query, full_response, knowledge_base=None)
                 
                 return  # DO NOT query LightRAG for contact queries
         
@@ -3244,25 +3102,7 @@ When responding:
                 if not has_entities and clarification:
                     logger.info(f"[POLICY] Policy query missing required entities, asking for clarification")
                     # Save to memory
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", clarification)
-                            # Log for analytics
-                            if ANALYTICS_AVAILABLE:
-                                log_conversation(
-                                    session_id=session_id,
-                                    user_message=query,
-                                    assistant_response=clarification,
-                                    knowledge_base=None,  # Clarification question
-                                    client_ip=client_ip
-                                )
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip)
                     
                     # Stream clarification question
                     for char in clarification:
@@ -3330,18 +3170,7 @@ When responding:
         
         # Build messages
         messages = self._build_messages(query, combined_context, conversation_history)
-        
-        # Save user message
-        db = get_db()
-        memory = PostgresChatMemory(db=db)
-        try:
-            if memory._available:
-                memory.add_message(session_id, "user", query)
-        finally:
-            memory.close()
-            if db:
-                db.close()
-        
+
         # Stream response from OpenAI
         full_response = ""
         try:
@@ -3401,25 +3230,8 @@ When responding:
         else:
             logger.info(f"[SOURCES] No sources to send for query: '{query[:50]}...'")
         
-        # Save assistant response
-        db = get_db()
-        memory = PostgresChatMemory(db=db)
-        try:
-            if memory._available:
-                memory.add_message(session_id, "assistant", full_response)
-                # Log for analytics
-                if ANALYTICS_AVAILABLE:
-                    log_conversation(
-                        session_id=session_id,
-                        user_message=query,
-                        assistant_response=full_response,
-                        knowledge_base=knowledge_base,
-                        client_ip=client_ip
-                    )
-        finally:
-            memory.close()
-            if db:
-                db.close()
+        # Save to memory
+        await self._persist_turn(session_id, query, full_response, knowledge_base=knowledge_base, client_ip=client_ip)
     
     async def process_chat_sync(
         self,
@@ -3504,16 +3316,7 @@ When responding:
                     response = fee_context
                     
                     # Save to memory
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(effective_session_id, "user", query)
-                            memory.add_message(effective_session_id, "assistant", response)
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    await self._persist_turn(effective_session_id, query, response)
                     
                     # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
                     return {
@@ -3524,17 +3327,8 @@ When responding:
                     # Fee not found even with resolved loan_product
                     error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
                     
-                    # Save to memory (FIX #1: use effective_session_id)
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(effective_session_id, "user", query)
-                            memory.add_message(effective_session_id, "assistant", error_msg)
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    # Save to memory
+                    await self._persist_turn(effective_session_id, query, error_msg)
                     
                     # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
                     return {
@@ -3570,17 +3364,8 @@ When responding:
                         "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026)."
                     )
 
-                # Save to memory (use effective_session_id)
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(effective_session_id, "user", query)
-                        memory.add_message(effective_session_id, "assistant", fee_context)
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                # Save to memory
+                await self._persist_turn(effective_session_id, query, fee_context)
 
                 return {
                     "response": fee_context,
@@ -3637,17 +3422,8 @@ When responding:
                         }
                         disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
                 
-                # Save to memory (FIX #1: use effective_session_id)
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(effective_session_id, "user", query)
-                        memory.add_message(effective_session_id, "assistant", disambiguation_msg)
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                # Save to memory
+                await self._persist_turn(effective_session_id, query, disambiguation_msg)
                 
                 # 🚨 TERMINAL EXIT - Do not proceed to RAG, cards, or any other routing while disambiguation is pending
                 return {
@@ -3698,26 +3474,9 @@ When responding:
             # Return the fee engine output directly (NO OpenAI call, NO paraphrasing).
             response_text = fee_context
             
-            # Save assistant response
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(effective_session_id, "user", query)
-                    memory.add_message(effective_session_id, "assistant", response_text)
-                    if ANALYTICS_AVAILABLE:
-                        log_conversation(
-                            session_id=effective_session_id,
-                            user_message=query,
-                            assistant_response=response_text,
-                            knowledge_base=None,
-                            client_ip=client_ip
-                        )
-            finally:
-                memory.close()
-                if db:
-                    db.close()
-            
+            # Save to memory
+            await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+
             return {
                 "response": response_text,
                 "session_id": effective_session_id,
@@ -3749,18 +3508,7 @@ When responding:
             
             # Build messages with fee context only
             messages = self._build_messages(query, combined_context, conversation_history)
-            
-            # Save user message
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(effective_session_id, "user", query)
-            finally:
-                memory.close()
-                if db:
-                    db.close()
-            
+
             # Generate response from OpenAI with fee data only
             response_text = ""
             try:
@@ -3776,24 +3524,8 @@ When responding:
                 logger.error(f"[FEE_ENGINE] Error generating response: {e}")
                 response_text = "I apologize, but I encountered an error while processing your fee inquiry. Please try again."
             
-            # Save assistant response
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(effective_session_id, "assistant", response_text)
-                    if ANALYTICS_AVAILABLE:
-                        log_conversation(
-                            session_id=effective_session_id,
-                            user_message=query,
-                            assistant_response=response_text,
-                            knowledge_base=None,
-                            client_ip=client_ip
-                        )
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+            # Save to memory
+            await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
             
             return {
                 "response": response_text,
@@ -3833,25 +3565,8 @@ When responding:
             # Return the fee engine output directly (NO OpenAI call, NO paraphrasing).
             response_text = combined_context
 
-            # Save to memory + analytics
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-                    memory.add_message(session_id, "assistant", response_text)
-                    if ANALYTICS_AVAILABLE:
-                        log_conversation(
-                            session_id=session_id,
-                            user_message=query,
-                            assistant_response=response_text,
-                            knowledge_base=None,
-                            client_ip=client_ip
-                        )
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+            # Save to memory
+            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
 
             return {
                 "response": response_text,
@@ -3873,18 +3588,7 @@ When responding:
             
             # Build messages with location context only
             messages = self._build_messages(query, combined_context, conversation_history)
-            
-            # Save user message
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "user", query)
-            finally:
-                memory.close()
-                if db:
-                    db.close()
-            
+
             # Generate response from OpenAI with location data only
             full_response = ""
             try:
@@ -3901,17 +3605,9 @@ When responding:
             except Exception as e:
                 logger.error(f"[LOCATION_SERVICE] Error generating response: {e}")
                 full_response = "I apologize, but I encountered an error while processing your location inquiry. Please try again."
-            
-            # Save assistant response
-            db = get_db()
-            memory = PostgresChatMemory(db=db)
-            try:
-                if memory._available:
-                    memory.add_message(session_id, "assistant", full_response)
-            finally:
-                memory.close()
-                if db:
-                    db.close()
+
+            # Save to memory
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
             
             return {
                 "response": full_response,
@@ -4120,27 +3816,9 @@ When responding:
                         if total_count > 5:
                             response += "Please provide more details to narrow down the search.\n\n"
                         response += "(Source: Phone Book Database)"
-                    
+
                     # Save to memory
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", response)
-                            # Log for analytics
-                            if ANALYTICS_AVAILABLE:
-                                log_conversation(
-                                    session_id=session_id,
-                                    user_message=query,
-                                    assistant_response=response,
-                                    knowledge_base=None,  # Phonebook query
-                                    client_ip=client_ip
-                                )
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip)
                     
                     return {
                         "response": response,
@@ -4156,27 +3834,9 @@ When responding:
                     response += "- Using the employee ID\n"
                     response += "- Specifying the department or designation\n"
                     response += "\n(Source: Phone Book Database)"
-                    
+
                     # Save to memory
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", response)
-                            # Log for analytics
-                            if ANALYTICS_AVAILABLE:
-                                log_conversation(
-                                    session_id=session_id,
-                                    user_message=query,
-                                    assistant_response=response,
-                                    knowledge_base=None,  # Phonebook query
-                                    client_ip=client_ip
-                                )
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip)
                     
                     return {
                         "response": response,
@@ -4189,31 +3849,14 @@ When responding:
                 response = "I'm having trouble accessing the employee directory right now. "
                 response += "Please try again in a moment, or contact support for assistance."
                 response += "\n\n(Source: Phone Book Database)"
-                
+
                 # Save to memory
-                db = get_db()
-                memory = PostgresChatMemory(db=db)
-                try:
-                    if memory._available:
-                        memory.add_message(session_id, "user", query)
-                        memory.add_message(session_id, "assistant", response)
-                        # Log for analytics
-                        if ANALYTICS_AVAILABLE:
-                            log_conversation(
-                                session_id=session_id,
-                                user_message=query,
-                                assistant_response=response,
-                                knowledge_base=None  # Phonebook query
-                            )
-                finally:
-                    memory.close()
-                    if db:
-                        db.close()
+                await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip)
                 
-                    return {
-                        "response": response,
-                        "session_id": session_id
-                    }  # DO NOT query LightRAG for contact queries
+                return {
+                    "response": response,
+                    "session_id": session_id
+                }  # DO NOT query LightRAG for contact queries
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
@@ -4228,25 +3871,7 @@ When responding:
                 if not has_entities and clarification:
                     logger.info(f"[POLICY] Policy query missing required entities, asking for clarification")
                     # Save to memory
-                    db = get_db()
-                    memory = PostgresChatMemory(db=db)
-                    try:
-                        if memory._available:
-                            memory.add_message(session_id, "user", query)
-                            memory.add_message(session_id, "assistant", clarification)
-                            # Log for analytics
-                            if ANALYTICS_AVAILABLE:
-                                log_conversation(
-                                    session_id=session_id,
-                                    user_message=query,
-                                    assistant_response=clarification,
-                                    knowledge_base=None,  # Clarification question
-                                    client_ip=client_ip
-                                )
-                    finally:
-                        memory.close()
-                        if db:
-                            db.close()
+                    await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip)
                     
                     return {
                         "response": clarification,
@@ -4345,17 +3970,6 @@ When responding:
         # Build messages
         messages = self._build_messages(query, combined_context, conversation_history)
         
-        # Save user message
-        db = get_db()
-        memory = PostgresChatMemory(db=db)
-        try:
-            if memory._available:
-                memory.add_message(session_id, "user", query)
-        finally:
-            memory.close()
-            if db:
-                db.close()
-        
         # Get response from OpenAI
         try:
             # Calculate max_tokens dynamically to avoid context length errors
@@ -4384,25 +3998,8 @@ When responding:
             logger.error(f"OpenAI API error: {e}")
             full_response = "I apologize, but I'm experiencing technical difficulties. Please try again later."
         
-        # Save assistant response
-        db = get_db()
-        memory = PostgresChatMemory(db=db)
-        try:
-            if memory._available:
-                memory.add_message(session_id, "assistant", full_response)
-                # Log for analytics
-                if ANALYTICS_AVAILABLE:
-                    log_conversation(
-                        session_id=session_id,
-                        user_message=query,
-                        assistant_response=full_response,
-                        knowledge_base=knowledge_base,
-                        client_ip=client_ip
-                    )
-        finally:
-            memory.close()
-            if db:
-                db.close()
+        # Save to memory (user message was saved earlier before OpenAI call)
+        await self._persist_turn(session_id, query, full_response, knowledge_base=knowledge_base, client_ip=client_ip)
         
         return {
             "response": full_response,
