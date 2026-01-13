@@ -1,0 +1,2433 @@
+--- Page 1 ---
+ 
+CONFIDENTIAL 
+ 
+    
+ 
+CREDIT POLICY MANUAL 
+  
+ 
+ 
+ 
+ 
+        
+ 
+ 
+ 
+Credit Risk Management  
+Eastern Bank Limited 
+    
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Head Office, Dhaka 
+ 
+ 
+ 
+January 2009 
+  
+ 
+ 
+ 
+     
+
+--- Page 2 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 2 of 58 
+ Credit Policy Manual 
+Table of Contents  
+ 
+CHAPTER : 1 INTRODUCTION                                                                                                                                     PAGE  
+1.1 Purpose & Scope 04 
+1.2 Interpretation 04 
+1.3 Exceptions 04 
+1.4 Procedures 04 
+1.5 Policy Changes 04 
+1.6 Audience 05 
+1.7 Core Credit Principals 05 
+   
+CHAPTER : 2 CREDIT RISK MANAGEMENT FRAMEWORK  
+2.1 Credit Risk Management in the Organization 06 
+2.2 Procedure & Execution 07 
+2.3 Organization Structure 07 
+2.4 Credit Philosophy 08 
+2.5 Credit Values 08 
+2.6 Overview of Risk Management Framework  09 
+    
+CHAPTER : 3 BUSINESS POLICY DOCUMENT (BPD)  
+3.1 Definition 11 
+3.2 Rationale 11 
+3.3 New Product Proposal 11 
+3.4 Annual Review 12 
+3.5 Interim Review 12 
+3.6 BPD Approval 12 
+3.7 Administration 12 
+    
+CHAPTER : 4 DELIGATION OF LENDING AUTHORITY  
+4.1 Definition 13 
+4.2 Policy 13 
+4.3 Business Policy Document (BPD) 13 
+4.4 Material Changes in BPD 13 
+4.5 Approval Authority 14 
+4.6 Delegation 14 
+4.7 Annual Review 14 
+4.8 Inactivation / Reactivation 15 
+4.9 Transaction Approval Process 15 
+4.10 Risk Managers Eligibility Criteria  15 
+    
+CHAPTER : 5 CREDIT MANAGEMENT  
+5.1 Introduction 16 
+5.2 Exposure Categorization 16 
+5.3 Credit Initiation  
+5.3.1 Market Segmentation 16 
+5.3.2 Customer Suitability 17 
+5.4 Minimum Risk Acceptance Criteria 17 
+5.4.1 Lending to Holding Companies 17 
+5.4.2 Lending to Shell Companies 18 
+5.4.3 Personal Guarantees 18 
+5.4.4 Start up financing 18 
+5.4.5 Lending to Companies with Negative Net Worth 18 
+5.4.6 Lending to Foreign Companies & Foreign Owned Companies 19 
+5.4.7 Finance to local subsidiaries of foreign parent groups 19 
+5.4.8 Inferioe Security Position 19 
+5.4.9 Excluded Loan Types & Industries 20 
+  5.4.10 Tenor and Repayment 20 
+5.5 Borrower Verification 21 
+5.6 Structuring the Loan 21 
+5.7 Credit Approval 21 
+5.8 Security / Collateral 23 
+5.9 Account Maintenance 25 
+5.9.1 Excess Over Limit 25 
+5.9.2 Limit Reviews 25 
+5.9.3 Customer Contact 26 
+ 
+  
+ 
+
+--- Page 3 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 3 of 58 
+ Table of Contents  
+ 
+5.10 Credit Records & Documentation 26 
+5.11 Documentation Retention Period 27 
+5.12 Stand Alone/Single Product Lending under CFC & SME (Small) Banking  27 
+5.12.1 Verification  27 
+5.12.2 Residential Mortgages 28 
+5.13 Temporary Overdrafts 28 
+ Appendix: 5-A (Credit Policy Breach Code) 28 
+    
+CHAPTER : 6 MANAGEMENT INFORMATION SYSYEM & REPORTING  
+6.1 Overview 31 
+6.2 MIS on Portfolio Management 31 
+6.3 Reporting 32 
+    
+CHAPTER : 7 EARLY ALART & COLLECTION MANAGEMENT  
+7.1 Early Alert Reporting 33 
+7.2 Collection Management for CFC & SME (Small Enterprise) 38 
+   
+CHAPTER : 8 CLASIFICATION & CREDIT LOSS RECOGNITION POLICY  
+8.1 Overview 41 
+8.2 Impaired Accounts 41 
+8.3 Defininiton & grading criteria or impaired accounts 41 
+8.4 Special Mention Accounts 41 
+8.5 Provisioning Procedure – General requirements 41 
+8.6 Specific Provision 41 
+8.7 Interest in Suspense 42 
+8.8 Releases 42 
+8.9 Management of Impaired Accounts 42 
+8.10 Credit Committee 43 
+8.11 Legal fees 43 
+8.12 Abandonment of collection, recovery efforts, and write off of debts 43 
+8.13 Early Loss Recognition 43 
+8.14 Recoveries & Down Payment 44 
+8.15 Write Off 44 
+8.16 Debt Relief Programe Guidelines 44 
+8.17 Asset Disposal Policy Guidelines 45 
+    
+CHAPTER : 9 BORROWER RISK GRADING & SCORE MODELS  
+9.1 Definition 46 
+9.2 Application 49 
+9.3 Score Specialists 50 
+9.4 Scoring Policy 50 
+9.5 Score Model Management 50 
+9.6 Scoring MIS 51 
+    
+CHAPTER : 10 LEGAL & REGULATORY COMPLIENCE  
+10.1 Overview 52 
+10.2 Local laws & Internal Standards  52 
+10.3 Confidentiality & Data Protection 52 
+10.4 Compliance Risk Management 53 
+10.5 Environmental & Social Risk Policy 53 
+10.6 Know Your Customer (KYC) Policy 54 
+10.7 Money Laundering 54 
+10.8 BASEL II Accord 55 
+    
+CHAPTER : 11 PORTFOLIO MANAGEMENT  
+11.1 Overview 56 
+11.2 Portfolio Management 56 
+11.3 Portfolio Stretegy and Planning 56 
+11.4 Stress Test 57 
+11.5 Responsibility for Stress Tests 57 
+11.6 Concentration Limits 57 
+11.7 Maximum Unsecured Exposure 57 
+11.8 Periodic Review 58 
+   
+             
+  
+ 
+ 
+
+--- Page 4 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 4 of 58 
+ Chapter – 1: Introduction 
+ 
+Introduction  
+1.1 Purpose and Scope 
+This Credit Policy Manual contains the core principles for identifying, measuring, approving and managing 
+credit risk in the Bank. These policies are established by the Board of Directors (BoD), and are designed to 
+meet the organizational requirements that exist toda y, and to provide flexibility for the future. These 
+policies represent the minimum standards for credit extension by the bank, and are not a substitute for experience and good judgment. 
+ 
+1.2 Interpretation 
+These policies must be implemented in a conservati ve manner, in accordance with their underlying 
+purpose and spirit. In the event of clarification or inte rpretation consultation must first be sought from the 
+Credit Risk Management; if necessary from the Board of Directors. Such consultations are an important 
+source of feedback on issues and aspects of these policies that may need adjustment in order to meet the needs of a changing business environment while maintaining a balance between risk appetite and 
+flexibility. 
+ The absence of any policy statement does not, by itse lf, imply that an action is either permitted; or 
+forbidden neither is policy established by precedence. Most conservative approach shall be applied if 
+any conflict arises between these policies and prevailing laws and regulations.   
+ 1.3 Exceptions 
+Any exceptions to these policies must be approved by th e Board of Directors. It is  the responsibility of the 
+Head of Credit Risk Management (HoCRM) to maintain a file of such exceptions approved by the Board of 
+Directors. It is the responsibility  of the Head of Audit Department to review these exceptions and their 
+performance, as part of their normal portfolio reviews. 
+ 1.4 Procedures 
+Procedures define specific actions/steps that must be completed to ensure minimum standards required by 
+these policies. A separate Credit Instruction Manual
+ shall contain specific actions/steps will be the integral 
+part of this Credit Policy Manual. It is the responsibility of Managing Director & CEO for approval, review and granting exceptions of Credit Instruction Manual. It is the responsibility of all Business Heads, HoCRM, 
+Head of Operations and/or Head of Legal & Compliance, and Head of Audit to ensure that all regulatory compliance issues and procedures are continually  updated to reflect in the current procedures. 
+ 1.5 Policy Changes 
+The review and updating of Credit Policy Manual is an ongoing process reflecting the continuous change in 
+the business, economic, social and political environment s, and this is the responsibility of HoCRM. Credit 
+Policy Manual shall be reviewed by the Board of Directors once in every three years. Credit Committee  
+
+--- Page 5 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 5 of 58 
+ Chapter – 1: Introduction 
+ 
+shall recommend changes, if any, in the Policy Manual while placed to the Board for review. A full record of 
+all policy changes together with the implementation date and supporting rationale will be retained by HoCRM. However, Board of Directors may also initia te interim review the Credit Policy Manual.    
+ 1.6 Audience 
+This document is designed for easy use and reference by  all staff working in different business units, and 
+involved in the credit process. This document must also serve as a cornerstone in the credit training of all staff at all levels in the bank. The purpose, philosoph y, and spirit that govern these Credit Policies should 
+be understood and adhered to.  
+ 
+1.7 Core Credit Principles 
+i. Quality of credit is more important than exploiting new opportunities. 
+ii. The principal management and/or shareholders must be free of any doubt about their integrity. 
+iii. If the bank does not understand the bu siness, it shall not lend to that business. 
+iv. The purpose of the loan should contain the basis of its repayment. 
+v. Credit decision should not be made until receipt of all the relevant facts. vi. Assessing a company’s management quality is vital. 
+vii. The economic cycle is inevitable. It is wise to  be conscious in evaluating risks likely to arise when 
+economic conditions change in the future. “Bad loans are usually made in good times”. 
+viii. Collateral security should not be a substitute for repayment. 
+ix. Lending to smaller borrowers is riskier than lending to larger borrowers. Smaller firms are more 
+vulnerable to economic downturns.  
+x. Bank should not let poor attention to detail of credit administration, which may spoil a sound 
+facility. 
+xi. If any borrower wants a quick answer, it is “NO”. The word ‘quick’ means lack of sufficient time for 
+due diligence on any credit request.  
+xii. Bank should monitor where the bank’s money is going to be spent. 
+xiii. Think first for the Bank.    
+  
+ 
+
+--- Page 6 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 6 of 58 
+ Chapter – 2: Credit Risk Management Framework 
+ 
+Credit Risk Management Framework 
+ 
+2.1 Credit Risk Management in the Organization  
+All Business Heads, Business Managers will be individually accountable for identifying and managing the 
+risk of their portfolios, since they are closest to their markets, they must understand the risk/reward dynamics of each product offering and manage these effectively. They will also ensure adherence to the Credit Policy Manual.  HoCRM is also be responsible for establishing a cr edit risk management culture which promotes diligence, 
+analysis, judgment, flexibility and balance between risk and profitability objectives. Controls must be in place 
+to manage operational, judiciary, legal, tax, regulatory and compliance risks.  
+ 
+The Bank shall have a system of checks and balances in place around the extension of credit facilities, minimum of which are: 
+ 
+• An independent Credit Risk Management function: To be performed by the HoCRM. He/She acts 
+as the counterweight to the sales and marketing f unction and is a major contributor to the financial 
+health and profitability of the organization.  
+ 
+• Multiple signers:  Every Credit Application, before submission for approval to the delegated authority 
+must be signed by Relationship Manager, Respective Unit Head/Business Development Manager, Area Head and/or Business Head. Credit Risk Management Department shall dispose received application 
+on following manner:   
+9 Risk Manager/Officer and/or Head of Corporate Ri sk shall recommend the credit, if placed for 
+HoCRM’s approval;  
+9 Risk Manager/Officer and/or Head of Corporate Risk, and HoCRM shall recommend the credit if placed for MD/DMD’s approval;  
+9 Risk Manager/Officer and/or Head of Corporate Risk, HoCRM, and MD/DMD shall recommend if 
+placed for approval of the Board of Directors. 
+      
+• An independent Audit Function : The Independent audit function performs a review of each business 
+unit on a regular basis and provi des opinion on the quality of the credit process and portfolio. The 
+Business Head jointly with the HoCRM is responsible for remedial action on ev ery identified shortfall. 
+ 
+Credit Committee:  A committee to be formed by senior officials of the bank across relevant functional units 
+to review the Bank's strategy, portfolio and vulnerabilit ies on a regular basis. They provide strategic direction 
+for the Bank's business while ensuring that the bank’s risk and profitability objectives are optimized. Credit 
+Committee, at minimum,  shall consist of  MD & CE O, Head of Credit Risk Management, Head of Credit 
+Administration, All Business Heads, and Head of Cash Management. MD & CEO shall chair the committee, 
+and may include any other employee in the committee. 
+
+--- Page 7 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 7 of 58 
+ Chapter – 2: Credit Risk Management Framework 
+ 
+2.2 Procedure and Execution  
+ 
+2.2.1 Business Policy Document by Corporate, SME, and Consumer Banking   
+Each Business Unit (Corporate, SME & Consumer) mu st develop a Business Policy Document (BPD) based 
+on opportunities prevailed in its marketplace. The Bu siness Plan will set concentration limits and target 
+markets. It will also specify acceptable terms for ri sk-taking criteria as well as aggregate portfolio amounts. 
+The CRM will be an integral part of this process.  Business Heads, together with HoCRM establishes 
+standards for credit process management and portfolio quality that are appropriate for business. (Definitions 
+and requirements are described in Chapter - 3).   
+ 2.2.2 Credit Process Standards
+ 
+HoCRM must ensure compliance with the Credit Proces s Standards. Where a business unit is not within 
+standards, an action plan must be drawn up for bringing the processes in line within a reasonable time frame. In cases where compliance is impossible, Board of Directors will review and give dispensation, if required. 
+ 
+Credit Process Standards support the functional level credit policies by setting process standards for the whole credit risk cycle from initiation to approval, lo an portfolio management to collection/recoveries and 
+scorecard development. Credit Process Standards describe in detail "How to do" and aim to bring all business units up to the prescribed level of excellence. 
+ 
+Standards set the performance criteria by which actions can be measured for compliance with the stated policies and objectives. Credit Instruction Manual will set the Process Standards.
+ 
+ 2.2.3 Credit Instruction Manual (CIM)
+ 
+Credit Instruction Manual represents the execution aspect of the risk management process for business units. It defines practices in terms of process, competency, productivity benchmarking and control for a business to ensure that the standards are met and complied with. HoCRM is responsible for ensuring that the CIM is updated and of sufficient detail to cove r all approved products for the Business Units. 
+ 
+HoCRM has to also ensure that adequate training is imparted to all the stakeholders in credit process as well 
+as support functions. The objective is to ensure that processes are well understood and embedded in the 
+system. 
+ 2.3 Organization Structure 
+An appropriate organization structure approved by the Managing Director is to be in place for each Business 
+Units, Credit Risk Management, and Credit Administration. 
+   
+
+--- Page 8 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 8 of 58 
+ Chapter – 2: Credit Risk Management Framework 
+ 
+2.4 Credit Philosophy 
+Bank’s commitment is to achieve excellence in credit risk management culture by taking informed risk 
+relying on the prudence of individuals having value building leadership ability, creativity, integrity, and who 
+are working with a priority to protect bank’s overall interest.  
+ 2.5 Credit Values 
+To achieve the objective of achievi ng excellence in Credit Risk Management, some Credit Core Values have 
+been drawn up to cultivate and drive our behavior towards highly efficient and quality credit function. 
+Compliance to these Core Values must be an integral part of every Credit Officials.  
+Honesty
+: All Credit officials must observe the highest st andards of professional integrity when granting or 
+approving credits. Decision must be based on the merits  of the proposal and these must adhere to prevailing 
+Credit Policies. Under no circumstances, credit approvals to be made: 
+• Solely as an accommodation to customer's request. • Against any offers of personal benefits. • To gain financial favors for family members or friends. • Under any duress or coercion.  Any departure from one's personal credibility and the judicious use of approving authority is to be strongly discouraged and failure to observe these rules will result in severe disciplinary actions.  
+Trust
+: We must trust each other to behave honestly. If a credit official has a responsible point of view 
+regarding any risk matters, then the official should raise it to Senior Management. Senior management shall 
+be committed to confront the truth behind these disclosures and support this policy as follows: 
+• Matters raised will be investigated thoroughly. 
+• Report will be treated with sensitivity and every effort will be made to preserve confidentiality. 
+• Outcome of the investigation will be advised to all parties concerned. 
+• Based on findings, appropriate actions will be taken. 
+ 
+Sincerity : Sincerity relates to intention to convey the truth as best we know it and to avoid communicating in 
+such way likely to mislead or deceive. We must deal with all credit decisions in an open or transparent 
+manner by keeping approving officers fully and promptly informed of any reservations relating to a proposed 
+credit. Approving officers are to consult freely with others who possess special knowledge or expertise to 
+enrich the decision process. If a credit is not structured in the interest of the Bank, the credit officer must evaluate the deal to confine the risk to pre-defined and reas onable limits. If after re-evaluation, the risk is still 
+not acceptable, then the proposal must be rejected.  
+ 
+ 
+
+--- Page 9 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 9 of 58 
+ Chapter – 2: Credit Risk Management Framework 
+ 
+Equilibrium : Balanced decision-making uses open and unbiased processes for gathering and                
+evaluating information necessary to make the decision without favoritism or prejudice. In the context of credit 
+risk management, when extending credit, there must be a view to balance the quality of credit risk with the 
+revenue opportunities. This is the basis of sound busi ness decisions wherein amount of risk taken is 
+compensated with an appropriate return. In the process, there must not be any compromise on compliance for revenue. Taking short cuts to achieve revenue tar gets may expose the Bank to risk. The penalty would 
+be severe disciplinary action for anyone doing this. To achieve a balanced approach, the following core 
+credit disciplines must be observed: 
+• A searching out process for all credit risks inherent in a credit proposal 
+• Risk Evaluation/Re-evaluation 
+• Risk/Reward Matching that establishes parameters within which the business can contain the credit risk 
+against a price premium. 
+• Control & Monitoring to observe how the performance of customers is monitored. If during regular 
+review of the account, there has been any material changes in the customer's risk profile; the new risk 
+needs must be managed and controlled as early as possible to minimize any potential losses. 
+ 
+Diligence:  We must act with care and diligence and display professional skills in the conduct of every 
+aspect of the credit process. Credit policy must be app lied in a consistent manner and all credit officers are 
+to make decisions based on information and risks that are fully understood and can be justified. Information 
+should not be analyzed simply for the sake of analysis. It must be challenged, validated and proven.  
+ 2.6 Overview of Risk Management Framework   
+EBL Credit Policy Manual Recommendation
+  Strategic Review  
+ 
+ 
+Credit Instruction Manual 
+ 
+Business Policy Document 
+ 
+Product Program Guide  Performance Management Process 
+Credit Committee Board of Directors 
+ EBL Credit Policy Manual sets out the broad overall credit polic ies of the Bank to conduct lending 
+functions, and applies to all counter parties within the Bank. This document forms the foundation for Credit 
+Instruction Manual, Business Policy Documents, and Product Program Guidelines. 
+ 
+ 
+ 
+
+--- Page 10 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 10 of 58 
+ Chapter – 2: Credit Risk Management Framework 
+ 
+Credit Instruction Manual supports the functional level of bank’s credit policies by setting process 
+standards for the whole credit risk cycle – from Risk Grading Score Card development to initiation/approval, 
+loan portfolio management, and remedial account management. These standards describe ‘how to do’ and 
+aim to bring all related parties to the prescribed level of excellence. 
+ 
+Business Policy Document outlines the risks associated with products being offered by each business 
+unit, and ensures that due consideration is given to  mitigate these risks before taking exposure to these 
+products. Separate Business Policy Documents is to be developed by each Business Units in consideration 
+of their business area. 
+     
+Product Program Guidelines define the nature of specific asset products, purpose, disbursement modality, 
+repayment arrangement, operational risks associated in dealing with these products, and general guidelines in dealing with the product to related parties.   
+                          
+
+--- Page 11 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 11 of 58 
+ Chapter – 3: Business Policy Document 
+ 
+ Business Policy Document (BPD) 
+3.1 Definition 
+Business Policy Document (BPD) is the principal approval  vehicle of a management plan for a credit product 
+or bundle of products offering to a certain set of customers. 
+ 
+BPDs are required for all products and/or bundle of products that actually or potentially expose the bank to 
+credit, market, operational and other risks, which could result in financial or reputational losses. Since 
+different business units are offering single product, or  a bundle of products to different set of customers, 
+separate BPD is to be developed by each business unit.       
+ The BPD formalizes:
+ 
+• A set of risk acceptance criteria for core product(s) offering and sub-products. 
+• The credit process. 
+• Financial performance driven credit structure of a product or bundle of products that could be offered to 
+a targeted customer segment. 
+• Risk indicators covering monitori ng of ongoing portfolio performance. 
+ 
+3.2 Rationale 
+The purpose of BPD is to define and approve a standard format, and business parameters within which a 
+product or activity is to be performed. It authorizes the execution of an activity within the given legal and regulatory environment. It also links the product to the framework of policies and systems authorized within the bank. 
+ 
+3.3 New Product Proposal 
+Credit Risk Management department’s role in the BPD process is to: 
+• Agree and support the proposed product exposure limits as set out in the profit model /plan. 
+• Assist with the preparation of the profit model/plan to the extent of providing data for bad debt charge 
+and delinquency assumptions. 
+• Agree with business on sales management, pricing policy, to the extent of taking into account the 
+`expected losses' identified. 
+• Define and agree with business on detailed credit criteria including customer credit risk acceptance 
+criteria and product criteria, and propose deviations where considered appropriate. 
+ 
+Head of Business Units are responsible for preparation and ensuring that all relevant parties have been 
+involved in the development process and agree with the statements contained in the Business Policy 
+Document, and recommend this document for approval from MD, or MANCOM, or Credit Committee as 
+delegated by the Board of Directors. However, all new SME (Small) & Consumer Credit products, other than  
+ 
+
+--- Page 12 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 12 of 58 
+ Chapter – 3: Business Policy Document 
+ 
+generic products, shall have to be approved by the Board of Directors, and then to be covered in Business 
+Policy Document.   
+ 
+3.4 Annual Review 
+Business units shall review their Business Policy Document at least annually. The purpose is to: 
+• Review all operational and credit risk performance as pects of existing products and whether any of the 
+product parameters require revision in line with market or economic changes. 
+• Outline any positive or negative variations since the last review/proposal. 
+• Recommend revisions and summarize the ra tionale behind the revisions and variations. 
+• The review must reflect the development over the la st 12 months (or period since review/launch if less) 
+and expectations.  
+• Renewal of BPD is always on anniversary date and not 12 months from latest validity date.  
+• HoCRM may extend the BPD renewal up to a maximum period of 180 days from the last review date.  
+ 
+3.5 Interim Review 
+Interim review has to be carried out before the renewal date of the BPD, if Board of Directors, or Managing 
+Director, or Credit Committee desires such interim review.  
+ 
+3.6 BPD Approval 
+The approval of all new and revisions to the existing BPD will be the joint responsibility of Business Head 
+and HoCRM, and they shall ensure that all the relevant parties have been involved in the development process, agree with the statements contained in the document and obtain their sign-off. All relevant parties 
+must include Marketing, Finance, O perations, Legal and Compliance, and Audit. Before placing the BPD, it 
+must be endorsed by Head of Business & HoCRM.   
+ 
+3.7 Administration Approved Active BPDs must be circulated to all relevant  units, department, and business centers. It is also 
+to be archived in the Bank’s generally shared electronic database for read only
+ purpose. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- Page 13 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 13 of 58 
+ Chapter – 4: Delegation of Lending Authority  
+ 
+Delegation of Lending Authority 
+4.1 Definition 
+Credit approval is the documented acceptance by the appropriate approval authority, single or joint, of the 
+risks in the credit product offering or transaction. 
+ 
+4.2 Policy 
+This policy defines the approval process for all credit product offerings in all Business units. Authorities must 
+be clearly documented in relation to the responsibility of  approval of credit facilities, introduction or changes 
+to policy, products and procedures, write-offs or any ot her matter which relates to a decision falling within the 
+areas detailed in this Credit Policy Manual. The authori ty who is delegating the responsibility must retain 
+such records. 
+ Credit Authority is granted to individuals by way of a credit authority letter from competent authority, which sets out the level of authorities they have been delegated and terms and conditions for their usage.  Existing authorities delegated to any person shall be laps ed when an individual changes his/her job. Existing 
+authorities delegated and/or sub delegated by the any outgoing jobholder will continue to be valid until new delegation and/or amendment is communicated.  Credit Approvers must ensure that all the credit transactions are approved within the spirit, and purpose of the policies, and are subject to all applicable laws, and regulatory controls.  It is a serious breach of discipline to commit the bank to a transaction beyond the authority delegate to any individual (Credit approver).  
+4.3 Business Policy Document (BPD) 
+Every Business Policy Document (BPD) must be approved, and annually reviewed by The Managing 
+Director, or MANCOM, or Credit Committee as delegated by  the Board of Directors. BPD is to be submitted 
+to the approval authority after due endorsement by the respective Head of Business, and HoCRM.  
+ 
+Adequate controls must be in place to ensure segregation of responsibilities in execution of all transactions. 
+Bank must ensure that no single individual has unres tricted authority to initiate, disburse and authorize 
+accounting treatments for the same transaction. 
+ 
+4.4 Material Changes in BPD When a credit product offering requires immediate ma terial change in terms and conditions originally 
+approved in the BPD (with materiality determined by the HoCRM), or the original risk criteria need to be 
+revised, such changes must be approved by the original approver.  
+
+--- Page 14 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 14 of 58 
+ Chapter – 4: Delegation of Lending Authority  
+ 
+If any changes in BPD is recommended at the time of review, such changes must be recommended with the 
+support of some study; may be in the form of Industry Paper, Market Intelligence Report, Peer Group 
+Analysis, Campaign Recommendation, etc. 
+ 
+4.5 Approval Authority 
+There are four levels of mandate. Each level of authority has a credit approval limit and conditions 
+associated with it, which establishes the maximum amount for a particular level of authority may give final 
+approval.  
+Level 1:  Individual Tr ansaction Approval Limit
+ 
+This authority level can approve individual transactions which meet the minimum eligibility criteria/ cut-off 
+score as prescribed in the respective BPD. Level -1 authority can be sub delegated.   
+ 
+Level 2: Individual Transaction Ap proval Limit – Permitted Exceptions  
+This authority level will approve individual transactions with permitted deviation/ exceptions as mentioned in 
+the BPD. Level – 2 authorities may be sub delegated with a condition of post facto ratification by the original authority holder.   
+Level 3 - Discretionary Lending Authority and Limits
+ 
+This approval level can be signatory to individual tr ansactions termed as discretionary lending. Such 
+transactions would either be outside the credit param eters specified in approved BPDs. These authority 
+levels may be sub delegated with a condition of post facto ratification by the original authority holder. 
+ 
+Level 4 – Board of the Directors  
+This level has the authority to approve policy documents, credit offering which falls under the Large Loan 
+Criteria, and/or other credit decisions that require thei r approval if stipulated by the Bangladesh Bank time to 
+time.   
+4.6 Delegation 
+The delegation chain could proceed from the Board of the Directors through the Managing Director and 
+CEO, down to the HoCRM, and Risk Managers working in CRM & CFC. A consolidated list of approved 
+mandates must be maintained by the HoCRM.  
+ 4.7 Annual Review 
+All credit approval delegations will be reviewed annua lly at the level responsible for the delegations of the 
+respective credit authority. Essentially, the Managing Director shall review all delegations annually and adjustments may be made, if necessary.  
+ 
+ 
+
+--- Page 15 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 15 of 58 
+ Chapter – 4: Delegation of Lending Authority  
+ 
+4.8 Inactivation / Reactivation 
+When a credit authority moves from one job function/department to another, the level of authority does not transfer with him/her. The authority is removed as and when any credit officer is assigned a new job. 
+Appropriate level of credit authority will be newly delegated, if necessary. 
+ 
+4.9 Transaction Approval Process 
+The Board of Directors must approve Delegation limits with or without the provision of sub delegation.   
+4.10 Risk Managers Eligibility Criteria   
+9 Satisfactory Completion of training on ‘Credit Management’ and/or minimum equivalent training 
+arranged by the Bank. 
+9 Sound understanding of Bangladesh Bank circulars,  guidelines issued from time to time, and other 
+local as well as international  legal & regulatory issues.  
+9 Adequate and appropriate experience with knowledge conforming to credit and trade finance 
+products. 
+9 Sound knowledge of the Bank's credit policies and the abi lity to apply these to specific situations with 
+prudence. 
+9 Ability to structure credit product offerings. 
+9 Ability to communicate clearly, to think and act indepe ndently, to apply judgment and to know when to 
+ask for guidance from more experienced officers. 
+9 Completion of “Credit Certification” program, as and when arranged by the bank. 
+                  
+
+--- Page 16 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 16 of 58 
+ Chapter – 5: Credit Management  
+ 
+Credit Management 
+5.1 Introduction 
+This chapter outlines key elements and best practices in the credit initiation and management. The policy 
+requirements set out in this chapter have been drawn up so as to protect interest of the long-term 
+stakeholders through the acceptance of Credit Risk in a controlled manner. Discipline in Credit Risk 
+Management is required to ensure the following in minimum:   
+ 
+• Business is not undertaken outside of defined target  markets, business strategies, or Product Program 
+Guideline other than exceptionally and then with adequate mitigants as well as with requisite approvals in place. 
+• Facilities or products are structured to meet cust omers’ needs and priced to provide adequate risk 
+adjusted returns and not simply to beat the competition. 
+• Secondary sources of repayment will actually provide the level of comfort expected, if defaults occur, 
+and this is not to be compromised by waiving gross documentation without justification, allowing 
+drawdown before completion or inadequate monitoring of changes in security values. 
+• Where deterioration occurs, action is to be taken quic kly and preferably before competitors do, either by 
+withdrawing a product or tightening acceptance criteria, renegotiating or canceling credit lines or simply increasing pricing. 
+ 
+Credit exposures are to be underwritten against approved Business Policy Documents (BPDs), which 
+articulate the agreed risk appetite, rules, monitoring parameters and mitigants for risk acceptance for various 
+types of business credit exposures, product and loan types. 
+ 
+5.2 Exposure Categorization 
+Credit exposures are categorized and managed as follows: 
+ 
+1. "Single Product" exposures which includes stand alone Auto Loans, Consumer Loans, Mortgage 
+Loans, Secured Overdrafts (SOD) in personal names, Secured Short Term loans, Credit Cards etc 
+under the Business Unit named Consumer Banking (CNB).  
+ 
+“Single Product” exposure also includes standalone unsecured/partially secured Short/Medium Term loans, Trade Service Products, under SM E Banking (Small Enterprises)  
+ 
+2. "Multi-Product" exposures such as Capital Fi nance, Trade Finance, and Working Capital finance, 
+which are managed on a relationship basis, will be underwritten by the business units named Corporate Banking, and SME Bank ing (Medium Enterprises).   
+ 
+5.3 Credit Initiation 
+5.3.1 Market Segmentation  
+A clearly defined target market must be establishe d for Corporate Banking, SME Banking, and Consumer 
+Banking. The target market must identify segments with common needs that can be met through  
+
+--- Page 17 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 17 of 58 
+ Chapter – 5: Credit Management  
+ 
+standardized products or multi-products, otherwis e unfocussed approach to lending can lead to random 
+concentrations of assets of uneven quality, and also to unusual risks. 
+ 
+The business boundary between Corporate Banking and SME Banking may be identified by annual sales 
+turnover. As an example, cut-off line for SME (Medi um enterprises) may be BDT 350.00 million. However, 
+such sales turnover cut-off will be agreed in BPDs. Prior clearance to be taken from the Head of Corporate Banking in soliciting customers whose Annual Turnover  is more than that cut off limit. BPD shall also 
+determine the limit benchmarking between Corporate & SME business.   
+ 
+Individual customers shall be the target market for Consumer Banking and Bangladesh Bank Prudential 
+Guidelines for Consumer Financing as well as bank’s own policies to be followed in selection of customers, 
+offering products, and portfolio management.  
+ 
+5.3.2 Customer Suitability  
+Credit, whether secured or unsecured, must not be made available to a customer where we lack an understanding of the customer or the customer's business. 
+ 
+The Bank will not extend credit facilities which are inappropriate to the nature and scale of the customer's business and/or repayment ability. The customer should:  
+• Understand the facilities offered and the risks associated with facilities.  
+• Have the authority to enter into the facility. 
+• Justify requirement of facilities needed. 
+• Aware that credit facilities cannot be approached for any speculative purpose other than to 
+Merchant Banking Division (if any). 
+• Understand that size and structure of facilities is not to facilitate up-streaming or down-streaming of 
+funds to the owners or associated companies. 
+ 
+5.4 Minimum Risk Acceptance Criteria 
+The foregoing criteria are to be incorporated in all BPDs. For example: imposing additional credit screening requirements, maximum customer gearing and/or minimum pr ofitability ratios etc. Deviations to criteria can 
+be sought within a BPD, if appropriate mitigants are evident and historical exper ience or market practices 
+warrant such deviation. Customer transactions which co ntain deviations to this policy shall require Board of 
+Directors approval. Some basic risk acceptance criteria are given below:    
+ 
+5.4.1 Lending to Holding Companies  
+Lending to holding companies is prohibited unless we hold guarantees supported by Memorandum of Association from major subsidiaries, which collectively  contribute at least 51% of consolidated net profit, 
+and/or more than 51% of consolidated assets. The r equirement for corporate guarantees can be relaxed if 
+the Bank is fully secured by liquid collateral (defined as cash, quasi cash, Stand by Letter of Credit (SBLC)/Bank Guarantee (BG). 
+
+--- Page 18 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 18 of 58 
+ Chapter – 5: Credit Management  
+ 
+5.4.2 Lending to Shell Companies  
+Lending to shell companies, established for the purpose of holding/sheltering assets of an operating 
+business is permitted in the following circumstances: 
+• The guarantee of the operating business or the majority shareholders (owners) of the operating 
+business is obtained. 
+• The property/asset being financed is for the occupation/use of the operating business and the Bank is 
+fully secured by liquid collateral (defined as cash, quasi cash, SBLC, and BG). 
+• In rare circumstances, if not fully secured, and the shell company is related to an existing Corporate 
+Borrower, where risk grade is ‘Acceptable’  or better, the corporate guarantee may be taken.  
+• KYC of all related companies must be established.  
+ 
+5.4.3 Personal Guarantees  
+Personal guarantees are required for all credit expos ures from the key directors and / or shareholders who 
+together comprise more than 50% of the borrower's paid up capital, which however could be relaxed for 
+Public Limited Companies on case to case basis at t he discretion of approval authority. Exceptions may be 
+allowed if facilities are fully secured by cash/SBLC/BG. Indications as to each individual guarantor's personal net worth should be ascertained and noted in the loan application. Authentication of Personal Net worth of the guarantor is the responsibility of respective Re lationship Manager. For all foreign guarantors, legal 
+opinion must be obtained unless a waiver is approved by the Credit Approver.  
+ 
+5.4.4 Start Up Financing  
+Financing start-ups carries additional risks. They may only be financed if owner(s) who are managing the business have at least 2 years experience in the sa me line of business (except for fully cash 
+backed/SBLC/BG secured facilities), or the owner having been an existing good borrowing customer of the Bank for at least 2 years who is now embarking on a ne w venture or product line, and the bank facilities are 
+to be cross-collateralized. This criterion for stat up financing, i.e., minimum two years experience in the 
+similar line of business or two years borrowing relationship with the Bank can be relaxed by the appropriate 
+credit authority considering strong collateral support, low leverage, etc. Risk Grade of the new project 
+shall have to be minimum ‘Fair-5’ .   
+ 
+5.4.5 Lending to Companies with Negative Net Worth  
+Lending to companies with negative net worth is permitted if all the following criteria are met: 
+• Legal jurisdiction permits lending to insolvent companies. 
+• Company/owners have the ability to repay. 
+• Facilities are fully secured by cash/SBLC/BG. 
+• Items such as directors’/shareholders' loans are subordinated to the Bank. Net worth should be re-
+calculated to account for subordinated loans. 
+• Historic account conduct (for existing customers) is regular in all aspects 
+ 
+
+--- Page 19 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 19 of 58 
+ Chapter – 5: Credit Management  
+ 
+Financing Sovereign, and Quasi-Sovereign entities, which net worth is negative shall be decided by the 
+Board of Directors, unless fully secured by cash, quasi cash, SBLC, Bank Guarantee.  
+ 5.4 6 Lending to Foreign Companies & Foreign-Owned Companies
+ 
+Lending to foreign companies and foreign-owned compani es is permitted, subject to regulatory approval & 
+guideline, if the following criteria are met: 
+ 
+i) For locally-incorporated companies, majority (51 %) owned by foreigners (permanent residents are not   
+   deemed to be foreigners): 
+• Established for at least 3 years (unless fully cash, quasi cash or SBLC/BG secured). 
+• Facilities are secured a nd self liquidating. 
+• Guarantee from local shareholders should be in place.  
+ 
+ii) For foreign-owned and incorporated companies: 
+• Facilities must be cash, quasi cash, or SBLC/BG secured. 
+ 
+5.4.7 Finance to Local Subsidiaries of Foreign Parent Groups  
+Exposure may be considered, subject to regulatory approval & guideline, provided it meets the following 
+minimum criteria: 
+• Local subsidiary stands alone in terms of creditwo rthiness without parental support (i.e., minimum risk 
+grade ‘Fair’ or better & no up streaming all its profits to the parent during the moratorium period and/or 
+before repayment of financial obligation to lenders). 
+• Parent Company has been established for a minimu m of 5 years with a sound reputation and track 
+record, and is located in a country on which no UN sanction, US sanction, and EU Sanction is currently 
+imposed. 
+ 
+In the event that credit limits of any size within th e Bangladesh Bank’s maximum lending criteria, a parent 
+company guarantee along with legal  opinion on enforceability of such guarantee is preferred. 
+ 
+5.4.8 Inferior Security Position  
+EBL should not establish a credit relationship with a customer where it is placed in an inferior security 
+position to other lenders, other than on a "like for like" basis (definition/example are given below). Inferior 
+security positions may arise due to: 
+• Bank being unsecured/partially secured and another bank/group of banks having security. 
+• Bank being secured, but down ranking to another bank/group of banks. 
+ 
+'Like for Like' :   For example, if we granted partially secured trade/working capital facilities, while another 
+bank granted a fully secured term loan, we would not be in an inferior position since these are different products. 
+
+--- Page 20 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 20 of 58 
+ Chapter – 5: Credit Management  
+ 
+But if one bank had a 5 year secured term loan and we granted a 5 year unsecured loan to the same 
+customer, we would be in an inferior position i.e. like for like on a product basis. 
+ 
+Any exception may be allowed only by the appropriate approval authority on a very selective basis, or 
+deferral may be allowed for a period not exceeding 365 days.  
+ 
+5.4.9 Excluded Loan Types and Industries  
+Each Business must identify excluded loan types and industries. In general, following types of lending carry 
+unusual risks and are pr ohibited unless approved as a policy exceptio n, or fully secured by liquid collateral 
+(cash, quasi cash, SBLC, BG): 
+• EBL incurred losses previously on the customer or the group. 
+• Take-out of adversely classified loans from other le nders (if known), or where the current lender wishes 
+to withdraw. 
+• Casinos and gambling equipment. 
+• Defense equipment, which includes lethal weaponry.  
+• Political Organizations. 
+• Pornography goods/stores. 
+• Trading in endangered species or ivory products. 
+• Houses of worship (e.g., mosques, churches, religious organizations etc), and charities. 
+• Businesses which are environmentally destructive or engaged in unethical conduct or unethical labor 
+practices. 
+• Businesses which could adversely affect the Bank's reputation.  
+ 5.4.10 Tenor and Repayment
+ 
+Maximum product tenor, grace period, and repayment requirements must be stipulated in the respective BPDs, along with maximum loan size. For term loans that are not fully secured, a financial projection is required along with appropriate monitoring covenants being in place. 
+ 
+Maximum grace period on principal repayments may be permitted up to 2 years for term loan products 
+subject to the loan being for construction or implement ation of a new project. Maximum grace period will be 
+reduced to 12 months if the term is for expansion of  existing plant. Grace period should however be fixed 
+based on the nature of construction/projects. Moratorium may also be allowed for both principal & interest on case to case basis. Repayment schedule should be selected in line with cash inflows. Bullet repayments are not permitted for term loans. Balloon repayment is not permitted, if any single installment consist more than 25% of loan amount. Prepayments are however allowed.   
+ 
+Trade finance and working capital products’ tenor shou ld be in line with Cash Conversion Cycle but not 
+exceeding 365 days. Trade tenor may be defined as the period from the date of LC acceptance to the import  
+
+--- Page 21 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 21 of 58 
+ Chapter – 5: Credit Management  
+ 
+finance repayment date. Tenors should, on a best efforts basis, mirror the net working asset cycle of the 
+customer (i.e., stock days plus debtor days less creditor days).  
+ 
+Open-ended bank guarantees preferably to be avoided, and may be approved only if they are fully cash 
+secured. Any exception requires approval from the appropriate authority. No stand alone open guarantee 
+will be issued unless fully secured by cash/SBLC/BG. Auto renewal bank guarantee over 365 days shall 
+require prefact approval from appropriate lending authority.   
+ 
+5.5 Borrower Verification 
+Verification of the individual or corporate entity fulfilling Know Your Customer (KYC) requirements is to be complied before disbursement. Compliance to the ant i-money laundering legislation as well as Bank’s 
+internal guideline is a must. KYC requirements must be satisfied prior to disbursement. 
+ 
+Identification of the individual or corporate entity must be formally established through proper legal 
+documentation. The borrower must be legally capable of entering a contractual credit relationship and providing charge over any asset taken as collateral for a loan.  In case of outsourcing the KYC process, the vendor has to be pre approved by HoCRM. Annual review of the performance of the vendor is to be conducted by CRM.  
+ 
+5.6 Structuring the Loan 
+When determining the loan product(s), amount, tenor the business must take into consideration attributes 
+like purpose of the finance, cash conversion cycle, li quidity/marketability and value of the asset or collateral 
+being financed, cash generating ability of assets financed (particularly for Term Loan).  For single products, loan must be based on customer's ability to pay, debt burden  ration, Loan to Value 
+(LTV) requirements, the liquidity/marketability and value of the asset or collateral being financed, etc.  
+ 
+5.7 Credit Approval 
+5.7.1 Aggregation of Exposure
+ 
+Multiple facilities extended by the bank to a singl e customer/group must be aggregated. Assessment of 
+ability to repay and borrowing capacity should consider all financial commitments. Aggregation is to be 
+undertaken at the time of first application and when reviewing the facility by any business unit. However 
+such aggregation is not mandatory for Consumer Financing while approving any consumer products up to Maximum BDT 1.0 million to any individual who has ownership interest in business entities that maintains relationship with Corporate Banking Division. Co nsumer Financing Center may inquire Credit Risk 
+Management Department about credit worthiness of such individual.        
+  
+
+--- Page 22 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 22 of 58 
+ Chapter – 5: Credit Management  
+ 
+5.7.2 Related Exposures  
+A ceiling on lending to any single borrower, group of associated/sister concerns must be established in 
+respective BPDs. The maximum aggregated exposure in Corporate Banking and SME Banking covering all 
+products shall be set in the BPDs, and shall be guided by regulatory requirements. 
+ 
+Exposure with CFC for Corporate & SME customer must be noted in Credit Memorandum and is to be 
+included in the computation of exposure for determining the approval level for exercising of delegated credit 
+authority. 
+ 
+5.7.3  Credit Approval Process  
+A uniform loan application for each product or bundle of products is to  be used by all business units. The 
+loan application must indicate if there is any breach of Credit Policy Manual, and Business Policy Document. 
+Breach codes are given in Appendix ‘5-A’. The purpose of the required credit facilities and sources of repayment should be clearly stated in  the Limit Applications. Both qualitat ive and quantitative analysis must 
+be undertaken on the customer. Qualitative analysis should cover the nature and industry of the customer's business, market position, product and operating characteristics, management capabilities and adherence to critical success factors relevant to the business. Quan titative analysis should address the customer's ability 
+to generate funds for repayment based on historical data and future cash flows. The Limit Application should focus on highlighting the key risk issues faced by the company and the mitigating factors should be outlined against each risk that has been identified. 
+ 
+Credit Applications and enclosures are to be stated in t he respective BPDs. The type of credit applications is 
+to be used will be dependent on the Obligor Risk Grade, quality of collateral, and facility tenor, and must be common within a specific business.  
+ 
+In the approving side, every sanction of credit must be signed by minimum 2 officers/authority, one of which must be the holder of appropriate credit approval authority.  
+ 
+5.7.4  Submissions to Board of Directors  
+All loan applications requiring Board of Directors approval must be recommended/supported by HoCRM & Managing Director.  
+ 
+5.7.5 Issues not covered by Policy   
+Credit Risk Managers/Officers may evaluate proposals that are fundamentally sound & worthy of consideration, even though they may not conform to the bank's written lending policy i.e. fall outside the parameters documented in Credit Policy Manual, and /or BPD. 
+ 
+If there is a strong business rationale supporting its acceptance, such cases must be submitted to the appropriate discretionary lending authority holder for co nsideration. Such exceptions must be approved as 
+per the delegated authorities.  
+
+--- Page 23 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 23 of 58 
+ Chapter – 5: Credit Management  
+ 
+5.7.6  Declined Deals/Appeal process  
+A declined loan application that is resubmitted for cons ideration must be routed to an authority level above 
+the original approver for review, unless the resubmission includes new information, in which case it may be 
+resubmitted to the original approver. It must indicate that the case was previously declined and also state 
+reasons for such decision. Credit Instruction Manual (CIM) contains detail process for appeal.  
+ 
+5.7.7  Use of Non-Panel Lawyers  
+Use of non-panel lawyers requires clearance from Legal and Compliance (L&C) or HoCRM, where L&C is 
+not in place. Panel lawyers’ performance is to be reviewed annually by Head of Credit Administration, and Head of Special Asset Management, and documented in file with HoCRM and MD’s comment.   
+ 
+5.8 Security/Collateral 
+Each Business must develop detailed guidelines relating to collateral and is to be documented in BPD. These must cover: 
+• Acceptable collateral types - based on type, size, age, value, location, manufacturer, etc. 
+• Loan to Value Ratios  
+• Down Payment 
+• Margin requirements 
+• Collateral verification, appraisal process, re-valuation 
+• Documentation, Lien registration, insurance requirements 
+• Ongoing monitoring process for revaluation of co llateral, enforceability of charge documents, 
+maintenance of margin, continuation of insurance etc. 
+ 
+In order to be recognized as security, all items liened/pledged/hypothecated/assigned/mortgaged must have 
+value, and we must have physical control and/or legal title thereto together with necessary documentation to 
+enable us to realize the asset without the cooperation of the asset owner. 
+ 
+Acceptable collateral for loans are cash or equivalent (i.e., FDs, other deposits, etc.), equity/stock of listed companies traded on major stock exchanges, mutual funds, unit certificates, permissible government bonds, 
+real estate, bank guarantees, Stand by Letter of Credit, Assignment of Insurance benefits, and other credit 
+guarantees. In certain circumstances other collateral may be accepted through approval of a specific BPD, 
+e.g., trade receivables, receivables against work orders, etc.  
+ 
+5.8.1 Maximum LTVs
+ 
+Acceptable collateral including the relevant LTVs and Collateral Recovery Rates must be approved and documented in the respective BPD. 
+ 
+Where collateral has been taken, processes to ensure lien, creation of charge, and title perfection to be 
+ensured. 
+
+--- Page 24 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 24 of 58 
+ Chapter – 5: Credit Management  
+ 
+Collateral (e.g., equipment, buildings, stock, etc.) must  be insured at all times ag ainst all risks including 
+accidents, fire, flood, RSD, burglary  etc., Eastern Bank Limited (where at risk) must be designated as the 
+loss payee/beneficiary under the insurance policy, with advance notice of cancellation requires. Insurance 
+must be confirmed before disbursement and/or renewal. Any dispensation must be approved by the 
+approver.  
+ 
+Unless exception is approved in a specific BPD, t he maximum permissible LTVs/Collateral Recovery Rates 
+(CRR) are as follows: 
+• Land with Residential building / Shop houses   60%  
+• Commercial office/building/floor  40%  
+• Industrial land with structure   40%  
+• Vacant Land   40% 
+• Matched currencies  100%  
+• Major traded currencies   90%  
+• Other convertible currencies   80% 
+• Blue Chip (DSE 20/CSE -30) Shares in listed companies       50% of last six months average                    
+                                                                                                                       market p rice.  
+• Mutual Funds/ICB Unit Certificates       70%  
+ 
+Permissible Government Bonds would generally be treated as cash subject to acceptability of these 
+instruments as primary / collateral security. Lien on Non Convertible Preferred Shares may be taken as comfort, not as Collateral. If preferred shares are convertible into ordinary shares tradeable in listed stock exchanges, those can be accepted as collateral, and CRR of such shares will be 50% of face value with a 
+condition that the ordinary shares of the same company should not not be traded at lower than its face value in last six months. 
+ 
+5.8 2 Securing Documents  
+The Credit Administration Department (CAD) should maintain an audit trail for collateral received from and released to borrowers, which should correspond to the actual collateral being held; and such report is to be submitted to Credit Committee/HoCRM on quarterly basis. 
+ 
+Collateral/documents should be kept under dual control in a fireproof vault. The receiving and releasing of 
+collateral to customers should be handled by individuals other than those who are engaged in disbursement 
+and/or setting limit in the system.  
+ 
+Legal documentation such as Offer Letters must either be: 
+• In standard format, approved for use by Legal & Compliance without material variation. 
+• Specifically drafted by a panel lawyer acting for the Bank.  
+• An expiry date/cut off date for acceptance of an Offer Letter must be stipulated. 
+ 
+
+--- Page 25 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 25 of 58 
+ Chapter – 5: Credit Management  
+ 
+Prior to loan approval, any written or verbal communica tion with customers, such as in Primary Letter of 
+Interest, Memorandum Offer Letter, must not confer a moral or legal obligation on the Bank to provide 
+facilities. 
+ 
+All securities must be perfected and conditions precedent satisfied prior to disbursement and this must be evidenced by a Security Satisfaction Certificate (S SC) issued by Credit Admini stration. An appropriate 
+approval has to be obtained under a multi-product customer relationship for disbursement prior to 
+completion of documentation. The maximum deferral period for completion of documentation is 360 days 
+from loan approval date. Documentation deferrals are not allowable for consumer and SME (Small 
+Enterprise) products.  
+ 
+5.9 Account Maintenance 
+Policies and Instructions for on-going account maintenance and review must include the following: 
+• Handling of customer contacts including process to update change of address, employment, income, etc., handling of return mail, resolution of customer disputes, and confirmations of account balances. 
+• Instructions for disbursal of funds and completion of transactions. 
+• Operating Instructions for processing posting of temporary credits, reversals of interest, fees, etc. 
+• Processing insurance claims (e.g., disability, unemployment, loss of collateral due to fire, flood, MBD, Earthquake, etc.)  
+ 
+Particular care is needed for management of excesses, overdue payments, covenant breaches, late 
+submission of financials, key management changes, and adverse market information. 
+ 
+5.9.1 Excess Over Limit  
+Drawings in excess of approved limits maybe permitted in certain circumstances provided these are approved by the relevant credit aut hority with the following conditions: 
+• Pre-approved excesses (or temporary limit increases) for maximum tenor of 365 days, (in this case the customer is called us in advance requesting pre-approval of a temporary increase). 
+• Unanticipated excesses, whereby the customer had not sought our prior appr oval, maximum tenor will 
+be 90 days (e.g: OAP, PAD, excess in OD/Current Account due to application of quarterly interest, fees & charges). 
+• Customer’s which Risk Grade is ‘SM-8’, shall not be allowed any EOL. 
+• EOL procedures are to be detailed in Credit Instruction Manual. 
+ 
+5.9.2 Limit Reviews  
+All credit exposures under Corporate Banking & SME (Medium Enterprises) must have an annual review 
+date. The criteria for annual review of customer exposures shall be set out in the BPD. 
+ 
+In instances where the collateral has an expiry date, e.g. SBLC/BG, the annual review date should be due at 
+least one month prior to the SBLC/BG expiry date. 
+
+--- Page 26 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 26 of 58 
+ Chapter – 5: Credit Management  
+ 
+Although review date extensions may be permitted up to a maximum of 180 days, subject to appropriate 
+credit approval, reviews are to be completed by the or iginal review date. Managing Director may, under 
+exceptional circumstances approve extensions beyond 18 0 days over previously approved deferral period, 
+but total deferral shall not exceed 365 days. Extension of review date over 365 days is to be referred to the 
+Board of Directors for approval.   
+ 
+If a limit is not approved or extended before the original or extended review date, any outstanding against 
+such limit will be treat ed as excesses/overdue. 
+ 
+5.9.3 Customer Contact  
+Regular contact with customers must be maintained, and results of contacts to be documented by a 
+standard Call Report in the credit file. Standards must be established for frequency of contact and for 
+property/business/factory/stock site visits, which amo ng other factors must be based on product type and the 
+amount of credit extended. In the case of litigation / workouts, attempts to make contact and perform a site 
+visit should be made. Such standards should be included in the respective BPD and Credit Instruction 
+Manual. 
+ 
+5.10 Credit Records & Documentation 
+Obtaining and maintaining complete and accurate information on every relevant detail of a borrower's financial condition is essential in approving credit in a safe and sound manner. The business should establish in the BPD that the type of information will be required from the borrower during pre-disbursement stage, and the information will be required to submit while the credit remains outstanding i.e. post disbursement stage. 
+ 
+It is the bank's policy that no advance or takedown  will be permitted until all documentation is completed, 
+executed, delivered and registered, however deferral can be allowed by the appropriate authority, if necessary. Wherever possible, each facility will be documented using bank's  standard documentation 
+instruments along with a checklist, and shall conform with legal, regulatory and internal requirements. 
+ 
+Credit files must be maintained for each borrower contai ning sufficient information to fully describe the credit 
+relationship history and current status. Credit files must include the following: 
+• All current information provided by the applicant. 
+• Credit approval memos, CM, etc. 
+• CIB reports, trade and other checks. 
+• Copy of necessary legal opinions, originals of which are to be kept with Credit Admin Department. 
+• Financial statements, spread sheet, Scorecard, etc. 
+• All correspondence. 
+• Disbursement, drawdown notices. 
+• Collateral Appraisals. 
+• Internal memos. 
+• Call reports. 
+• SSC, Conditional / Partial SSC, documentation checklists if any. 
+
+--- Page 27 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 27 of 58 
+ Chapter – 5: Credit Management  
+ 
+Credit files contain confidential information and must be maintained in safe location providing convenient 
+access to credit approvers. They must not be removed from bank premises. 
+ 
+No original legal document is to be maintained in the credit file. Standards must be established for the storage and retention of dated materials. 
+ 
+Business should implement a file documentation tickler system to help the officers obtain updated 
+information on borrowers, and thereby facilitating cont inuous assessment and monitoring of credit risk. 
+ 
+5.11 Documentation Retention Period 
+ 
+The minimum documentation retention period for all th e credit records/documents will be as per Bank's 
+Compliance Standards, and/or in accordance with legal & regulatory requirements. The retention period starts from the end date of the facility/relationship.  Business must comply with the Bank’s Compliance 
+Standards relating to `Record Keeping' and `Record Retention'. 
+ 
+5.12 Stand Alone/Single Product Lending under CFC & SME (Small Enterprises) Following are guidelines for credit evaluation and loan structuring at the Stand Alone/Single Product offered by CFC and SME (Small Enterprise). Existing ‘Credit Policy & Process’ for SME (Small Enterprise) shall serve the purpose of Credit Instruction Manual for SME (Small Enterprise) financing until, establishment of Common Credit Instruction Manual of the Bank.       
+ 
+Loans must be made based on the repayment ability of the borrower and cash flow as the first way out. Existence of collateral or availabilit y of credit insurance must not be the primary basis for repayment. Criteria 
+to test the repayment capacity of the borrower must be established in the respective BPD.   
+ 
+Where profitability or debt burden is not used or cannot be verified, acceptable criteria for "ability to repay" must be established. This may include prior credit performance verified through a bank statements, cretificates from other banks, customer profit margin etc. 
+ 
+5.12.1 Verification  
+Critical data provided by the customer must be independently verified. Verification requirements must be established as part of the Business Policy Document.  For example this may include: 
+• Applicant and co-applicant identity 
+• Income, through acceptable documentation like salary statements, certified tax returns, bank statements etc. 
+• Customer contact details such as addresses (home and work) and phone numbers (home, work) 
+• Collateral/Security in terms of existence, ownership, possession, and value. 
+• Customer down payment/equity contribution 
+ 
+
+--- Page 28 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 28 of 58 
+ Chapter – 5: Credit Management  
+ 
+All requirements relating to transfer of title, lien regi stration, insurance of collateral etc. must be completed 
+prior to disbursal of funds. 
+ 
+For purchase of automobile and mortgage, loan disbursal must be controlled and paid directly to the seller of 
+respective assets on behalf of the borrower. 
+ 
+5.12.2 Residential Mortgages  
+The policies below are specific to Residential Mortgages. Mortgage shall cover loans provided for: 
+ 
+• Purchase of ready apartments, single house, construction, or refinance. 
+• Other types of properties financed such as investment properties and combined/mixed use (shop-
+house) properties.  
+ 
+Mortgage requires separate policies and procedures, LTV requirements and approval rules, which are to be 
+separately documented in a specific Mortgage BPD.  
+ 
+All owners of the property (taken as collateral) must be legally bound to repay the loan either as borrowers, 
+co-signers or guarantors. 
+ 
+For installment loans, bullet repayments of principal (i.e. 100% principal payable on loan maturity) are not 
+allowed. Loan is to be repaid on EMI basis. If loans provided to the borrower for construction, repayment 
+may be allowed after moratorium period of maximum 2 years, however moratorium period is to be fixed based on the type and size of construction.   
+ 
+Types of properties that cannot be financed are: 
+• Vacant land. 
+• Properties with restricted use based on zoning laws (agricultural, water reservoir, etc). 
+• Any property with attributes that restrict its resale.  
+• Leases with less than 25 years. 
+• Clearance from the Department of Environment, ut ility providers, RAJUK, and /or any other relevant 
+regulatory authority is not available. 
+ 
+Property against Mortgage Loan must be assessed to identify whether there are any detrimental 
+environmental issues that may result loss of value. Such issues must be identified so as to identify the 
+impact on the marketability and credit risk and must be m easured in line with country legislation, regulations 
+and internal policy requirements. 
+ 
+5.13 Temporary Overdrafts 
+Temporary Overdrafts may occur from time to time in  the current account accounts if any charges, fees, 
+interest applied by the amount greater than the balance of that account on the date of such application. 
+Such temporary overdraft/excess is unforeseen.  
+
+--- Page 29 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 29 of 58 
+ Chapter – 5: Credit Management  
+ 
+Temporary Overdraft may also occur if appropriate app roval authority allows transaction against un cleared 
+and/or lodged pay orders, demand drafts, cheques, or  however such transaction must be allowed within 
+rules and regulations of Bangladesh Bank issued over time to time.  These Temporary ODs are 
+unexpected and for short-term needs. 
+ 
+5.13.1 Application  
+The policies and requirements in this section apply to: 
+• Temporary overdrafts. 
+• Approvals of uncollected funds - payment against pay orders, demand drafts, checks that are not collected. 
+• Daylight overdrafts - disbursements of funds during the day prior to a planned same day receipt of available funds 
+• Overnight overdrafts - disbursement of funds against the funds expected to come in the next day. 
+ 
+5.13.2 Policy  
+To mitigate the contingent risks related to the above facilities, the following standards must apply to all 
+transaction accounts: 
+• Approvals of uncollected funds, temporary overdrafts, and daylight/overnight overdrafts, must be 
+reserved for customers we know well.  
+• The underlying nature of each approval that al lows drawings against uncollected funds must be 
+understood. 
+• Temporary OD must be limited up to maximum 90 days and must be approved by the appropriate 
+delegated authority.  
+• If Unauthorized TOD is not settled within 15 days, relationship is to be down graded to one step.  
+• If not settled within 30 days, all credit limits should be frozen for further transaction, exceptions may 
+only be proposed to the Managing Director or higher level delegated authority on case to case basis.  
+• If not repaid within 90 days, account to be down graded to “SMA – 8”.   
+• The relationship will continue with downgraded BRR level until regularization  of account and realization 
+of next quarter’s interest/fees/commission within 15 days of the end of quarter. Relationship Team shall have to propose reinstate of previous BRR to CRM.  
+• Should such a situation occur where the relationship is downgraded three times in a calendar year 
+owing to non realization of interest/commission/fees and/or daylight/overnight overdraft, exit strategy 
+should be initiated within 10 days of occurrence.  
+• Credit Administration Department shall monitor such TOD transaction and reports to CRM on quarterly basis.      
+• The risks of kiting are greater in business accounts. Therefore, in case of doubt , cheques deposited 
+should be scrutinized to identify those from the sa me company or from affilia ted companies or owners, 
+including intra-bank transfers from uncollected accounts. Deleted: <#>Delegated Authority 
+may earmark unutilized fund based 
+limits in allowing Temporary 
+Overdrafts. ¶
+Deleted: doubt
+
+--- Page 30 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 30 of 58 
+ Chapter – 5: Credit Management  
+ 
+Appendix: 5-A (Credit Policy Breach Codes) 
+Sl. Breach Breach Code 
+01 Customer’s annual turnover is outside the business boundary. (i.e., turnover of 
+SME customer is more than Tk. 350.0 million, or turnover of Corporate customer 
+is less than Tk. 350.0 million).      P-01 
+02 Loan to Holding Company is proposed without Guarantee from subsidiaries, 
+which collectively contribute at least 51% of consolidated net profit, and/or more than 51% of consolidated assets. P-02 
+03 Loan to shell company is proposed without guarantee from Operating Company, 
+or guarantee from the major shareholders of the Operating Company. P-03 
+04 Loan to shell company is proposed with Corporate Guarantee of an associated 
+company having relationship with the Bank, which Risk Grade is worse than “Acceptable-4”. P-04 
+05 Loan to customer is proposed without Personal Guarantee of Directors who 
+together holds more than 50% of shares.   P-05 
+06 Start up financing is proposed for the customer who has less than 2 years 
+experience in the same line of business or has borrowing relationship with the Bank for less than 2 years.    P-06 
+07 Start up financing is proposed to customer which Risk Grading is worse than 
+‘Fair-5”. P-07 
+08 Loan is proposed for customer of negative net worth without fulfilling all criteria 
+set out in Credit Policy Manual, Para: 5.4.5.  P-08 
+09 Loan is proposed to Foreign Companies incorporated in Bangladesh (51% or 
+more is owned by foreigners) without fulfilling all criteria set out in Credit Policy Manual, Para: 5.4.6  P-09 
+10 Loan is proposed to fully owned & incorporated Foreign Companies, which is not 
+secured fully by cash, quasi cash, SBLC, BG.  P-10 
+11 Loan is proposed, where EBL holds inferior security position.   P-11 
+12 Loan is proposed to customer, which business falls within excluded loan types & 
+industries.   P-12 
+13 Term Loan is proposed for start up project with grace period of more than 2 
+years, and/or for BMRE of existing project with grace period of more than 1 year, 
+and/or balloon repayment with more than 25% of principal amount in one 
+installment.    P-13 
+14 Trade Finance and/or working capital financing products are proposed for more 
+than 365 days.  P-14 
+15 EOL proposed for customer which Risk Grade is ‘SM-8’ or worse.  P-15 
+ 
+
+--- Page 31 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 31 of 58 
+ Chapter – 6: Management Information System and Reporting  
+ 
+Management Information Systems and Reporting  
+6.1 Overview 
+The Bank must develop comprehensive MIS for portfolios of each business units that enables tracking of performance on parameters like trends, risk-reward, co ncentrations, exposures etc., and the portfolio as a 
+whole. 
+ 
+6.2 MIS on Portfolio Management 
+Management Information System must provide quality data on the segmented portfolio on a timely basis that 
+will enable the analysis of the current and future ri sk, and exposure by the business areas responsible for its 
+management with a view to mitigate such risk areas towards maintaining a healthy asset portfolio.  The business must have and maintain an accurate dat abase containing all applic ation information for both 
+approved and declined applications, collateral and security information. Data retention specifications must be in line with prevailing regulatory requirements. 
+ 
+Data archiving procedures and MIS must be adequate to  facilitate the development of credit scores and 
+models when required. 
+ 
+The following indicators (both number and amount where relevant) must be traced and tracked on a monthly basis at the each business level for Single Products and Multi products: 
+ 
+6.2.1 Booking MIS  
+• Applications received, Processed 
+• Applications Approved, Declined 
+• Approval rate, Average credit score of approved limits 
+• High side overrides/ Low side overrides, Policy Overrides 
+• New Business Booked in ‘Amount’ and ‘Number’ 
+ 
+6.2.2 Portfolio MIS  
+• Limit Increases, Limit Decreases, Renewals. 
+• Unutilized and Undrawn amounts. 
+• Attrition (voluntary and involuntary). 
+• Net Interest Income (NII) %, Net Fees Income (NFI) %, Operating Profit %, Trading Profit (TP)%. 
+• Delinquency (30+DPD, 60+DPD, 90+DPD, 120+ DPD, 150+ DPD, 180+ DPD or more). 
+• First installment Default (FID) or First Payment Defaults (FPD). 
+• Risk grading of customer exposures. 
+• Early Alert Reporting (EA Codewise), Classified Account Reporting, Loss Given Default, Collateral 
+values, Deviations. 
+ 
+
+--- Page 32 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 32 of 58 
+ Chapter – 6: Management Information System and Reporting  
+ 
+• Overdue Annual Reviews (aged) and Extended Accounts. 
+• Gross Write-offs, New Provisions, Releases, Reco veries, Net Bad Debt, Provisioning Balance. 
+• Repossessions/foreclosures - initiated, in progress, inventory. 
+• Expenses associated with foreclosure process. 
+• Foreclosure Assets sold, Write-downs taken periodic, and on sale. 
+• Expenses incurred in maintaining and selling repossessed property. 
+ 
+6.2 3 Segmentation MIS  
+The business must have the ability to generate reports for the above indictors for single and multiple 
+products (on an as needed basis and, where relevant) by: 
+• Original loan amount or credit line. 
+• Debt burden. 
+• Risk Score range. 
+• Customer profile. 
+• Collateral Profile (fully secured/ partly secured etc.) Breakdown of collaterals held. 
+• Loan purpose. 
+• Loan Size and Tenor. 
+• LTV and geographic location. 
+• Customer Relationship based on Turnover. 
+• Industry according to SBS/ISIC code. 
+ 
+Additional MIS for certain segments may be required as par business plan/budget or the BPD. 
+ 
+All indicators must be compared and reviewed with hi storical performance, expected results and competitive 
+benchmarks where available. Forecasts for future periods must be updated based on actual performance 
+and revised expectations. 
+ 
+6.3 Reporting 
+The purpose of this section is to describe the reporting requirements within the Bank. The reporting 
+structure, rationale, contents and purpose must be reviewed and challenged at regular intervals to make the 
+reporting more meaningful. 
+ 
+HoCRM must report to the Credit Committee/MANCOM in various standardized templates on a periodic 
+basis (monthly/quarterly), and meeting minutes of such meeting is to be communicated to the Board of the 
+Directors in their next meeting.  
+ 
+There must be a robust reconciliation in place to ensu re data integrity. A separate team (Credit Risk 
+Management – MIS & Reporting) shall dedicatedly work to ensure accurate & timely delivery of required 
+information. The content and the reporting requirements may change from time to time.  
+
+--- Page 33 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 33 of 58 
+ Chapter – 7: Early Alert & Collections Management  
+ 
+Early Alert & Collections Management 
+ 
+7.1 Early Alert Reporting (EAR)  
+7.1.1 Definition
+ 
+An Early Alert Account is one that has risks or po tential weaknesses of a material nature requiring 
+monitoring, supervision, or close attention by management. If these weaknesses are left uncorrected, they 
+may result in deterioration of the repayment prospects for the asset or in the Bank's credit position at some 
+future date with a likely prospect of being downgraded to “Special Mention Account (SMA)” or worse within next six months to twelve months. 
+ 7.1.2 Explanation
+ 
+Early identification, prompt reporting and proactive management of Early Alert Accounts are prime credit 
+responsibilities of all Relati onship Managers, which must be undertaken on a continuous basis. 
+ 
+The Bank recognizes that some credit decisions, desp ite being undertaken properly and prudently, will still 
+go wrong. The early detection of deterioration in cred it quality and prompt reporting of such early warning 
+signs is evidence of the proper exercise of account management responsibilities and will not be seen as a 
+weakness in executing credit responsibilities. 
+ 
+Early identification and prompt reporting of deteriorating credit signs, enables swift action to protect the 
+Bank's interest. Moreover, early discussion with customers will enhance the likelihood of developing 
+strategies mutually acceptable to both the customer and the Bank. Representation from the Bank in such discussions should include the legal adviser when appropriate. 
+ 7.1.3 Classification
+ 
+An element of subjective analysis is required in re aching a decision but generally any account demonstrating 
+one of the symptoms detailed in the definitions of EA1 - EA5 of the Appendix: 7-A, and is sufficiently serious, 
+must be classified as an Early Alert Account.  Accounts on Early Alert status for six months or more must be additionally tagged as EA-6, apart from carrying the other EA Codes. The number of accounts in  EA-6 should be kept to a minimum as EA accounts 
+should have a clear strategy and implementation timeframe.  
+The symptoms EA 1 to EA 5 are not exhaustive and hence,  if there are other concerns, such as a breach of 
+loan covenants or the counterparty is the subject of market rumors that would fall under the Early Alert 
+definitions in the applicable "Definition" section for EA, the account must be promptly reclassified to Early 
+Alert status. 
+ 
+
+--- Page 34 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 34 of 58 
+ Chapter – 7: Early Alert & Collection Management 
+ 
+7.1.4 Removal from Early Alert Account Status  
+An account may be declassified as a Regular Account from Early Alert Account status when the symptom, or 
+symptoms, causing the Early Alert classification have been regularized or no longer exist. 
+ The concurrence of the Credit Committee, or appropriate approval, is required for conversion from Early 
+Alert Account status to Regular Account status. 
+ 
+7.1.5  Credit Grade Reassessment
+ 
+Accounts classified as Early Alert must have their risk grades reassessed immediately and that grade must 
+be agreed with the HoCRM, Managing Director/Board of Directors according to delegated authority. 
+ 
+7.1.6 Downgrade to SMA or Classification  
+Downgrade to risk grade as SMA or worse on qualitative  judgement (Details are given in Chapter-8)  or on 
+quantitative judgement as per Bangladesh Bank guid elines, should be cons idered immediately.   
+ 
+A downgrade to risk grade SMA on qualitative criteria  must be formally approved either by HoCRM, 
+Managing Director, or Board of Directors in accordance with delegated authority. 
+ 
+Bank’s Internal Audit teams have the authority to downgrade accounts in the course of their duties. In the 
+event of disagreement between the parties over a propo sed downgrade, the decision of the Bank’s Internal 
+Audit will prevail.  Downgrade to SMA in terms of quantitative criteria
+ shall follow the Classification rules as prescribed by 
+Bangladesh Bank.  
+ 7.1.7 Reporting of Early Alert Accounts
+ 
+All accounts classified as Early Alert must be reported in a CRM defined format. Any account with multiple 
+EA symptoms should be listed under the EAR category of primary concern for Early Alert purposes. 
+ 
+7.1.8 Time on Early Alert  
+After 6 continuous months on Early Alert, a formal review of the account is required. The account must also be classified as EA 6. This should be submitted for sign  off to the CRM. Within such a time period it is 
+expected that an account will either have: 
+• Resumed normal account status through rectification of the cause for it being on EA status, or  
+• That the cause is not readily correctable and the account may have been downgraded to risk grade SMA or worse. 
+ 
+An account being reported on Early Alert for six months or more should be rare, however, there is no 
+prescriptive maximum time an account can be on EA, and each case must be reviewed on its merits. 
+
+--- Page 35 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 35 of 58 
+ Chapter – 7: Early Alert & Collection Management 
+ 
+7.1.9 Responsibilities in EA management Process  
+ 7.1.9.1 Credit Committee 
+ 
+• To monitor credit quality through monthly review of reports submitted on Early Alert Accounts and to 
+review the action being taken to addr ess the Early Alert characteristics. 
+• To review and monitor strategies and actions through monthly review of reports submitted on 
+Substandard, Doubtful, Bad & Loss Accounts, and to review provisions and releases taken and potential provisions and releases. 
+• To review accounts downgraded to SMA or worse credit grade, and review accounts suitable for upgrade to regular status and return to the Line. 
+• To monitor collection and recovery action for Stand Alone / Single Product Lending through monthly 
+review of reports.  
+• To review provisions and releases taken and potential provisions and releases. 
+• Actions and strategies being taken, or proposed to be taken, on all reported classified accounts are to 
+be reviewed and discussed. Decision on actions will be recorded in the minutes of meeting. 
+ 
+7.1.9.2 Relationship Managers  
+• Identifying promptly any deteriorating signs on all accounts within the RM's portfolio, including assessing the level of risk when any deteriorating signs are observed, and taking appropriate action to minimize/mitigate risk of loss to the bank. 
+• Reporting within a period of five business days of such deterioration to CRM, in the standard Early Alert Report template.  
+• Recommending, where warranted, downgrading to risk grade SMA or worse credit grades. Preparing and updating EAR. 
+ 
+7.1.9.3 Head of Credit Administration  
+• This job-holder is to be independent from the credit underwriting team, and is to report direct to HoCRM. 
+• Reviewing Monthly Early Alert Summary Reports, calling for additional information where deemed 
+necessary, for determining whether appropriate action  has been taken or whether previously agreed 
+actions have been followed through. 
+• Ensuring the timely and accurate completion of EARs and Monthly Early Alert Summary Reports. 
+• Ensuring that all downgrades to risk grade ‘Sub Standard’ or worse has been made at least as per 
+Bangladesh Bank Guidelines.   
+ 
+7.1.9.4 Head of Credit Risk Management  
+• Ensuring implementation of the Early Alert Process within all business.  
+• Ensuring that the Early Alert process operates effectively. 
+
+--- Page 36 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 36 of 58 
+ Chapter – 7: Early Alert & Collection Management 
+ 
+• Ensuring that accounts identified as Early Alerts are proactively managed to minimize losses. 
+• Chairing the monthly Credit Committee for formal review of EA summary report by senior management. 
+  
+7.1.9.5 Special Assets Management (SAM)  
+• SAM, may agree to participate in the monthly Cred it Comitee meeting. SAM will be copied on all 
+individual EARs. 
+ 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+            
+
+--- Page 37 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 37 of 58 
+ APPENDIX: 7-A  (DEFINITIONS AND SYMPTOMS FOR EARLY ALERT ACCOUNTS) 
+Definitition of Early Alert Accounts: 
+Weakness or potential weakness which require close monitoring and pro-active account management to protect the bank’s position.  If these weaknesses are not corrected they may 
+result in deterioration of repayment prospects, with the likelihood of downgrading to ‘Sub Standard’ within next six months to twelve months.    
+ Industry & 
+Competition Ownership/ Management Balance Sheet Cashflow/Repayment source Performance Aging of Account 
+EA 
+Code EA 1 EA 2 EA 3 EA 4 EA 5 EA 6 
+ • Position within the 
+industry rapidly 
+eroding 
+• Industry may be 
+mature and in long term decline, 
+and/or in a cyclical 
+downturn 
+• Price war or 
+product substitutes which may 
+dramatically impact 
+the Company’s P&L • Concerns over the ability of 
+management to effectively manage existing operations, and/or the business 
+expansion plans  
+• Environmental risk: Causing 
+pollution or destruction of the 
+natural environment (land, water. Air, natural habitats, 
+animal, and plant species) 
+either through accidents or deliberate actions 
+• Social Risk: Customer not 
+meeting acceptable standerds 
+for employment and business 
+or by his actions  • Delay in submission, 
+stale financials and/or continued weakness and/or detoriaration 
+• Operating results are 
+deteriorating and/or 
+cash conversion cycle 
+deteriorating 
+• Highly geared relative 
+to peers/industry and on upward trend 
+• Rapid acquisition od 
+assets without proper financial structuring • Liquidity strain and there 
+is a need for additional borrowing or capital 
+• Cashflow is unlikely to 
+cover both mandatory debt service (principal 
+plus interest) and other 
+business needs (e.g. Capex) 
+• Ability to reduce working 
+capital bank lines is 
+limited or non existant 
+• Evidence of misuse of 
+funds or monies diverted 
+into non core activities 
+ Payment Default: 
+• Interest or 
+principal 15 days 
+overdue. 
+• TOD 90 days or 
+more which has 
+not been 
+regularized via formal limit and 
+security 
+documentation 
+ Account on EA for 6 months or more 
+ 
+Note: The matrix produced above is not a definitive checklist. The charecterstics of any given Early Alert Account may not exactly correspond to the specific description for each EAR 1 – 
+EAR – 5. However the overall credit worthiness of the borrower will fit the general description given under the ‘Definition’ Co loumn. 
+EA 5: Exceptions/Waivers at the discretion of HoCRM, and/or his/her deligate provided there are good reasons. For examples: export bills pending remittance from other banks MT 
+101/remittance advice received but funds not credited to our account, pending drafts/payorders or similar instruments.   
+
+--- Page 38 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 38 of 58 
+ Chapter – 7: Early Alert & Collection Management 
+ 
+7.2 Collections Management for CFC & SME (Small Enterprises) Consumer Banking & SME Banking (Small Enterprises)  must establish plans and processes covering 
+Collections Strategy and Management. An effective Collections unit is the most critical function of the 
+Consumer Finance Centre. It establishes a consistent approach to problem recognition, remedial action 
+and the initiation of credit write-offs.  Proactive management of the collections function is required to ensure timely response and effective handling of changes in target market, growth strategy, product terms and conditions, process changes and other factors that could impact credit performance. 
+ 
+All collections staff must be well trained and fully acquainted with credit and collections policies and 
+procedures. 
+ 
+HoCRM is responsible for establishing operating po licies relating to collections, repossession and 
+foreclosure management. These must conform to the respective BPDs, and Collection Standards.  
+The collections unit must provide regular feedbac k concerning changes in customer behavior to the 
+Business Development Managers via CRM.  
+Business must establish policies and procedures regardi ng visits either by EBL officers or external 
+collectors to homes/ offices of delinquent customers based on best business practice. These must include 
+detailed standards for monitoring/ review of delinquent customers and must be in full compliance with legal 
+and regulatory requirements. 
+ 
+Business must determine, based on account history a nd/ or scores, the appropriate point in delinquency 
+when it makes sense to commence collection acti vity on an account from a cost/ benefit standpoint. 
+ 
+7.2.1 Collection Strategies
+ 
+Collections Strategies developed by CFC & SME (Small Enterprises) must conform to all legal, regulatory 
+and internal policy requirements, terms and conditi ons, process changes and other factors that could 
+impact credit performance.  
+Each business must develop collection strategies for: 
+• Major customer risk segments. 
+• Rehabilitate customers beginning to show serious delinquency behavior. 
+• Control the risk from customers with a history of serious delinquency. 
+• Recovering losses from written off customers. 
+ 
+
+--- Page 39 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 39 of 58 
+ Chapter – 7: Early Alert & Collection Management  
+ 
+7.2.2 Compromise Settlements and Partial Write Off  
+Each business in association with Special Asset Management must establish policies relating to 
+compromise settlements. They must be approved by the delegated authority.  
+ 
+7.2.3 Recovery Strategy  
+Each business must develop a strategy for recove ries that may include segmentation of customers, 
+prioritization, choice of recovery channel, workout etc.  
+ 
+7.2.4 Capacity Planning  
+Portfolio analysis and past behavior of delinquent accounts must be used to determine forecasts of volume and plan for staffing. 
+ 
+A recruitment, training and performance management plan must be developed to fill significant long term 
+staffing gaps identified through the capacity planning process. 
+ 
+7.2.5 Training and Performance Management  
+Business must provide training for new hires, performance improvement of existing ones and arrange refreshers courses. Training should emphasize the EBL service quality values and provide skills required 
+to successfully use collection systems and equipment. 
+ 
+Supervisory responsibilities, including call monitoring, verbal and written coaching and counseling feedback using appropriate quality monitoring guidelines and check-lists must be clearly understood. 
+ 
+Performance MIS must be reviewed at granular level for management purposes. Reward and recognition should be provided to collectors based on exceptional results. The recognition should be appropriate and 
+should include special acknowledgement of those receiving awards. There should be a specific budget for incentive and motivational programs. 
+ 
+7.2.6 Infrastructure Technology & Contingency Management  
+The business must have adequate facilities, systems, tools and equipment appropriate for the volume, staffing level and stage of the business. Contingency plans for providing back up in the event that the collection infrastructure components fail must be documented. 
+ 
+7.2.7 Vendor Management  
+Collections management may outsource several functi ons and require the services of vendors. BPD shall 
+outline the vendor management process with following minimum criteria: 
+ 
+Qualifications and Indemnification:   Each vendor who is bidding must provide proof of necessary licenses,  
+financial stability, bonds or insurance (where available), adequate indemnification and if appropriate, geographical coverage, facilities and equipment for performing his/ her service. 
+ 
+
+--- Page 40 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 40 of 58 
+ Chapter – 7: Early Alert & Collection Management  
+ 
+Counter – party risk:  The Business must determine if there is any counter-party risk associated with the 
+use of any outside vendor or broker/ dealer. These risks may occur when the arrangement involves handling of cash, processing payments or risks to continuity of business (e.g., business failure would 
+disrupt our ability to work all ac counts). Assistance should be sought from the Corporate Banking team 
+where risk evaluation is required for exposure to a vendor firm.  Verifications and Site Visits:
+ A site visit to verify adequacy of physical facilities and evaluate management 
+and staff must be completed.  
+Reporting and Audit:
+ Quarterly reports must be required, including gross and net amount collected, to 
+determine the performance / effectiveness of each vendor. Periodic audits of vendor reports must be done to verify accuracy. Audits must also ensure that vendors conform to relevant/ applicable laws and 
+regulations. 
+ 7.2.8 Collection MIS
+ 
+CFC & SME (Small Enterprises) must develop and re view MIS for the performance of the collection 
+portfolio, productivity and effectiveness of the collection unit.  
+ 
+Each Collection function must be measured a gainst benchmarks. This will support performance 
+assessment, capacity planning, training and cost-benefit analysis. 
+ 
+ 
+ 
+ 
+ 
+ 
+    
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- Page 41 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 41 of 58 
+ Chapter – 8: Classification & Credit Loss Recognition Policy  
+ 
+Classification & Credit Loss Recognition Policy 
+ 
+8.1 Overview 
+The objective of this policy is to ensure timely reco gnition of credit losses and consistent application of 
+policies across all businesses.  
+ 
+8.2 Impaired Accounts 
+The term "impaired accounts" encompasses all acc ounts classified as risk grades Sub Standard (SS), 
+Doubtful (DF), and Bad & Loss (BL). Such cases would normally be transferred to the Special Assets 
+Management team and/or Collections Team for remedial management. But, Managing Director may 
+uniformly decide when classified account will be transferred of SAM.  
+ 
+8.3 Definitions and Grading Criteria for impaired Accounts All accounts risk graded SS, DF & BL exhibit some degree of impairment are collectively termed "Impaired 
+Accounts"/”Non Performing Assets”. 
+ Sub Standard Accounts:  Any 180 DPD account and/or as per guidelines of Bangladesh Bank.  
+Doubtful Accounts:  Any 270 DPD account (minimum) and/or as per guidelines of Bangladesh Bank.  
+Bad & Loss Accounts: Any 360 DPD account (minimum) and/or as per guideline of Bangladesh Bank.  
+ 
+8.4 Special Mention Accounts 
+Though Special Mention Accounts are not classified as impaired account under present rules of 
+Bangladesh Bank, but such accounts are most likely to be turned into impaired accounts.  Any 90 DPD 
+account must be risk graded as SMA as per  existing Bangladesh Bank Policies.  
+ Irrespective of above definitions, the bank may classify any account if goes default as per terms & conditions of credit, and/or any other subjective judgment. In such case, minimum 30 days notice is to be given to the customer informing such classifica tion, and account shall be classified if remedial 
+measurements, satisfactory to the bank, are not undertaken by the customer. 
+ 
+8.5 Provisioning Procedures - General Requirements 
+A specific debt provision must be assessed and raised as soon as accounts are classified as SMA, SS, 
+DF, and BL. The specific provision raised should be at least the minimum amount as per provisioning 
+requirement of Bangladesh Bank.  
+ 
+ 8.6 Specific Provisions 
+Specific provisions are raised against a specific account, or any portion thereof, which based on known 
+facts, conditions and values of eligible security, interest suspense, is considered to be uncollectible. 
+
+--- Page 42 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 42 of 58 
+ Chapter – 8: Classification & Credit Loss Recognition Policy  
+  
+8.6.1 Provisioning Approval  
+An approval process for specific provisions for accounts may be required for better asset quality 
+management. Specific provisions should be raised after Request for Provision (RFP) has been properly 
+raised by respective RM before handing over the account after first classification to SAM, and SAM will prepare RFP at the time of subsequen t classification. RFP is to be approved by the HoCRM.  RFP shall be 
+prepared using the standard template, which should be documented in the Credit Instruction Manual. RM 
+or SAM shall initiate RFP and shall place to CRM for approval with endorsement from CAD that the 
+required provision has been calculated is accurate as per Bangladesh Bank Guidelines.   
+ 
+8.6.2 Booking Provisions
+ 
+Finance Department shall be responsible for accounting treat ment of specific provisions in a useful manner 
+in compliance with IAS, applicable in Bangladesh & Central bank Guidelines.   
+ 8.7 Interest in Suspense 
+Where there is doubt about the ultimate receipt of interest or any principal or where any payment of 
+interest, principal or other amounts is overdue by more than 90 days, interest must be placed in suspense. 
+Interest shall be charged in the account if remaining unpaid, shall be reversed from the interest income 
+account and credited to the interest in suspense accoun t. After classification as SMA, accrued interest 
+should be debited to the customer's account and credited to the interest in suspense account.  
+ 
+Where an account has been classified as SMA, SS, DF or BL, any cash payments received from the 
+customer are be taken to the Profit and Loss Account  for interest part debiting Interest in Suspense, 
+residue, if any, shall be applied against principal. Appicabel IAS and/or Central Bank Guidelines shall 
+prevail if conflict with the policy stated in this paragraph.    
+ 8.8 Releases 
+All releases of specific provisions and/or suspended interest to profit and loss must be recommended by 
+SAM and RM, validated by CAD, and approved by Managing Director or sub delegates. CAD shall forward 
+such proposal to Managing Director through CRM.   
+ 
+8.9 Management of Impaired Accounts 
+All accounts classified as SS, DF, and BL are to be managed by SAM as a uniform practice, unless other 
+wise instructed by Managing Director. SAM shall also be responsible for co-coordinating and controlling the management of the Impaired Asset to ensure that: 
+ 
+• Credit and other risks are properly identified, analyzed and assessed; 
+• Account objectives are agreed and approved; and 
+Chapter – 8: Classification & Credit Loss Recognition Policy  
+
+--- Page 43 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 43 of 58 
+  
+• Strategies and action plans are formulated, appro ved and implemented so as to minimize risks, 
+prevent losses, maximize recoveries and restore profits through rehabilitation, restructuring, work-out 
+and direct recovery and / or legal actions. 
+ 
+All actions in respect of rescheduling, debt waiver, re covery, and write off shall be taken in conformity with 
+Bangladesh Bank Guidelines/Circulars in force, Money Loan Court Act -2002; and must be approved by the appropriate authority.    8.10 Credit Committee 
+While ultimate responsibility for the management of all impaired accounts rests with the SAM, there needs 
+to be a review process to ensure that all interested parties are aware of current issues affecting the 
+impaired assets portfolio and have an opportunity to provide suitable input. The mechanism for achieving this is the Credit Committee meetings will be held regularly and shall be chaired by the MD&CEO. The 
+Credit Committee meeting should also cover the review of Early Alert Accounts by tabling of the Early Alert Account Summary Reports.  8.11 Legal Fees 
+All legal charges incurred in respect of debt recovery efforts should be recovered from the debtor wherever 
+possible. When it can reasonably be expected that the legal expenses incurred can be recovered from 
+debtor, this should be done by collecting amounts due from the borrower direct or by charging such 
+amount of legal expenses incurred to the borrower’s a ccount. Charges which are not recoverable from the 
+debtor, or where doubt exists that they cannot be recove red from debtors Profit and Loss account is to be 
+debited as "Legal Expenses". 
+ 
+8.12 Abandonment of Collectio n, Recovery Efforts and 
+.Write-off of Debts 
+When all security has been realized and all recovery possibility have been exhausted, a decision may be 
+made to abandon further collection and recovery efforts and the debt may be written off, applying the 
+provision in place for this purpose or debiting profit & loss account. This shall be recommended at the 
+Credit Committee,  and approved by the Board of Directors.  
+ 
+8.13 Early Loss Recognition  
+Early Loss Recognition is to be taken under the following circumstances: 
+• Sole borrower is deceased. All related accounts must be charged off.  
+• Fraudulent loans must be charged off immediately a fter the discovery. When investigations indicate 
+that possibility of recovery is remote the amount should be written off within 180 days of discovery of 
+fraud, account to be written off with the approval of Board of Directors. Name of such borrower must 
+be blacklisted and names could be distributed to other Financial Institutions, and CAD shall ensure proper reporting to Bangladesh Bank, if required.   
+ 
+
+--- Page 44 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 44 of 58 
+ Chapter – 8: Classification & Credit Loss Recognition Policy  
+ 
+• In case of bankruptcy, the account must be charged off in the same month following a notification of a 
+bankruptcy petition by the debtor. The account may be written off within 180 days, if approved by the 
+Board of Directors.  
+ 
+8.14 Recoveries & Down Payments   
+Recovery must only be taken when cash or cleared funds are received. (E.g. post dated payments, 
+repossession of asset/security must not be taken to  P&L as recovery until clear funds are received) 
+ 
+Recovery expenses may be netted from recovery proceeds where such costs have been recovered as per the terms and conditions and conform to local regulations. 
+ 
+8.15 Write Off  
+When the bank considers an account to be no longer collectable, it will "write off” the account (i.e. the 
+amount is removed from the asset portion of a bal ance sheet and recorded as an expense item on the 
+income statement or adjusted against provision). Depending on the product, the point at which this occurs may vary but minimum to follow the Bangladesh Bank Guidelines, however usual recovery process shall continue.  
+ 
+8.16 Debt Relief Program (DRP) Guidelines  DRPs are designed to assist customers who are delinquent due to unforeseen and unintentional 
+reasons/setbacks (e.g. life events, medical reason s, reduced income, temporary unemployment, 
+seasonality, sudden policy shift, force majure etc.) and are willing to pay through payment modification plans.  
+DRP usually entails the easing of debt burden through lengthening of loan tenors, reduction in interest rate; or conversion of revolving balances into installment loans.  The objective of DRP is not to postpone loss recognition, but to increase the likelihood of a loan repayment from a customer who is unable to meet the contractual  payment terms owing to unforeseen setbacks. Any 
+restructuring of the approved terms, e.g., extending tenor, interest rate reduction, etc must follow the approved DRP guidelines as stipulated in the Credit Instruction Manual. 
+ 
+The DRP proposals should clearly outline the customer  segment to whom DRP will be offered and 
+establish the willingness and ability of the customer to  pay under the modified plan. The delinquency level 
+at which the DRP is offered and the frequency of such relief should be specified. 
+ 
+  
+
+--- Page 45 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 45 of 58 
+ Chapter – 8: Classification & Credit Loss Recognition Policy  
+ 
+Reduction in interest rate and fee charged for DRP should be reasonable taking into consideration the cost 
+of funds and should not impair Operating Profit. All reducti ons in interest and fees should be duly approved 
+by delegated authority. 
+ 
+No additional loan or credit facility is to be granted to borrowers under DRP. Delinquent DRP should be subject to more intensive collections. Loss Recognition policy for DRP must  be  earlier than the regular 
+portfolio. 
+ 
+All business units must establish criteria and approval authority for all DRP. These must include: 
+• Delegation authority, which is to be approved by The Board of Directors.  
+• MIS must track the performance of DRP accounts.  
+ 
+8.17 Asset Disposal Policy Guidelines 
+It is not the Bank's policy to "nurse" or warehouse pr operties until the market picks up but to dispose them 
+into the market quickly and at the best price. Disposal policies should be reviewed continuously to ensure 
+the most effective method is being used. Asset disp osal policy conform the Money Loan Court Act, 2002, 
+Transfer of Property Act, and all other applicable laws of the land related thereto. Special Asset 
+Management shall be responsible for Asset Disposal.  
+ 
+While assets are awaiting disposal, the Bank should make  sure that proper control is undertaken on these 
+assets to protect their value. Assets should be disposed off immediately under the following situations:  
+• The client surrenders voluntarily the asset or has agreed for the Bank to sell the property. 
+• The Bank is awarded possession of the property by l egal or other means. As the case may be, titles 
+and ownership been transferred to the Bank's name and duly registered with the appropriate Land 
+Registration Authority. 
+ 
+Basic principles to guide us in our efforts for asset disposal include: 
+• Asset acquired have to be disposed of at the earliest time possible within a reasonable time frame from acquisition / possession. 
+• While assets are not being disposed of, the Bank should endeavor to keep costs to a minimum in 
+connection with up keeping and maintaining of the asset.  
+• Immediate disposal of assets in the Bank's possession is a option than holding the assets for a 
+projected upturn in market price in the future.  
+• Bank is not in asset and property trading/management business, and thus we do not take positions on 
+the market trends. 
+  
+
+--- Page 46 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 46 of 58 
+ Chapter – 9: Borrower Risk Grading & Score Models  
+ 
+Borrower Risk Grading & Score Models  
+9.1 Definition 
+9.1.1 Borrower  Risk Grading  
+The Bank is using its own Risk Grading & Score Models constructed on the principals and structure of 
+Credit Risk Grading Matrix (CRGM) prescribed by Bangladesh Bank. The model is a common fit for all 
+industry. In course of time bank shall devise industry wise score models and use those with concurrence of 
+the Central Bank  for better asset management. 
+ 
+The policy, as outlined below is drafted on understanding of BASEL II accord and as a preparation towards 
+implementation of BASEL II accord, and Full compliance to these policies may require some time.  
+ 
+Borrower Risk Grading provides a way to describe and compare credit exposure quality regardless of the 
+nature, type or location of the facility. The score generated for a customer can be transformed into a 
+Probability of Default (PD) using statistical techniques and the Bank's average historical default rate over 
+one economic cycle. The PD is then bucketed into ri sk grades against the credit risk grade master scale 
+(11 point scale as per CRGM). The product of PD & LGD is the expected loss (EL). Calculation of PD, LGD & EL is the key variables for implementation of Pillar–1 of BASEL II accord.  
+ 
+Each risk grade in the score model should be def ined by a PD range (or loss norm). The grading are 
+assigned on a scale of 1 to 11, where (Good -2) is the best quality risk in multi product, and (Bad & Loss -
+11) is the worst. Risk grades (Good 2 – Watch 7) performing grades, whereas risk grades (SS 9 – BL 11) 
+are impaired non-performing accounts. Risk grade SM -8  customers suffer a certain degree of impairment 
+but are not yet non-performing. Risk grade Superior – 1 customers are fully secured by cash, quasi cash, SBLC, guarantee. Existing risk grading scales, scores, and interpretations are given below:  
+Risk Rating Short 
+Name Score Basic Criretia Strategy 
+1. Superior SUP N/A Credit facilit ies which are fully secured by 
+cash, deposit with EBL, guarantees /SBLCs 
+from international financial institutions 
+acceptable to EBL, guarantees from 
+multilateral develomment agencies (IMF, ADB, IDB, etc), guarantees from the Central 
+Bank, and guarantees from the Government.  • Retain and grow with 
+the customer. 
+• Sell multi products. 
+• Review the relationship 
+annually. 
+ 
+2. Good GD 85+ Strong repayment capacity of the borrower, 
+low leverage, ample liquidity, positive cash 
+flows, balanced asset-liability structure, long expertise, qualified management, proven 
+resilience against market disruptions, strong 
+access to credit, diversified group business, OR facilities secured by deposit / 
+guarantees /SBLC of local financial 
+institutions acceptable to EBL .  • Retain and grow with 
+the customer. 
+• Sell multi products. 
+• Review the relationship 
+annually. 
+
+--- Page 47 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 47 of 58 
+ 3. Satisfactory SAT 80-84 Consitan earnings, cash inflows, liquidity, 
+good management with second tier support, 
+succession plan, ability to be resilient against occassional market disturbances, some degree of divesification, acceptable 
+parent/sister company guarantees, etc. • Retain and grow with 
+the customer. 
+• Sell multi products. 
+• Review the relationship 
+annually. 
+ 
+4. Acceptable ACCP 75-79 Good financial standings, though weak in 
+some indicators, sufficient liquidity, cashflows, balanced growth, acceptable 
+collateral, acceptable management expertise, reasonable access to credit, may face difficulties in adverse market 
+conditions, may operate in niche markets.  • Retain and grow with 
+the customer. 
+• Sell multi products. 
+• Review the relationship 
+annually. 
+ 
+5. Fair FA 70-74 Bankable credit as the customer meets 
+minimum lending crit eria, occassional 
+liquidity crisis, inconsistent earnings, weak capital structure, acess to credit is not 
+restricted but may be limited, family based business with reasonable succession line.  • Retain and grow with 
+higher price & tight structuring. 
+• Annuall Review. 
+ 
+6. Watch WA 65-69 Requires greater attention, warning signs 
+are getting vibrant, regular past dues, strained liquidity, insufficint cash for debt 
+servicing, delayed submission of financials, 
+the industry where the customer is in operation is declining or affected by adverse 
+externalities, limited access to credit, one 
+man dominated management, vulnerable to moderate market disturbances. • Primary option is to 
+‘Hold’. If growth strategy 
+is adopted; pricing, 
+credit structure, and collateral arrangement 
+to betightened.  
+• Half yearly review. 
+ 
+7. Marginal MG 60-64 All prolonging criteria as identified for Risk 
+Grade – Watch. • Require extensive 
+attention. 
+• Action Plan to be 
+finalized within 90 days to determine whether to 
+retain or EXIT the relationship. 
+• Half yearly review. 
+8. Special Mention SM 55-59 Assets may be currently protected but 
+potentially weak. If left uncorrected, these weaknesses may result a detoriaration of 
+the repayment of loans, facilities expired / 
+overdue for 90 days, consequative losses, erosion of net worth, management crisis, etc.   • EXIT, if weakness are 
+not corrected within 90 
+days. 
+• Interests to be taken into 
+suspense a/c. 
+• Provision as per 
+Bangladesh Bank 
+guidelines. 
+• Quarterly Review. 
+9. Sub Standard SS 45-54 Well defined weakness in terms of adverse 
+develompent in company, industry, or 
+economy events, risk of substential default 
+unless major corrective actions are taken.  AND/OR 
+Classification criteria as per Bangladesh 
+bank circulars.  • Regular follow up for 
+repayment. 
+• Review of all loan & 
+charge documents. 
+• Interests to be taken into 
+suspense a/c. 
+• Provision as per 
+Bangladesh Bank guidelines. 
+• Quarterly Review. 
+
+--- Page 48 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 48 of 58 
+ • RM to Initiate “Request 
+for Action” 
+• Transfer the account to 
+SAMU.  
+10. Doubtful DF 35-44 Full repayment of interest and principal 
+amount is unlikely, and possibility of 
+substential loss is extremely high. 
+AND/OR Classification criteria as per Bangladesh 
+bank circulars. • Regular follow up for 
+repayment. 
+• Interests to be taken into 
+suspense a/c. 
+• Provision as per 
+Bangladesh Bank 
+guidelines. 
+• Quarterly Review. 
+• Legal Action 
+11. Bad & Loss BL Less 
+than 35 Credit may have some salvage value, or can have partial recovery under normal course of business, but by and large it is considered 
+uncollectable. 
+AND/OR Classification criteria as per Bangladesh 
+bank circulars. • Regular follow up for 
+repayment. 
+• Interests to be taken into 
+suspense a/c. 
+• Provision as per 
+Bangladesh Bank 
+guidelines. 
+• Quarterly Review. 
+• Legal Action 
+     
+The assignment of a risk grading is not a prediction that there will be an actual loss on a specific obligor or 
+facility, but an assessment that an obligor or facility di splays characteristics similar to others that, based on 
+experience, are expected to generate a present value loss that falls within a range of loss norms. Every 
+borrower exclusive of individuals enjoying credit facilitie s of in excess of Tk. 10.00 million must be assigned 
+a risk grade. Other risk mitigating considerations on a facility to a customer, such as collateral and product risks, are to be taken into account in the Loss Given Default (LGD) model, and not the risk grade of the 
+customer. 
+ 
+9.1.2 Group Risk Grade  
+Where we have a group exposure through related party borrowings, the group risk grade should be assessed using the financial information from the gr oup's consolidated financial statements. Individual 
+company accounts should be used to assess the risk grade of corporate borrowers within the group, 
+including the parent company as a stand alone entity. 
+ 
+Where consolidated financials are not available, the group risk grade shall be based on the flagship company in the group. This will usually be the largest company, generating the most profits, operating cash 
+flow and may be the largest asset owner of the group. In order to apply the flagship risk grade, the flagship 
+company must be a borrower and / or guarantor. 
+ 
+9.1.3 Parent Guarantees  
+In cases, where lending is predicated on the strength of a parent company guarantee rather than the 
+primary obligor company on a standalone basis, parental support may be applied in determining the risk 
+grade of the borrower. Strong parental guarantee also may be used for up side override of the risk grade of the primary obligor. Override rules shall be given in the Credit Instruction Manual.   
+
+--- Page 49 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 49 of 58 
+ Chapter – 9: Borrower Risk Grading & Score Models  
+ 
+9.1.4 Third Party Guarantee  
+Bank shall discourage where lending is predicated on the strength of a third party guarantee, who has no 
+ownership interest on the borrowing company, or allowing  third parties to avail approved credit facilities of 
+an existing borrower. In such cases, CAD shall take  special care on documentation issues. Such third 
+party transactions shall allowed only after perfection of documentation.  
+ 
+9.1.5 Interim Financials  
+When reviewing interim financials for the purpose of determining the risk grade,  it is necessary to take into 
+account seasonal or temporary influences and the absence of year-end accounting entries (eg, depreciation, directors’ salaries, tax provisions etc.) and consider whether the underlying level of risk has 
+improved, deteriorated or remained static since the risk grade was last agreed. 
+ 
+9.1.6 Over-rides  
+Over-rides should be rare, but may be useful to incorporate information in the risk grade that has not been covered by the scoring factors, such as a post balance date change in the financial position of the 
+borrower, parental support, monopoly business, etc. All over-ride reasons must be based on verifiable data. 
+ 
+9.1.7 Responsibility for Risk Grading  
+The Relationship Manager is responsible for calculating the risk grade of a customer. All scorecards and 
+financial spread sheet must be signed by its maker, and by a checker, in the relationship team.   
+ 
+9.1.8 Frequency of Reviews  
+A risk grading must be a current and accurate reflec tion of the underlying loss norm. Therefore, risk 
+grading must be assigned and approved when the credit is first extended, and reviewed at least annually (preferbly every six months) thereafter. They should be reviewed in the event of the interim portfolio & 
+customer reviews, classification changes, and/or an y material adverse or positive changes in the 
+customer's financial position, outlook or business environment. 
+ 
+9.2 Application 
+The bank minimum shall use Bangladesh Bank pres cribed Score Model(s). or may use different Credit 
+Score Model(s) stringent than central bank suggeste d score models, or score models developed by 
+internationaly acceptable reating agencies like Moody, S&P,  Fischer, etc.  to manage credit risk products 
+and homogenous credit portfolios throughout the credit cycle. Bank may develop different scoring models for different business units, and preferably for different  industries. This is the primary responsibility of the 
+HoCRM to establish, review, and modification of scoremo dels over time with the assistance from score 
+specialists. Use of such score models shall have to be ratified by Bangladesh Bank, if necessary.   
+ 
+ 
+
+--- Page 50 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 50 of 58 
+ Chapter – 9: Borrower Risk Grading & Score Models  
+ 
+9.3 Score Specialists Score Specialists shall develop, design, implement, mo nitor, and validate score models and advise CRM & 
+Relationship Team on score related issues. All sc ore models shall be endoresed by HoCRM, related 
+business heads, and finally is to be approved by the Managing Director.  
+ Score Specialists in the Bank must work with the CRM  in all aspects of score management including the 
+training of scoring professionals as well as in advis ing line management on formulation, and execution of 
+score-based strategies in all areas of business.  
+9.4 Scoring Policy Score models must be in compliance with all local laws  and regulations. For pre-implementation testing, a 
+recent sample of applicants must be evaluated prior to use of a credit risk application scoring model. The 
+sample size must be statistically significant. The esti mated impact on the approval rate and the quality of 
+the applicants that would be booked using the new score and all other proposed screening criteria must be evaluated.  Changes to scorecards cannot be made without approval from the delegated authority. When a business believes that characteristic weights need to be modified, the business must consult the CRM and request 
+their revisions with justifications.  
+ 
+If external credit rating agencies exist and obligors are rated by them, the bank may use those ratings for 
+lending decisions, and banks own rating system may be sca led with external rating scale. Use of external 
+rating is subject to regulatory permission.   
+ 
+ 9.5 Score Model Management 
+Data archiving and MIS must be adequate to enable the validation of score models. Data must be analyzed for integrity and accuracy prior to model development. Original application (approved) data must 
+be stored electronically for future score development. The recommended retention period for data is a 
+minimum of 60 months. 
+ 
+External vendors may be employed to develop score  models. Score model char acteristics and weights 
+must be kept in strict confidence, with disclosure on a need-to-know basis only and must never be shared 
+with customers or sales officers. Score model de tails must be maintained under proper security. In 
+situations where third parties use our models, all access must be controlled to prevent the compromise of score model security. 
+ The business must implement procedures to monitor the accuracy of the data, the score calculation and the use of score on a regular basis after implementation.  
+
+--- Page 51 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 51 of 58 
+ Chapter – 9: Borrower Risk Grading & Score Models  
+ 
+The performance of all accounts booked as low side overrides must be tracked by reason. Also the scored 
+versus the non-scored relationships  must be tracked separately. 
+ 
+Appropriate staffing and adequate resources and syst ems must be in place to execute and manage the 
+development and use of the score models. 
+ 
+ 9.6 Scoring MIS 
+Each Business must produce MIS that  measures scorecard performance. The performance of all accounts 
+booked as low side overrides must be tracked by override reason, distinguishing between 
+verification/policy overrides versus judgmental overrides. A list (not exhaustive) of required report is to be 
+outlined in the Credit Instruction Manual.   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  
+ 
+   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- Page 52 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 52 of 58 
+ Chapter – 10: Legal & Regulatory Compliance  
+ 
+Legal & Regulatory Compliance 
+10.1 Overview 
+This section provides an overview of the legal and regulatory compliance requirements that all the Bank 
+businesses will adhere to. All credit managers/officers must have a comprehensive understanding of operational, legal and regulatory compliance requirements associated with their business. 
+ 
+Full procedures relating to Operational Risk are to be documented in the Operations Risk Management 
+Manual (Part of Pillar -3 of BASEL II). Head of Operation will be responsible for preparation &  
+implementation of Operations Risk Management Manual.    
+ 
+ 10.2 Local Laws and Internal Standards 
+All employees must comply not just with the words but also the spirit of all relevant legal and regulatory requirements and of the Bank's Internal Standards associated with their business. 
+ 
+Business must consult and co-ordinate with legal counsel and/or Compliance Officers about the launch of 
+any new product or any significant feature changes to ensure compliance of local laws and regulations and 
+Internal Standards. 
+ 
+Breaches of Laws, regulations or the Bank's standards/p olicies are not justified by the pursuit of profit. 
+Activities will not be acceptable merely by the practice of competitors or others in the market. 
+ 
+Credit Officers should solicit/coordinate with the Legal & Compliance officers to ensure compliance of ongoing policy and legal issues related to credit activities. 
+ 
+ 10.3 Confidentiality & Data Protection 
+Eastern Bank Limited has strict policies of maintaining confidentiality of all of its customers, and all 
+concerned shall take the highest care to respect the co nfidentiality of customer information. Unless legally 
+permitted, no customer information shall be discl osed to third parties or within the Bank.  
+ 
+Increasingly the Bank holds an array of information about customers, potential customers, staff, suppliers and other third parties. Some of this data is of a personal and sensitive nature. We recognize that we have 
+a duty to handle this information with responsibility & utmost care. 
+ 
+ In particular, in relation to such information, Eastern Bank Limited will: 
+• Ensure that the information/data are accurate and up to date and not biased or misleading. 
+• Only use such information /data for the purposes for which it was given/sought for. 
+• Keep it only for required period. 
+• Keep it securely 
+• Keep only adequate and relevant information.  
+• Refrain from distributing it within the Bank unnecessarily 
+
+--- Page 53 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 53 of 58 
+ Chapter – 10: Legal & Regulatory Compliance  
+ 
+10.4 Compliance Risk Management 
+Compliance risk is the risk to reputation, earnings or capital arising out of the violation or nonconformance 
+with laws, regulations, policies, practices and ethical standards. 
+ 
+Compliance Management framework is to be developed. This framework is the vehicle for ensuring 
+compliance with all applicable laws and regulations. The Bank has to initiate a process in place for line 
+management to ensure that all compliance risks are being monitored, and that any breaches are promptly identified and mitigated.    
+Such framework explicitly links Internal Standards, laws and regulations to the control environments 
+managed by the businesses; thus enabling EBL to demonstrate transparency to regulators on its ability to 
+monitor and manage Compliance Risk. All credit office rs must understand and implement the Compliance 
+framework in their business.   
+10.5 Environment & Social Risk Policy 
+Environmental Risk is the risk of causing pollution or destruction of the natural environment (land, water, 
+air, natural habitats, animal and plant species) either through accidental or deliberate actions. 
+ 
+Businesses must recognize the social concerns an d the impact on the natural environment and our own 
+actions and business decisions and those of our customers.  
+Businesses must minimize the Bank's exposure to en vironmental issues, and must establish procedures to 
+satisfy all regulatory guidelines.  
+All credit proposals must include consideration of environmental and social issues where appropriate. All such credit proposals must take into account minimum nationally acceptable environmental and social standards or relevant laws and regulations. 
+ 
+Environmental and Social Risk is part of the total risk associated with lending; it should not be seen as a 
+stand-alone risk. It needs to be identified, mitigated where possible, and if appropriate priced for.  
+ 
+All staff involved with the development, management and approval of credit facilities, product development 
+and loan recovery must make themselves conversant with the policy and the procedures relating to it.  
+Risk Managers and Relationship Mana gers are not expected to be experts in environmental and social 
+issues, however they are expected to be able to use th e tools at their disposal to recognize and evaluate 
+the risks associated with lending decisions.  
+
+--- Page 54 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 54 of 58 
+ Chapter – 10: Legal & Regulatory Compliance  
+ 
+10.6 Know Your Customer (KYC) Policy   Know Your Customer policies, procedures, and internal controls are designed to: 
+ 
+• Determine and document the true identity of customers. 
+• Obtain basic background information on customers. 
+• Detect suspicious activity in a timely manner. 
+• Promote compliance with all applicable lending laws. 
+• Promote safe and sound lending practices. 
+• Minimize the risk that the Bank will be used for illicit activities. 
+• Reduce the risk of government seizure and forfeiture of a customer's loan collateral when that customer is involved in criminal activity. 
+• Protect our reputation. 
+ 
+Effective KYC procedures are the f undamental part of any anti- money laundering/anti terrorist financing 
+control regime. It can reduce the risk of accounts being used for money laundering or terrorist financing 
+and can help identify suspicious transactions. They can also protect the bank against fraud and other 
+reputational risks. KYC always includes customer identification (evidence of identity and address). but, 
+depending on the risk associated with an account, it can also extend to a more detailed due diligence about the customer and the busine ss. KYC should be an ongoing process - it does not end once an 
+account opening is completed.  
+ 
+10.7 Money Laundering 
+Money laundering is the process by which criminals attempt to hide and disguise the true origin and 
+ownership of the proceeds of their criminal activities . The term "Money Laundering" is also used in relation 
+to the financing of terrorist activity (where th e funds may, or may not, originate from crime). 
+ Money laundering covers all activities designed to change the identity of illegally obtained money so that 
+the money appears to have originated from a legitimate source. 
+ 
+EBL has to established standards to ensure that its businesses are covered by a written anti-money 
+laundering program that provides for policies, procedures, and internal controls to effect compliance with 
+applicable laws and that includes, among other policies: 
+• Know Your Customer Policies and Procedures. 
+• Appropriate methods of monitoring so that suspicious customer activity can be detected and appropriate action can be taken. 
+• Reporting of Suspicious Activity to regulatory authorities in accordance with applicable laws & 
+regulations. 
+
+--- Page 55 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 55 of 58 
+ Chapter – 10: Legal & Regulatory Compliance  
+ 
+10.8 BASEL II ACCORD 
+Basel Committee is a committee of central ba nks and bank supervisors/regulators from the major 
+industrialized countries that meets every three months at the Bank for International Settlements in Basel, 
+Switzerland. They provided broad policy guidelines that each country's Central Bank can use to determine 
+the supervisory policies they apply. 
+ 
+EBL shall plan & mobilize resources to comply with Basel II accord and also shall ensure compliance of the 
+Central Bank guidelines in determining Capital A dequacy of the Bank under the said agreement and its 
+modification. Through such course of action, the over all discipline and supervision will reach up to international standards.       
+ 
+ 
+ 
+   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+    
+ 
+  
+ 
+ 
+ 
+ 
+  
+
+--- Page 56 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 56 of 58 
+ Chapter – 11: Portfolio Management  
+ 
+Portfolio Management 
+11.1 Overview 
+Portfolio Management is an integral part of the credit process that enables the Business to limit 
+concentrations, reduce volatility, and achieve optimum earnings. It does so by incorporating portfolio strategy, planning and performance assessment through a comprehensive management process.  11.2 Portfolio Management 
+The following are practices that have been found to be  critical to good performance. Each business should 
+be aware of, understand and implement these as appropriate: 
+• Set portfolio targets and concentration. 
+• Establish target market, risk acceptance criter ia and/ or Key Success Factors (KSFs) for the 
+Business. 
+• Monitor portfolio MIS, the portfolio risk profile (incl. borrower risk grading, overall portfolio LGD), industry concentrations, and economic/ market/ competitive data. 
+• Identify and analyze trends and concentrations that could affect the risk and performance of the portfolio. 
+• Stress test of individual product and customer portfolios. 
+• Forecasting Gross Write Offs, Reco veries, Net Bad Debt for at least a 6 month rolling period based on 
+the latest flow rates. 
+• Define and evaluate goals for risk-adjusted returns. 
+• Periodic reviews to ensure adherence to Credit Policies, risk criteria as established in the BPDs and the procedures outlined in the Credit Instruction Manual. 
+• Set limits for policy exceptions and establish perf ormance monitoring process of these exceptions. 
+• Monitor competitive & regulatory developments.  
+ 
+11.3 Portfolio Strategy and Planning 
+Target Market (TM) and Risk Acceptance Criteria (RAC) are techniques established to express risk 
+appetite. TM identifies the acceptable profile of customers for the product or range of products offered. 
+RAC specifies the minimum criteria for credit extension. 
+ 
+Key Success Factors (KSF) such as competitiveness, low cost, brand image, cost efficiency, etc. are to be 
+determined for a specific industry or business segment.   
+Risk/return criteria provide the link between risk and pr ofitability by setting pricing objectives/policies that 
+reflect the level of risk associated with the extension of credit products.  
+
+--- Page 57 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 57 of 58 
+ Chapter – 11: Portfolio Management  
+ 
+Portfolio Planning involves the establishment of methodo logies that can be used to prepare periodic credit 
+loss forecasts. The methodology is to be drawn on risk ratings, loss norms and stress testing. Management 
+Strategy on portfolio is to be intimated to the Board of Directors in a timely manner. 
+ 
+11.4 Stress Tests 
+Risks subject to stress testing are: 
+• Business risks : including changes in interest rates, exchange rates, real estate price variations, 
+performance of major industries impacting a particu lar customer segment, changes in government tax 
+policy, etc. 
+• Economic dislocation risks : involving major changes in the macroeconomics or political environment, 
+such as recession, nationalization, natural calamity  or disruptions in specific markets caused by 
+social/political unrest or union movements. 
+ 
+Each business must establish trigger points based on leading indicators with recommendation and 
+appropriate corrective actions that will control the adverse impact of the situation on the business’s 
+financial results. 
+ 11.5 Responsibility for Stress Tests It is the responsibility of the CRM to de termine when a stress test is needed in  a particular Business and 
+for overseeing the process. At a minimum, there should be a bi-annual assessment of potentially adverse 
+scenarios related to the perceived volatility of loss leve ls that could affect a portfolio, All stress tests and 
+associated triggers and action plans must be docum ented and agreed upon in writing by the Credit & 
+Business. 
+ 
+ 11.6 Concentration Limits/Caps 
+The business must identify and limit risk concentrations. A concentration is an aggregation of credits with common characteristics or exposures . The concentration may be to a geographic area, or to a group of 
+borrowers or to a specific industry that will be similarly affected by economic, market or political 
+developments. Concentration limits may be set by geography, tenor, high risk product, industry or other 
+dimensions appropriate to the portfolio. 
+ 
+Limits to control risk concentration must be defined in the Credit Instruction Manual and a monitoring 
+process must be put in place. 
+ 
+11.7 Maximum Unsecured Exposure 
+Business must establish a Maximum Unsecured Exposure (MUE) guideline per borrower and document it in the BPDs.   
+
+--- Page 58 ---
+ 
+  
+Credit Policy Manual: Eastern Bank Limited Page 58 of 58 
+ Chapter – 11: Portfolio Management  
+ 
+There should be a unique customer identification methodology within the business areas. Reporting 
+systems must be able to identify aggregate lending and exposure by customer. Adequate system support 
+should be in place.  
+ 
+11.8 Periodic Reviews 
+Adequate internal controls within the lending process must be in place. Periodic reviews of portfolio are 
+critical for maintaining proper incentiv es for bank staff to be rigorous and disciplined in their credit analysis 
+and lending decisions. Bank's credit analysis, loan te rms and structures, credit decisions should be 
+reviewed in detail by experienced and competent staff. 
+ 
+The HoCRM or his/her designees should conduct periodic reviews and checks on quarterly basis to ensure 
+adherence to the Risk Policies and standards, policies and procedures established for the business in the 
+BPDs and/or those outlined in the Credit Instruction Manual. 
+ 
+On a regular basis a sample of applications, (approvals and rejects) should be selected and checked for 
+adherence to the target market, credit underwriting and verification criteria and feedback is to be provided 
+to the respective business.   A similar process must be followed for collections through review of delinquent accounts, contacting 
+delinquent customers, getting feedback from the collect ors, tele-callers, field visitation, repossession 
+agencies, etc. 
+ 
+Regular visits to and meetings with staff/ personnel of third-party vendors used for direct sales, 
+application handling / verification, appraisals and co llections must be conducted to provide important 
+feedback for credit performance. 
+  
+ 
+ 
+  
+IMPORTANT!  
+ 
+THIS IS A CONFIDENTIAL DOCUMENT. 
+UNAUTHORIZED SHARING OF THIS DOCUMENT OR 
+IT’S CONTENT WITH ANY PERSON OUTSIDE EASTERN 
+BANK LIMITED IS STRICTLY PROHIBITED AND MAY 
+CALL FOR DISCIPLINARY AND LEGAL ACTIONS .

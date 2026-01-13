@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import csv
 import io
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
@@ -26,6 +26,17 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Retail Assets v2 enum values (fee_basis_enum in Postgres)
+RETAIL_FEE_BASIS_ALLOWED = {
+    "PER_LOAN",
+    "PER_AMOUNT",
+    "PER_INSTALLMENT",
+    "PER_INSTANCE",
+    "ON_OUTSTANDING",
+    "ON_OVERDUE",
+    "PER_QUOTATION_CHANGE",
+}
 
 # Import from fee_engine_service
 import sys
@@ -121,6 +132,8 @@ class FeeRuleResponse(BaseModel):
     free_entitlement_count: Optional[int]
     condition_type: str
     note_reference: Optional[str]
+    note_number: Optional[int] = None
+    answer_text: Optional[str] = None
     priority: int
     status: str
     remarks: Optional[str]
@@ -145,6 +158,8 @@ class FeeRuleUpdate(BaseModel):
     free_entitlement_count: Optional[int] = None
     condition_type: Optional[str] = None
     note_reference: Optional[str] = None
+    note_number: Optional[int] = None
+    answer_text: Optional[str] = None
     priority: Optional[int] = None
     status: Optional[str] = None
     remarks: Optional[str] = None
@@ -167,6 +182,8 @@ class FeeRuleCreate(BaseModel):
     free_entitlement_count: Optional[int] = None
     condition_type: str = "NONE"
     note_reference: Optional[str] = None
+    note_number: Optional[int] = None
+    answer_text: Optional[str] = None
     priority: int = 100
     status: str = "ACTIVE"
     remarks: Optional[str] = None
@@ -200,6 +217,8 @@ def fee_rule_to_dict(rule: CardFeeMaster) -> dict:
         "free_entitlement_count": rule.free_entitlement_count,
         "condition_type": rule.condition_type,
         "note_reference": rule.note_reference,
+        "note_number": getattr(rule, "note_number", None),
+        "answer_text": getattr(rule, "answer_text", None),
         "priority": rule.priority,
         "status": rule.status,
         "remarks": rule.remarks,
@@ -345,7 +364,7 @@ async def export_card_fees_csv(
             "Fee ID", "Effective From", "Effective To", "Charge Type", "Card Category",
             "Card Network", "Card Product", "Full Card Name", "Fee Value", "Fee Unit",
             "Fee Basis", "Min Fee Value", "Min Fee Unit", "Max Fee Value", "Max Fee Unit",
-            "Free Entitlement Count", "Condition Type", "Note Reference", "Priority",
+            "Free Entitlement Count", "Condition Type", "Note Reference", "Note Number", "Answer Text", "Priority",
             "Status", "Product Line", "Remarks", "Created At", "Updated At"
         ])
         
@@ -369,6 +388,8 @@ async def export_card_fees_csv(
                 rule.free_entitlement_count or "",
                 rule.condition_type,
                 rule.note_reference or "",
+                getattr(rule, "note_number", "") or "",
+                (getattr(rule, "answer_text", "") or "").replace("\n", " ").strip(),
                 rule.priority,
                 rule.status,
                 rule.product_line or "",
@@ -426,6 +447,8 @@ async def create_rule(rule_data: FeeRuleCreate, db: Session = Depends(get_db)):
             free_entitlement_count=rule_data.free_entitlement_count,
             condition_type=rule_data.condition_type,
             note_reference=rule_data.note_reference,
+            note_number=getattr(rule_data, "note_number", None),
+            answer_text=getattr(rule_data, "answer_text", None),
             priority=rule_data.priority,
             status=rule_data.status,
             remarks=rule_data.remarks,
@@ -535,6 +558,18 @@ class RetailAssetChargeResponse(BaseModel):
     employee_fee_unit: Optional[str]
     employee_fee_description: Optional[str]
     original_charge_text: Optional[str]
+    fee_text: Optional[str] = None
+    fee_rate_value: Optional[Decimal] = None
+    fee_rate_unit: Optional[str] = None
+    fee_amount_value: Optional[Decimal] = None
+    fee_amount_currency: Optional[str] = None
+    fee_period: Optional[str] = None
+    fee_applies_to: Optional[str] = None
+    answer_text: Optional[str] = None
+    answer_source: Optional[str] = None
+    parse_status: Optional[str] = None
+    parsed_from: Optional[str] = None
+    parsed_at: Optional[datetime] = None
     note_reference: Optional[str]
     priority: int
     status: str
@@ -548,6 +583,7 @@ class RetailAssetChargeUpdate(BaseModel):
     loan_product: Optional[str] = None
     loan_product_name: Optional[str] = None
     charge_type: Optional[str] = None
+    charge_context: Optional[str] = None
     charge_description: Optional[str] = None
     fee_value: Optional[Decimal] = None
     fee_unit: Optional[str] = None
@@ -570,10 +606,38 @@ class RetailAssetChargeUpdate(BaseModel):
     employee_fee_unit: Optional[str] = None
     employee_fee_description: Optional[str] = None
     original_charge_text: Optional[str] = None
+    fee_text: Optional[str] = None
+    fee_rate_value: Optional[Decimal] = None
+    fee_rate_unit: Optional[str] = None
+    fee_amount_value: Optional[Decimal] = None
+    fee_amount_currency: Optional[str] = None
+    fee_period: Optional[str] = None
+    fee_applies_to: Optional[str] = None
+    answer_text: Optional[str] = None
+    answer_source: Optional[str] = None
+    parse_status: Optional[str] = None
+    parsed_from: Optional[str] = None
+    parsed_at: Optional[datetime] = None
     note_reference: Optional[str] = None
     priority: Optional[int] = None
     status: Optional[str] = None
     remarks: Optional[str] = None
+
+    @field_validator("fee_basis", mode="before")
+    @classmethod
+    def _validate_retail_fee_basis(cls, v):
+        if v is None:
+            return v
+        basis = str(v).strip().upper()
+        # Backward-compatibility: the admin UI previously (incorrectly) allowed PER_REQUEST.
+        # Map it to the closest retail enum value.
+        if basis == "PER_REQUEST":
+            logger.warning("[ADMIN_API] Mapping retail fee_basis PER_REQUEST -> PER_INSTANCE")
+            basis = "PER_INSTANCE"
+        if basis not in RETAIL_FEE_BASIS_ALLOWED:
+            allowed = ", ".join(sorted(RETAIL_FEE_BASIS_ALLOWED))
+            raise ValueError(f"Invalid fee_basis '{basis}'. Allowed values: {allowed}")
+        return basis
 
 class RetailAssetChargeCreate(BaseModel):
     effective_from: date
@@ -603,13 +667,39 @@ class RetailAssetChargeCreate(BaseModel):
     employee_fee_unit: Optional[str] = None
     employee_fee_description: Optional[str] = None
     original_charge_text: Optional[str] = None
+    fee_text: Optional[str] = None
+    fee_rate_value: Optional[Decimal] = None
+    fee_rate_unit: Optional[str] = None
+    fee_amount_value: Optional[Decimal] = None
+    fee_amount_currency: Optional[str] = None
+    fee_period: Optional[str] = None
+    fee_applies_to: Optional[str] = None
+    answer_text: Optional[str] = None
+    answer_source: Optional[str] = None
+    parse_status: Optional[str] = None
+    parsed_from: Optional[str] = None
+    parsed_at: Optional[datetime] = None
     note_reference: Optional[str] = None
     priority: int = 100
     status: str = "ACTIVE"
     remarks: Optional[str] = None
 
+    @field_validator("fee_basis", mode="before")
+    @classmethod
+    def _validate_retail_fee_basis(cls, v):
+        if v is None:
+            return "PER_AMOUNT"
+        basis = str(v).strip().upper()
+        if basis == "PER_REQUEST":
+            logger.warning("[ADMIN_API] Mapping retail fee_basis PER_REQUEST -> PER_INSTANCE")
+            basis = "PER_INSTANCE"
+        if basis not in RETAIL_FEE_BASIS_ALLOWED:
+            allowed = ", ".join(sorted(RETAIL_FEE_BASIS_ALLOWED))
+            raise ValueError(f"Invalid fee_basis '{basis}'. Allowed values: {allowed}")
+        return basis
+
 def retail_asset_charge_to_dict(charge: RetailAssetChargeMaster) -> dict:
-    """Convert RetailAssetChargeMaster to dict"""
+    """Convert RetailAssetChargeMaster (v2) to dict"""
     return {
         "charge_id": str(charge.charge_id),
         "effective_from": charge.effective_from.isoformat() if charge.effective_from else None,
@@ -617,34 +707,71 @@ def retail_asset_charge_to_dict(charge: RetailAssetChargeMaster) -> dict:
         "loan_product": charge.loan_product,
         "loan_product_name": charge.loan_product_name,
         "charge_type": charge.charge_type,
-        "charge_description": charge.charge_description,
+        "charge_context": charge.charge_context,  # NEW: v2 field
+        "charge_title": charge.charge_title,  # NEW: v2 field (short label)
+        "charge_description": charge.charge_description,  # v2 field (longer description)
         "fee_value": float(charge.fee_value) if charge.fee_value else None,
         "fee_unit": charge.fee_unit,
         "fee_basis": charge.fee_basis,
-        "tier_1_threshold": float(charge.tier_1_threshold) if charge.tier_1_threshold else None,
-        "tier_1_fee_value": float(charge.tier_1_fee_value) if charge.tier_1_fee_value else None,
-        "tier_1_fee_unit": charge.tier_1_fee_unit,
-        "tier_1_max_fee": float(charge.tier_1_max_fee) if charge.tier_1_max_fee else None,
-        "tier_2_threshold": float(charge.tier_2_threshold) if charge.tier_2_threshold else None,
-        "tier_2_fee_value": float(charge.tier_2_fee_value) if charge.tier_2_fee_value else None,
-        "tier_2_fee_unit": charge.tier_2_fee_unit,
-        "tier_2_max_fee": float(charge.tier_2_max_fee) if charge.tier_2_max_fee else None,
+        # V2 tier field names (primary)
+        "tier_1_threshold_amount": float(charge.tier_1_threshold_amount) if charge.tier_1_threshold_amount else None,
+        "tier_1_threshold_currency": charge.tier_1_threshold_currency,
+        "tier_1_rate_value": float(charge.tier_1_rate_value) if charge.tier_1_rate_value else None,
+        "tier_1_rate_unit": charge.tier_1_rate_unit,
+        "tier_1_max_fee_value": float(charge.tier_1_max_fee_value) if charge.tier_1_max_fee_value else None,
+        "tier_1_max_fee_currency": charge.tier_1_max_fee_currency,
+        "tier_2_threshold_amount": float(charge.tier_2_threshold_amount) if charge.tier_2_threshold_amount else None,
+        "tier_2_threshold_currency": charge.tier_2_threshold_currency,
+        "tier_2_rate_value": float(charge.tier_2_rate_value) if charge.tier_2_rate_value else None,
+        "tier_2_rate_unit": charge.tier_2_rate_unit,
+        "tier_2_max_fee_value": float(charge.tier_2_max_fee_value) if charge.tier_2_max_fee_value else None,
+        "tier_2_max_fee_currency": charge.tier_2_max_fee_currency,
+        # Backward compatibility: also include v1 field names for UI compatibility
+        "tier_1_threshold": float(charge.tier_1_threshold_amount) if charge.tier_1_threshold_amount else None,
+        "tier_1_fee_value": float(charge.tier_1_rate_value) if charge.tier_1_rate_value else None,
+        "tier_1_fee_unit": charge.tier_1_rate_unit,
+        "tier_1_max_fee": float(charge.tier_1_max_fee_value) if charge.tier_1_max_fee_value else None,
+        "tier_2_threshold": float(charge.tier_2_threshold_amount) if charge.tier_2_threshold_amount else None,
+        "tier_2_fee_value": float(charge.tier_2_rate_value) if charge.tier_2_rate_value else None,
+        "tier_2_fee_unit": charge.tier_2_rate_unit,
+        "tier_2_max_fee": float(charge.tier_2_max_fee_value) if charge.tier_2_max_fee_value else None,
+        # V2 currency field names (primary)
         "min_fee_value": float(charge.min_fee_value) if charge.min_fee_value else None,
-        "min_fee_unit": charge.min_fee_unit,
+        "min_fee_currency": charge.min_fee_currency,  # V2 field name
         "max_fee_value": float(charge.max_fee_value) if charge.max_fee_value else None,
-        "max_fee_unit": charge.max_fee_unit,
+        "max_fee_currency": charge.max_fee_currency,  # V2 field name
+        # Backward compatibility: also include v1 field names
+        "min_fee_unit": charge.min_fee_currency,  # Map currency to unit for backward compat
+        "max_fee_unit": charge.max_fee_currency,  # Map currency to unit for backward compat
         "condition_type": charge.condition_type,
         "condition_description": charge.condition_description,
         "employee_fee_value": float(charge.employee_fee_value) if charge.employee_fee_value else None,
         "employee_fee_unit": charge.employee_fee_unit,
         "employee_fee_description": charge.employee_fee_description,
         "original_charge_text": charge.original_charge_text,
+        "fee_text": getattr(charge, "fee_text", None),
+        "fee_rate_value": float(getattr(charge, "fee_rate_value", None)) if getattr(charge, "fee_rate_value", None) else None,
+        "fee_rate_unit": getattr(charge, "fee_rate_unit", None),
+        "fee_amount_value": float(getattr(charge, "fee_amount_value", None)) if getattr(charge, "fee_amount_value", None) else None,
+        "fee_amount_currency": getattr(charge, "fee_amount_currency", None),
+        "fee_period": getattr(charge, "fee_period", None),
+        "fee_applies_to": getattr(charge, "fee_applies_to", None),
+        "answer_text": getattr(charge, "answer_text", None),
+        "answer_source": getattr(charge, "answer_source", None),
+        "parse_status": getattr(charge, "parse_status", None),
+        "parsed_from": getattr(charge, "parsed_from", None),
+        "parsed_at": getattr(charge, "parsed_at", None).isoformat() if getattr(charge, "parsed_at", None) else None,
         "note_reference": charge.note_reference,
         "priority": charge.priority,
         "status": charge.status,
         "remarks": charge.remarks,
         "created_at": charge.created_at.isoformat() if charge.created_at else None,
         "updated_at": charge.updated_at.isoformat() if charge.updated_at else None,
+        # NEW: Audit fields (v2)
+        "created_by": charge.created_by,
+        "updated_by": charge.updated_by,
+        "approved_by": charge.approved_by,
+        "approved_at": charge.approved_at.isoformat() if charge.approved_at else None,
     }
 
 # Retail Asset Charge Endpoints
@@ -709,8 +836,40 @@ async def get_retail_asset_charge(charge_id: str, db: Session = Depends(get_db))
 
 @app.post("/api/retail-asset-charges", dependencies=[Depends(verify_admin)])
 async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: Session = Depends(get_db)):
-    """Create a new retail asset charge"""
+    """Create a new retail asset charge (v2 table)"""
     try:
+        # Defensive normalization: even if a client sends an invalid legacy value,
+        # map/validate before hitting Postgres enum constraints.
+        if getattr(charge_data, "fee_basis", None):
+            basis = str(charge_data.fee_basis).strip().upper()
+            if basis == "PER_REQUEST":
+                logger.warning("[ADMIN_API] Mapping retail fee_basis PER_REQUEST -> PER_INSTANCE (create)")
+                basis = "PER_INSTANCE"
+            if basis not in RETAIL_FEE_BASIS_ALLOWED:
+                allowed = ", ".join(sorted(RETAIL_FEE_BASIS_ALLOWED))
+                raise HTTPException(status_code=400, detail=f"Invalid fee_basis '{basis}'. Allowed values: {allowed}")
+            # Ensure we persist the normalized value
+            charge_data.fee_basis = basis
+
+        # Map v1 field names to v2 field names for backward compatibility
+        # If v2 fields are provided, use them; otherwise map from v1 fields
+        charge_context = getattr(charge_data, 'charge_context', None) or "GENERAL"
+        charge_title = getattr(charge_data, 'charge_title', None) or (charge_data.charge_description[:200] if charge_data.charge_description else charge_data.charge_type)
+        
+        # Map tier fields: v1 names → v2 names
+        tier_1_threshold_amount = getattr(charge_data, 'tier_1_threshold_amount', None) or charge_data.tier_1_threshold
+        tier_1_rate_value = getattr(charge_data, 'tier_1_rate_value', None) or charge_data.tier_1_fee_value
+        tier_1_rate_unit = getattr(charge_data, 'tier_1_rate_unit', None) or charge_data.tier_1_fee_unit
+        tier_1_max_fee_value = getattr(charge_data, 'tier_1_max_fee_value', None) or charge_data.tier_1_max_fee
+        tier_2_threshold_amount = getattr(charge_data, 'tier_2_threshold_amount', None) or charge_data.tier_2_threshold
+        tier_2_rate_value = getattr(charge_data, 'tier_2_rate_value', None) or charge_data.tier_2_fee_value
+        tier_2_rate_unit = getattr(charge_data, 'tier_2_rate_unit', None) or charge_data.tier_2_fee_unit
+        tier_2_max_fee_value = getattr(charge_data, 'tier_2_max_fee_value', None) or charge_data.tier_2_max_fee
+        
+        # Map currency fields: v1 names → v2 names
+        min_fee_currency = getattr(charge_data, 'min_fee_currency', None) or charge_data.min_fee_unit
+        max_fee_currency = getattr(charge_data, 'max_fee_currency', None) or charge_data.max_fee_unit
+        
         new_charge = RetailAssetChargeMaster(
             charge_id=uuid.uuid4(),
             effective_from=charge_data.effective_from,
@@ -718,28 +877,50 @@ async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: S
             loan_product=charge_data.loan_product,
             loan_product_name=charge_data.loan_product_name,
             charge_type=charge_data.charge_type,
-            charge_description=charge_data.charge_description,
+            charge_context=charge_context,  # NEW: v2 field
+            charge_title=charge_title,  # NEW: v2 field
+            charge_description=charge_data.charge_description,  # v2 field
             fee_value=charge_data.fee_value,
             fee_unit=charge_data.fee_unit,
             fee_basis=charge_data.fee_basis,
-            tier_1_threshold=charge_data.tier_1_threshold,
-            tier_1_fee_value=charge_data.tier_1_fee_value,
-            tier_1_fee_unit=charge_data.tier_1_fee_unit,
-            tier_1_max_fee=charge_data.tier_1_max_fee,
-            tier_2_threshold=charge_data.tier_2_threshold,
-            tier_2_fee_value=charge_data.tier_2_fee_value,
-            tier_2_fee_unit=charge_data.tier_2_fee_unit,
-            tier_2_max_fee=charge_data.tier_2_max_fee,
+            # V2 tier field names
+            tier_1_threshold_amount=tier_1_threshold_amount,
+            tier_1_threshold_currency="BDT",  # Default
+            tier_1_rate_value=tier_1_rate_value,
+            tier_1_rate_unit=tier_1_rate_unit,
+            tier_1_max_fee_value=tier_1_max_fee_value,
+            tier_1_max_fee_currency="BDT",  # Default
+            tier_2_threshold_amount=tier_2_threshold_amount,
+            tier_2_threshold_currency="BDT",  # Default
+            tier_2_rate_value=tier_2_rate_value,
+            tier_2_rate_unit=tier_2_rate_unit,
+            tier_2_max_fee_value=tier_2_max_fee_value,
+            tier_2_max_fee_currency="BDT",  # Default
             min_fee_value=charge_data.min_fee_value,
-            min_fee_unit=charge_data.min_fee_unit,
+            min_fee_currency=min_fee_currency or "BDT",  # V2 field name
             max_fee_value=charge_data.max_fee_value,
-            max_fee_unit=charge_data.max_fee_unit,
+            max_fee_currency=max_fee_currency or "BDT",  # V2 field name
             condition_type=charge_data.condition_type,
             condition_description=charge_data.condition_description,
-            employee_fee_value=charge_data.employee_fee_value,
-            employee_fee_unit=charge_data.employee_fee_unit,
-            employee_fee_description=charge_data.employee_fee_description,
+            category_a_fee_value=charge_data.category_a_fee_value,
+            category_a_fee_unit=charge_data.category_a_fee_unit,
+            category_b_fee_value=charge_data.category_b_fee_value,
+            category_b_fee_unit=charge_data.category_b_fee_unit,
+            category_c_fee_value=charge_data.category_c_fee_value,
+            category_c_fee_unit=charge_data.category_c_fee_unit,
             original_charge_text=charge_data.original_charge_text,
+            fee_text=getattr(charge_data, "fee_text", None),
+            fee_rate_value=getattr(charge_data, "fee_rate_value", None),
+            fee_rate_unit=getattr(charge_data, "fee_rate_unit", None),
+            fee_amount_value=getattr(charge_data, "fee_amount_value", None),
+            fee_amount_currency=getattr(charge_data, "fee_amount_currency", None),
+            fee_period=getattr(charge_data, "fee_period", None),
+            fee_applies_to=getattr(charge_data, "fee_applies_to", None),
+            answer_text=getattr(charge_data, "answer_text", None),
+            answer_source=getattr(charge_data, "answer_source", None) or "SCHEDULE",
+            parse_status=getattr(charge_data, "parse_status", None) or "UNPARSED",
+            parsed_from=getattr(charge_data, "parsed_from", None),
+            parsed_at=getattr(charge_data, "parsed_at", None),
             note_reference=charge_data.note_reference,
             priority=charge_data.priority,
             status=charge_data.status,
@@ -756,16 +937,51 @@ async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: S
 
 @app.put("/api/retail-asset-charges/{charge_id}", dependencies=[Depends(verify_admin)])
 async def update_retail_asset_charge(charge_id: str, charge_data: RetailAssetChargeUpdate, db: Session = Depends(get_db)):
-    """Update an existing retail asset charge"""
+    """Update an existing retail asset charge (v2 table)"""
     try:
         charge = db.query(RetailAssetChargeMaster).filter(RetailAssetChargeMaster.charge_id == uuid.UUID(charge_id)).first()
         if not charge:
             raise HTTPException(status_code=404, detail="Retail asset charge not found")
         
         # Update only provided fields
+        # Map v1 field names to v2 field names for backward compatibility
         update_data = charge_data.dict(exclude_unset=True)
+
+        # Defensive normalization: Postgres fee_basis_enum is strict.
+        # The UI previously allowed PER_REQUEST, which is not valid for retail assets.
+        if "fee_basis" in update_data and update_data["fee_basis"] is not None:
+            basis = str(update_data["fee_basis"]).strip().upper()
+            if basis == "PER_REQUEST":
+                logger.warning("[ADMIN_API] Mapping retail fee_basis PER_REQUEST -> PER_INSTANCE (update)")
+                basis = "PER_INSTANCE"
+            if basis not in RETAIL_FEE_BASIS_ALLOWED:
+                allowed = ", ".join(sorted(RETAIL_FEE_BASIS_ALLOWED))
+                raise HTTPException(status_code=400, detail=f"Invalid fee_basis '{basis}'. Allowed values: {allowed}")
+            update_data["fee_basis"] = basis
+        
+        # Field name mapping: v1 → v2
+        field_mapping = {
+            'tier_1_threshold': 'tier_1_threshold_amount',
+            'tier_1_fee_value': 'tier_1_rate_value',
+            'tier_1_fee_unit': 'tier_1_rate_unit',
+            'tier_1_max_fee': 'tier_1_max_fee_value',
+            'tier_2_threshold': 'tier_2_threshold_amount',
+            'tier_2_fee_value': 'tier_2_rate_value',
+            'tier_2_fee_unit': 'tier_2_rate_unit',
+            'tier_2_max_fee': 'tier_2_max_fee_value',
+            'min_fee_unit': 'min_fee_currency',
+            'max_fee_unit': 'max_fee_currency',
+        }
+        
+        # Apply updates with field name mapping
         for field, value in update_data.items():
-            setattr(charge, field, value)
+            # Map v1 field names to v2
+            v2_field = field_mapping.get(field, field)
+            if hasattr(charge, v2_field):
+                setattr(charge, v2_field, value)
+            elif hasattr(charge, field):
+                # Try direct field name (for fields that didn't change)
+                setattr(charge, field, value)
         
         charge.updated_at = datetime.now()
         db.commit()
@@ -830,18 +1046,19 @@ async def export_retail_asset_charges_csv(
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Write header
+        # Write header (v2 fields)
         writer.writerow([
             "Charge ID", "Effective From", "Effective To", "Loan Product", "Loan Product Name",
-            "Charge Type", "Charge Description", "Fee Value", "Fee Unit", "Fee Basis",
-            "Tier 1 Threshold", "Tier 1 Fee Value", "Tier 1 Fee Unit", "Tier 1 Max Fee",
-            "Tier 2 Threshold", "Tier 2 Fee Value", "Tier 2 Fee Unit", "Tier 2 Max Fee",
-            "Min Fee Value", "Min Fee Unit", "Max Fee Value", "Max Fee Unit",
+            "Charge Type", "Charge Context", "Charge Title", "Charge Description", "Fee Value", "Fee Unit", "Fee Basis",
+            "Tier 1 Threshold Amount", "Tier 1 Threshold Currency", "Tier 1 Rate Value", "Tier 1 Rate Unit", "Tier 1 Max Fee Value", "Tier 1 Max Fee Currency",
+            "Tier 2 Threshold Amount", "Tier 2 Threshold Currency", "Tier 2 Rate Value", "Tier 2 Rate Unit", "Tier 2 Max Fee Value", "Tier 2 Max Fee Currency",
+            "Min Fee Value", "Min Fee Currency", "Max Fee Value", "Max Fee Currency",
             "Condition Type", "Condition Description", "Employee Fee Value", "Employee Fee Unit",
-            "Employee Fee Description", "Note Reference", "Status", "Created At", "Updated At"
+            "Employee Fee Description", "Note Reference", "Priority", "Status", "Remarks",
+            "Created At", "Updated At", "Created By", "Updated By", "Approved By", "Approved At"
         ])
         
-        # Write data
+        # Write data (v2 fields)
         for charge in charges:
             writer.writerow([
                 str(charge.charge_id),
@@ -850,31 +1067,43 @@ async def export_retail_asset_charges_csv(
                 charge.loan_product,
                 charge.loan_product_name or "",
                 charge.charge_type,
+                charge.charge_context or "",  # NEW: v2 field
+                charge.charge_title or "",  # NEW: v2 field
                 charge.charge_description or "",
                 float(charge.fee_value) if charge.fee_value else "",
                 charge.fee_unit,
                 charge.fee_basis,
-                float(charge.tier_1_threshold) if charge.tier_1_threshold else "",
-                float(charge.tier_1_fee_value) if charge.tier_1_fee_value else "",
-                charge.tier_1_fee_unit or "",
-                float(charge.tier_1_max_fee) if charge.tier_1_max_fee else "",
-                float(charge.tier_2_threshold) if charge.tier_2_threshold else "",
-                float(charge.tier_2_fee_value) if charge.tier_2_fee_value else "",
-                charge.tier_2_fee_unit or "",
-                float(charge.tier_2_max_fee) if charge.tier_2_max_fee else "",
+                float(charge.tier_1_threshold_amount) if charge.tier_1_threshold_amount else "",
+                charge.tier_1_threshold_currency or "",
+                float(charge.tier_1_rate_value) if charge.tier_1_rate_value else "",
+                charge.tier_1_rate_unit or "",
+                float(charge.tier_1_max_fee_value) if charge.tier_1_max_fee_value else "",
+                charge.tier_1_max_fee_currency or "",
+                float(charge.tier_2_threshold_amount) if charge.tier_2_threshold_amount else "",
+                charge.tier_2_threshold_currency or "",
+                float(charge.tier_2_rate_value) if charge.tier_2_rate_value else "",
+                charge.tier_2_rate_unit or "",
+                float(charge.tier_2_max_fee_value) if charge.tier_2_max_fee_value else "",
+                charge.tier_2_max_fee_currency or "",
                 float(charge.min_fee_value) if charge.min_fee_value else "",
-                charge.min_fee_unit or "",
+                charge.min_fee_currency or "",
                 float(charge.max_fee_value) if charge.max_fee_value else "",
-                charge.max_fee_unit or "",
+                charge.max_fee_currency or "",
                 charge.condition_type,
                 charge.condition_description or "",
                 float(charge.employee_fee_value) if charge.employee_fee_value else "",
                 charge.employee_fee_unit or "",
                 charge.employee_fee_description or "",
                 charge.note_reference or "",
+                charge.priority,
                 charge.status,
+                charge.remarks or "",
                 charge.created_at.isoformat() if charge.created_at else "",
-                charge.updated_at.isoformat() if charge.updated_at else ""
+                charge.updated_at.isoformat() if charge.updated_at else "",
+                charge.created_by or "",
+                charge.updated_by or "",
+                charge.approved_by or "",
+                charge.approved_at.isoformat() if charge.approved_at else ""
             ])
         
         output.seek(0)

@@ -97,13 +97,14 @@ class LightRAGClient:
         }
         return self._make_request("POST", "/query/data", data)
     
-    def insert_text(self, text: str, file_source: Optional[str] = None) -> Dict[str, Any]:
+    def insert_text(self, text: str, file_source: Optional[str] = None, knowledge_base: Optional[str] = None) -> Dict[str, Any]:
         """
         Insert a single text document into the RAG system
         
         Args:
             text: The text content to insert
             file_source: Optional source identifier for the text
+            knowledge_base: Optional knowledge base name (e.g., 'ebl_website')
             
         Returns:
             Response from the API
@@ -113,6 +114,8 @@ class LightRAGClient:
         }
         if file_source:
             data["file_source"] = file_source
+        if knowledge_base:
+            data["knowledge_base"] = knowledge_base
         return self._make_request("POST", "/insert/text", data)
     
     def insert_texts(self, texts: list, file_sources: Optional[list] = None) -> Dict[str, Any]:

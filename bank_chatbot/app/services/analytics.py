@@ -62,11 +62,13 @@ class ConversationLog(Base):
     is_answered = Column(Integer, default=1)  # 1 = answered, 0 = unanswered
     knowledge_base = Column(String(255))
     response_time_ms = Column(Integer)
+    client_ip = Column(String(45), index=True)  # IPv6 max length is 45 chars
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     
     __table_args__ = (
         Index('idx_analytics_session_created', 'session_id', 'created_at'),
         Index('idx_analytics_is_answered', 'is_answered'),
+        Index('idx_analytics_client_ip', 'client_ip'),
     )
 
 
@@ -106,7 +108,8 @@ def log_conversation(
     user_message: str,
     assistant_response: str,
     knowledge_base: Optional[str] = None,
-    response_time_ms: Optional[int] = None
+    response_time_ms: Optional[int] = None,
+    client_ip: Optional[str] = None
 ):
     """
     Log a conversation for analytics
@@ -120,15 +123,21 @@ def log_conversation(
         is_answered = 0 if _is_unanswered(assistant_response) else 1
         
         # Log conversation
-        conversation = ConversationLog(
-            session_id=session_id,
-            user_message=user_message,
-            assistant_response=assistant_response,
-            is_answered=is_answered,
-            knowledge_base=knowledge_base,
-            response_time_ms=response_time_ms
-        )
-        db.add(conversation)
+        try:
+            conversation = ConversationLog(
+                session_id=session_id,
+                user_message=user_message,
+                assistant_response=assistant_response,
+                is_answered=is_answered,
+                knowledge_base=knowledge_base,
+                response_time_ms=response_time_ms,
+                client_ip=client_ip
+            )
+            db.add(conversation)
+            logger.info(f"Added ConversationLog for session {session_id}")
+        except Exception as conv_error:
+            logger.error(f"Error creating ConversationLog: {conv_error}", exc_info=True)
+            # Continue with other logging even if ConversationLog fails
         
         # Update or insert question statistics
         normalized = _normalize_question(user_message)
@@ -186,10 +195,12 @@ def log_conversation(
             db.add(metric)
         
         db.commit()
+        logger.info(f"Successfully committed conversation log for session {session_id}")
         
     except Exception as e:
-        logger.error(f"Error logging conversation for analytics: {e}")
-        db.rollback()
+        logger.error(f"Error logging conversation for analytics: {e}", exc_info=True)
+        if db:
+            db.rollback()
     finally:
         db.close()
 
@@ -351,6 +362,7 @@ def get_conversation_history(session_id: Optional[str] = None, limit: int = 100)
     """Get conversation history"""
     db = get_db()
     if not db:
+        logger.warning("Database not available for conversation history")
         return []
     
     try:
@@ -363,6 +375,8 @@ def get_conversation_history(session_id: Optional[str] = None, limit: int = 100)
             ConversationLog.created_at.desc()
         ).limit(limit).all()
         
+        logger.info(f"Found {len(conversations)} conversations in database")
+        
         results = []
         for conv in conversations:
             results.append({
@@ -373,13 +387,16 @@ def get_conversation_history(session_id: Optional[str] = None, limit: int = 100)
                 'is_answered': bool(conv.is_answered),
                 'knowledge_base': conv.knowledge_base,
                 'response_time_ms': conv.response_time_ms,
+                'client_ip': conv.client_ip,
                 'created_at': conv.created_at.isoformat() if conv.created_at else None
             })
         
+        logger.info(f"Returning {len(results)} conversation results")
         return results
     except Exception as e:
-        logger.error(f"Error getting conversation history: {e}")
+        logger.error(f"Error getting conversation history: {e}", exc_info=True)
         return []
     finally:
-        db.close()
+        if db:
+            db.close()
 

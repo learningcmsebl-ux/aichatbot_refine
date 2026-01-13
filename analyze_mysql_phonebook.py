@@ -7,6 +7,7 @@ import pymysql
 import csv
 import json
 import re
+import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
@@ -42,24 +43,35 @@ class MySQLPhonebookAnalyzer:
         self.connection = None
         self.data = []
         
-    def connect(self) -> bool:
-        """Establish MySQL connection"""
-        try:
-            self.connection = pymysql.connect(
-                host=self.host,
-                port=self.port,
-                user=self.user,
-                password=self.password,
-                database=self.database,
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor,
-                connect_timeout=10
-            )
-            logger.info(f"Successfully connected to MySQL at {self.host}:{self.port}/{self.database}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect to MySQL: {e}")
-            return False
+    def connect(self, max_retries: int = 3, retry_delay: int = 2) -> bool:
+        """
+        Establish MySQL connection with retry logic
+        
+        Args:
+            max_retries: Maximum number of connection retry attempts
+            retry_delay: Delay in seconds between retry attempts
+        """
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.connection = pymysql.connect(
+                    host=self.host,
+                    port=self.port,
+                    user=self.user,
+                    password=self.password,
+                    database=self.database,
+                    charset='utf8mb4',
+                    cursorclass=pymysql.cursors.DictCursor,
+                    connect_timeout=10
+                )
+                logger.info(f"Successfully connected to MySQL at {self.host}:{self.port}/{self.database}")
+                return True
+            except Exception as e:
+                if attempt < max_retries:
+                    logger.warning(f"Connection attempt {attempt} failed: {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to connect to MySQL after {max_retries} attempts: {e}")
+        return False
     
     def disconnect(self):
         """Close MySQL connection"""
@@ -67,9 +79,13 @@ class MySQLPhonebookAnalyzer:
             self.connection.close()
             logger.info("MySQL connection closed")
     
-    def execute_query(self) -> List[Dict]:
+    def execute_query(self, max_retries: int = 3, retry_delay: int = 2) -> List[Dict]:
         """
-        Execute the phonebook query and return results
+        Execute the phonebook query and return results with retry logic
+        
+        Args:
+            max_retries: Maximum number of query retry attempts
+            retry_delay: Delay in seconds between retry attempts
         
         Returns:
             List of employee records as dictionaries
@@ -111,32 +127,44 @@ class MySQLPhonebookAnalyzer:
           AND t14.name NOT LIKE '%Uncategorized%'
         """
         
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query)
-                results = cursor.fetchall()
-                
-                # Convert to list of dicts and normalize field names
-                self.data = []
-                for row in results:
-                    normalized = {
-                        'full_name': row.get('Employee_Name', '').strip() if row.get('Employee_Name') else '',
-                        'employee_id': row.get('Employee_ID', '').strip() if row.get('Employee_ID') else '',
-                        'department': row.get('Department', '').strip() if row.get('Department') else '',
-                        'division': row.get('Division', '').strip() if row.get('Division') else '',
-                        'designation': row.get('Designation', '').strip() if row.get('Designation') else '',
-                        'email': row.get('Email', '').strip() if row.get('Email') else '',
-                        'ip_phone': row.get('IP_EXT', '').strip() if row.get('IP_EXT') else '',
-                        'mobile': row.get('Mobile', '').strip() if row.get('Mobile') else ''
-                    }
-                    self.data.append(normalized)
-                
-                logger.info(f"Retrieved {len(self.data)} employee records from MySQL")
-                return self.data
-                
-        except Exception as e:
-            logger.error(f"Error executing query: {e}")
-            return []
+        for attempt in range(1, max_retries + 1):
+            try:
+                with self.connection.cursor() as cursor:
+                    cursor.execute(query)
+                    results = cursor.fetchall()
+                    
+                    # Convert to list of dicts and normalize field names
+                    self.data = []
+                    for row in results:
+                        normalized = {
+                            'full_name': row.get('Employee_Name', '').strip() if row.get('Employee_Name') else '',
+                            'employee_id': row.get('Employee_ID', '').strip() if row.get('Employee_ID') else '',
+                            'department': row.get('Department', '').strip() if row.get('Department') else '',
+                            'division': row.get('Division', '').strip() if row.get('Division') else '',
+                            'designation': row.get('Designation', '').strip() if row.get('Designation') else '',
+                            'email': row.get('Email', '').strip() if row.get('Email') else '',
+                            'ip_phone': row.get('IP_EXT', '').strip() if row.get('IP_EXT') else '',
+                            'mobile': row.get('Mobile', '').strip() if row.get('Mobile') else ''
+                        }
+                        self.data.append(normalized)
+                    
+                    logger.info(f"Retrieved {len(self.data)} employee records from MySQL")
+                    return self.data
+                    
+            except Exception as e:
+                if attempt < max_retries:
+                    logger.warning(f"Query execution attempt {attempt} failed: {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    # Try to reconnect if connection was lost
+                    try:
+                        if self.connection:
+                            self.connection.ping(reconnect=True)
+                    except Exception:
+                        logger.info("Connection lost. Attempting to reconnect...")
+                        self.connect(max_retries=1, retry_delay=1)
+                else:
+                    logger.error(f"Error executing query after {max_retries} attempts: {e}")
+        return []
     
     def analyze_statistics(self) -> Dict:
         """Calculate basic statistics"""

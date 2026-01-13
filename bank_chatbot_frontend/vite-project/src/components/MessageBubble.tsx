@@ -143,6 +143,53 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             })}
           </div>
         )}
+        {message.sources && message.sources.length > 0 && !isStreaming && (
+          <div
+            className="mt-4 pt-3 border-t"
+            style={{
+              marginTop: '16px',
+              paddingTop: '12px',
+              borderTop: '1px solid rgba(229, 231, 235, 0.6)',
+            }}
+          >
+            <div
+              className="text-xs font-medium mb-2"
+              style={{
+                fontSize: '11px',
+                color: 'rgba(75, 85, 99, 0.9)',
+                marginBottom: '8px',
+                fontWeight: 500,
+                letterSpacing: '0.3px',
+              }}
+            >
+              Source{message.sources.length > 1 ? 's' : ''}:
+            </div>
+            <div className="space-y-1.5">
+              {message.sources.map((source, idx) => (
+                <div
+                  key={idx}
+                  className="text-xs flex items-start"
+                  style={{
+                    fontSize: '11px',
+                    color: 'rgba(55, 65, 81, 0.85)',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  <span
+                    className="mr-2 mt-0.5 flex-shrink-0"
+                    style={{
+                      color: 'rgba(99, 102, 241, 0.7)',
+                      fontSize: '8px',
+                    }}
+                  >
+                    ▪
+                  </span>
+                  <span style={{ wordBreak: 'break-word' }}>{source}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Copy button - appears on hover */}
         {!isStreaming && !hasError && message.content && (
           <button

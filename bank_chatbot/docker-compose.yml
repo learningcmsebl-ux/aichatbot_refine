@@ -1,22 +1,24 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: bank-chatbot-postgres
-    environment:
-      POSTGRES_DB: bank_chatbot
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # Note: Using existing PostgreSQL container (chatbot_postgres) on port 5432
+  # If you need a separate postgres, uncomment below and use a different port
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: bank-chatbot-postgres
+  #   environment:
+  #     POSTGRES_DB: bank_chatbot
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+  #   ports:
+  #     - "5434:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - chatbot-network
 
   redis:
     image: redis:7-alpine
@@ -30,8 +32,123 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - chatbot-network
+
+  chatbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bank-chatbot-api
+    ports:
+      - "8001:8001"
+    volumes:
+      # Mount application code for automatic updates (no rebuild needed)
+      - ./app:/app/app
+      - ./main.py:/app/main.py
+      # Note: requirements.txt is NOT mounted to avoid dependency issues
+      # If you add new dependencies, rebuild the container
+    environment:
+      # OpenAI Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-0.7}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-2000}
+      
+      # PostgreSQL Configuration (using existing postgres container or host)
+      # Force host.docker.internal for Docker container to access host PostgreSQL
+      POSTGRES_HOST: host.docker.internal
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-bank_chatbot}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      
+      # Redis Configuration (use service name for Docker networking)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_CACHE_TTL: ${REDIS_CACHE_TTL:-3600}
+      
+      # LightRAG Configuration
+      # Force host.docker.internal for Docker container to access host LightRAG
+      LIGHTRAG_URL: http://host.docker.internal:9262/query
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-MyCustomLightRagKey456}
+      LIGHTRAG_KNOWLEDGE_BASE: ${LIGHTRAG_KNOWLEDGE_BASE:-default}
+      LIGHTRAG_TIMEOUT: ${LIGHTRAG_TIMEOUT:-30}
+      
+      # Card Rates Microservice
+      CARD_RATES_URL: ${CARD_RATES_URL:-http://host.docker.internal:8002}
+      
+      # Fee Engine Microservice (New)
+      FEE_ENGINE_URL: ${FEE_ENGINE_URL:-http://host.docker.internal:8003}
+      
+      # Location Service
+      LOCATION_SERVICE_URL: ${LOCATION_SERVICE_URL:-http://host.docker.internal:8004}
+      
+      # Chat Settings
+      MAX_CONVERSATION_HISTORY: ${MAX_CONVERSATION_HISTORY:-10}
+      ENABLE_STREAMING: ${ENABLE_STREAMING:-True}
+      
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      
+      # Debug
+      DEBUG: ${DEBUG:-False}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8001/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ../bank_chatbot_frontend
+      dockerfile: Dockerfile
+    container_name: bank-chatbot-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - chatbot
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  dashboard:
+    build:
+      context: ../chatbot_dashboard
+      dockerfile: Dockerfile
+    container_name: bank-chatbot-dashboard
+    ports:
+      - "3001:3001"
+    depends_on:
+      - chatbot
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
-  postgres_data:
   redis_data:
 
+networks:
+  chatbot-network:
+    driver: bridge

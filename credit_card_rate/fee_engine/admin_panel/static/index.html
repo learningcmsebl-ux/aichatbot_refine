@@ -182,24 +182,57 @@
                         <span id="retailShowingCount">Showing: 0</span>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table id="retailChargesTable">
+                <div class="gridScroll">
+                    <table id="retailChargesTable" class="gridTable">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Loan Product</th>
-                                <th>Charge Type</th>
-                                <th>Description</th>
-                                <th>Fee Value</th>
-                                <th>Unit</th>
-                                <th>Effective From</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th data-col="expand" class="expandCol">
+                                    <span title="Expand/Collapse rows">⇅</span>
+                                </th>
+                                <th data-col="id">
+                                    ID
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="loanProduct">
+                                    Loan Product
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="chargeType">
+                                    Charge Type
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="chargeContext">
+                                    Charge Context
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="description">
+                                    Description
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="feeValue">
+                                    Fee Value
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="unit">
+                                    Unit
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="effectiveFrom">
+                                    Effective From
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="status">
+                                    Status
+                                    <span class="colResizer" title="Drag to resize"></span>
+                                </th>
+                                <th data-col="actions" class="actionsCol">
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="retailChargesTableBody">
                             <tr>
-                                <td colspan="9" class="loading">Loading...</td>
+                                <td colspan="11" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -592,6 +625,13 @@
                             <label for="editNoteReference">Note Reference</label>
                             <input type="text" id="editNoteReference">
                         </div>
+                        <div class="form-group full-width">
+                            <label for="editAnswerText">Answer Text (What the Bot Must Say Verbatim)</label>
+                            <textarea id="editAnswerText" rows="2" placeholder="If set, the chatbot returns this exactly (recommended)."></textarea>
+                            <small style="color: #0066cc; font-size: 12px; margin-top: 4px; display: block;">
+                                Recommended: keep this as a single clear fee line (e.g., "BDT 4,600 per year" or "2.5% or BDT 345").
+                            </small>
+                        </div>
                         <div class="form-group">
                             <label for="editPriority">Priority *</label>
                             <input type="number" id="editPriority" value="100" required>
@@ -779,12 +819,89 @@
                         <input type="text" id="editRetailChargeType" required>
                     </div>
                     <div class="form-group">
-                        <label for="editRetailChargeDescription">Charge Description *</label>
+                        <label for="editRetailChargeContext">Charge Context * (Documentation Only)</label>
+                        <input type="text" id="editRetailChargeContext" required placeholder="e.g., GENERAL, ON_LIMIT, CASH LIMIT">
+                        <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                            📝 For documentation/categorization only. Lookups use the "Description" field.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailChargeDescription">Charge Description * (Used for Lookups)</label>
                         <textarea id="editRetailChargeDescription" rows="2" required></textarea>
+                        <small style="color: #0066cc; font-size: 12px; margin-top: 4px; display: block;">
+                            🔍 This field is used for smart lookups. Include keywords like "on limit", "enhancement", "reduction" etc.
+                        </small>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="editRetailFeeText">Fee Text (Verbatim Schedule Text)</label>
+                        <textarea id="editRetailFeeText" rows="2" placeholder="e.g., Additional 1.50% interest on overdue amount"></textarea>
+                        <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                            This is the original human-readable fee line (used to generate answer_text).
+                        </small>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="editRetailAnswerText">Answer Text (What the Bot Must Say Verbatim)</label>
+                        <textarea id="editRetailAnswerText" rows="2" placeholder="If set, the chatbot returns this exactly (no inference)."></textarea>
+                        <small style="color: #0066cc; font-size: 12px; margin-top: 4px; display: block;">
+                            Recommended: keep this a single clear sentence/line from the schedule.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailParseStatus">Parse Status</label>
+                        <select id="editRetailParseStatus">
+                            <option value="UNPARSED">UNPARSED</option>
+                            <option value="PARSED">PARSED</option>
+                            <option value="MANUAL">MANUAL</option>
+                            <option value="UNPARSEABLE">UNPARSEABLE</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="editRetailFeeValue">Fee Value</label>
                         <input type="number" id="editRetailFeeValue" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeRateValue">Fee Rate Value</label>
+                        <input type="number" id="editRetailFeeRateValue" step="0.0001" placeholder="e.g., 1.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeRateUnit">Fee Rate Unit</label>
+                        <select id="editRetailFeeRateUnit">
+                            <option value="">(none)</option>
+                            <option value="PERCENT">PERCENT</option>
+                            <option value="BPS">BPS</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeAmountValue">Fee Amount Value</label>
+                        <input type="number" id="editRetailFeeAmountValue" step="0.0001" placeholder="e.g., 1150">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeAmountCurrency">Fee Amount Currency</label>
+                        <select id="editRetailFeeAmountCurrency">
+                            <option value="">(none)</option>
+                            <option value="BDT">BDT</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeePeriod">Fee Period</label>
+                        <select id="editRetailFeePeriod">
+                            <option value="">(none)</option>
+                            <option value="PER_TRANSACTION">PER_TRANSACTION</option>
+                            <option value="PER_MONTH">PER_MONTH</option>
+                            <option value="PER_YEAR">PER_YEAR</option>
+                            <option value="PER_DAY">PER_DAY</option>
+                            <option value="ONE_TIME">ONE_TIME</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailFeeAppliesTo">Fee Applies To</label>
+                        <select id="editRetailFeeAppliesTo">
+                            <option value="">(none)</option>
+                            <option value="ON_LOAN_AMOUNT">ON_LOAN_AMOUNT</option>
+                            <option value="ON_OVERDUE_AMOUNT">ON_OVERDUE_AMOUNT</option>
+                            <option value="ON_LIMIT">ON_LIMIT</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="editRetailFeeUnit">Fee Unit *</label>
@@ -794,16 +911,19 @@
                             <option value="PERCENT">PERCENT</option>
                             <option value="COUNT">COUNT</option>
                             <option value="TEXT">TEXT</option>
+                            <option value="ACTUAL_COST">ACTUAL_COST</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="editRetailFeeBasis">Fee Basis *</label>
                         <select id="editRetailFeeBasis" required>
-                            <option value="PER_TXN">PER_TXN</option>
-                            <option value="PER_YEAR">PER_YEAR</option>
-                            <option value="PER_MONTH">PER_MONTH</option>
-                            <option value="PER_REQUEST">PER_REQUEST</option>
+                            <option value="PER_LOAN">PER_LOAN</option>
+                            <option value="PER_AMOUNT">PER_AMOUNT</option>
+                            <option value="PER_INSTALLMENT">PER_INSTALLMENT</option>
+                            <option value="PER_INSTANCE">PER_INSTANCE</option>
                             <option value="ON_OUTSTANDING">ON_OUTSTANDING</option>
+                            <option value="ON_OVERDUE">ON_OVERDUE</option>
+                            <option value="PER_QUOTATION_CHANGE">PER_QUOTATION_CHANGE</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -840,6 +960,7 @@
     </div>
 
     <script src="/static/script.js"></script>
+    <script src="/static/grid.js"></script>
 </body>
 </html>
 

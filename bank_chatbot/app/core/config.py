@@ -2,8 +2,9 @@
 Configuration management for the Bank Chatbot application.
 """
 
-from pydantic_settings import BaseSettings
-from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Union
+from pydantic import field_validator
 import os
 from dotenv import load_dotenv
 
@@ -12,15 +13,34 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """Application settings"""
+
+    # Ignore unrelated keys in the environment/.env (e.g. LDAP_* used by other scripts)
+    # so the API can boot even when additional variables are present.
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
     
     # Application
     APP_NAME: str = "Bank Chatbot"
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
-    CORS_ORIGINS: List[str] = ["*"]  # In production, specify exact origins
+    CORS_ORIGINS: Union[str, List[str]] = "*"  # Can be "*" or list of origins
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from string or list"""
+        if isinstance(v, str):
+            if v == "*":
+                return ["*"]
+            # Handle comma-separated list
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
     
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     OPENAI_TEMPERATURE: float = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
     OPENAI_MAX_TOKENS: int = int(os.getenv("OPENAI_MAX_TOKENS", "2000"))
     
@@ -49,13 +69,19 @@ class Settings(BaseSettings):
     LIGHTRAG_KNOWLEDGE_BASE: str = os.getenv("LIGHTRAG_KNOWLEDGE_BASE", "default")
     LIGHTRAG_TIMEOUT: int = int(os.getenv("LIGHTRAG_TIMEOUT", "30"))
     
+    # Card rates microservice
+    CARD_RATES_URL: str = os.getenv("CARD_RATES_URL", "http://localhost:8002")  # Legacy service
+    FEE_ENGINE_URL: str = os.getenv("FEE_ENGINE_URL", "http://localhost:8003")  # New fee-engine service
+    
+    # Location service
+    LOCATION_SERVICE_URL: str = os.getenv("LOCATION_SERVICE_URL", "http://localhost:8004")  # Location/address service
+    
     # Chat settings
     MAX_CONVERSATION_HISTORY: int = int(os.getenv("MAX_CONVERSATION_HISTORY", "10"))
     ENABLE_STREAMING: bool = os.getenv("ENABLE_STREAMING", "True").lower() == "true"
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    # Lead generation (disabled by default - set ENABLE_LEAD_GENERATION=True to enable)
+    ENABLE_LEAD_GENERATION: bool = os.getenv("ENABLE_LEAD_GENERATION", "False").lower() == "true"
 
 
 settings = Settings()

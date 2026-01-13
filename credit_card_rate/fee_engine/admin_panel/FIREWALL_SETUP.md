@@ -156,3 +156,11 @@ If port 8009 is already in use by another application:
 2. Update the firewall rule to use the new external port
 3. Rebuild and restart: `docker-compose up -d --build fee-engine-admin`
 
+
+
+
+
+
+
+
+

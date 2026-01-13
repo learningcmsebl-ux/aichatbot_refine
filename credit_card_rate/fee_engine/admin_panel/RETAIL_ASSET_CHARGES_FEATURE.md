@@ -165,3 +165,11 @@ POST /api/retail-asset-charges
 3. `admin_panel/static/styles.css` - Added tab styles
 4. `admin_panel/static/script.js` - Added retail asset charges functionality
 
+
+
+
+
+
+
+
+

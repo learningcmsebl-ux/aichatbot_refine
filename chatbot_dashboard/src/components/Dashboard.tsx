@@ -22,13 +22,40 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [metrics, mostAskedData, unansweredData, conversationsData, health] = await Promise.all([
+      // Use Promise.allSettled to handle partial failures gracefully
+      const results = await Promise.allSettled([
         analyticsAPI.getPerformanceMetrics(daysFilter),
         analyticsAPI.getMostAskedQuestions(20),
         analyticsAPI.getUnansweredQuestions(50),
         analyticsAPI.getConversationHistory(undefined, 50),
         analyticsAPI.getHealthStatus(),
       ]);
+
+      // Extract results, using defaults for failed requests
+      const metrics = results[0].status === 'fulfilled' ? results[0].value : null;
+      const mostAskedData = results[1].status === 'fulfilled' ? results[1].value : [];
+      const unansweredData = results[2].status === 'fulfilled' ? results[2].value : [];
+      const conversationsData = results[3].status === 'fulfilled' ? results[3].value : [];
+      const health = results[4].status === 'fulfilled' ? results[4].value : null;
+
+      // Log any failures with detailed information
+      const endpointNames = ['Performance Metrics', 'Most Asked Questions', 'Unanswered Questions', 'Conversation History', 'Health Status'];
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`Failed to fetch ${endpointNames[index]}:`, result.reason);
+          console.error(`Error details:`, {
+            message: result.reason?.message,
+            response: result.reason?.response?.data,
+            status: result.reason?.response?.status,
+            url: result.reason?.config?.url
+          });
+        } else {
+          console.log(`✓ Successfully fetched ${endpointNames[index]}`);
+          if (index === 3) { // Conversation History
+            console.log(`  Found ${conversationsData.length} conversations`);
+          }
+        }
+      });
 
       setPerformanceMetrics(metrics);
       setMostAsked(mostAskedData);

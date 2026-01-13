@@ -55,3 +55,4 @@ After this fix, test with:
 
 ## Status
 ✅ Fixed - Currency symbols now preserved exactly as shown in context
+

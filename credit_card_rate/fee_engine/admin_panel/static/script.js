@@ -554,6 +554,8 @@ function populateEditForm(rule) {
     document.getElementById('editFreeEntitlementCount').value = rule.free_entitlement_count || '';
     document.getElementById('editConditionType').value = rule.condition_type;
     document.getElementById('editNoteReference').value = rule.note_reference || '';
+    const answerEl = document.getElementById('editAnswerText');
+    if (answerEl) answerEl.value = rule.answer_text || '';
     document.getElementById('editPriority').value = rule.priority;
     document.getElementById('editStatus').value = rule.status;
     document.getElementById('editProductLine').value = rule.product_line;
@@ -590,6 +592,7 @@ async function handleSave(e) {
         free_entitlement_count: document.getElementById('editFreeEntitlementCount').value ? parseInt(document.getElementById('editFreeEntitlementCount').value) : null,
         condition_type: document.getElementById('editConditionType').value,
         note_reference: document.getElementById('editNoteReference').value || null,
+        answer_text: (document.getElementById('editAnswerText') && document.getElementById('editAnswerText').value) ? document.getElementById('editAnswerText').value : null,
         priority: parseInt(document.getElementById('editPriority').value),
         status: document.getElementById('editStatus').value,
         product_line: document.getElementById('editProductLine').value,
@@ -712,7 +715,7 @@ async function loadRetailAssetFilters() {
 
 async function loadRetailAssetCharges() {
     const tbody = document.getElementById('retailChargesTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="loading">Loading...</td></tr>';
     
     try {
         const params = new URLSearchParams({
@@ -731,7 +734,7 @@ async function loadRetailAssetCharges() {
         document.getElementById('retailShowingCount').textContent = `Showing: ${data.charges.length}`;
     } catch (error) {
         console.error('Error loading retail asset charges:', error);
-        tbody.innerHTML = `<tr><td colspan="9" class="loading" style="color: red;">Error: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="loading" style="color: red;">Error: ${error.message}</td></tr>`;
     }
 }
 
@@ -739,13 +742,17 @@ function renderRetailCharges(charges) {
     const tbody = document.getElementById('retailChargesTableBody');
     
     if (charges.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">No charges found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading">No charges found</td></tr>';
         return;
     }
     
-    tbody.innerHTML = charges.map(charge => {
+    tbody.innerHTML = charges.map((charge, index) => {
         let feeDisplay = '-';
-        if (charge.tier_1_fee_value) {
+        if (charge.answer_text) {
+            feeDisplay = charge.answer_text;
+        } else if (charge.fee_text) {
+            feeDisplay = charge.fee_text;
+        } else if (charge.tier_1_fee_value) {
             feeDisplay = `Tier 1: ${charge.tier_1_fee_value}% (max ${formatNumber(charge.tier_1_max_fee)})`;
             if (charge.tier_2_fee_value) {
                 feeDisplay += `; Tier 2: ${charge.tier_2_fee_value}% (max ${formatNumber(charge.tier_2_max_fee)})`;
@@ -756,26 +763,71 @@ function renderRetailCharges(charges) {
                 feeDisplay += ` (Min: ${formatNumber(charge.min_fee_value || 0)}, Max: ${formatNumber(charge.max_fee_value || 0)})`;
             }
         } else if (charge.original_charge_text) {
-            feeDisplay = charge.original_charge_text.substring(0, 50) + (charge.original_charge_text.length > 50 ? '...' : '');
+            feeDisplay = charge.original_charge_text;
         }
         
         return `
-            <tr>
-                <td title="${charge.charge_id}">${charge.charge_id.substring(0, 8)}...</td>
-                <td>${charge.loan_product_name}</td>
-                <td>${charge.charge_type}</td>
-                <td title="${charge.charge_description}">${charge.charge_description.substring(0, 40)}${charge.charge_description.length > 40 ? '...' : ''}</td>
-                <td title="${charge.original_charge_text || ''}">${feeDisplay}</td>
-                <td>${charge.fee_unit}</td>
-                <td>${charge.effective_from}</td>
-                <td><span class="status-badge status-${charge.status.toLowerCase()}">${charge.status}</span></td>
-                <td class="actions-cell">
-                    <button class="btn btn-primary btn-small" onclick="editRetailCharge('${charge.charge_id}')">Edit</button>
-                    <button class="btn btn-danger btn-small" onclick="deleteRetailCharge('${charge.charge_id}')">Delete</button>
+            <tr data-row-id="${index}">
+                <td data-col="expand" class="expandCol">
+                    <button class="expandBtn" onclick="toggleRowExpand(${index})" title="Expand/Collapse">▼</button>
+                </td>
+                <td data-col="id" title="${charge.charge_id}">
+                    <span class="cellText">${charge.charge_id.substring(0, 8)}...</span>
+                </td>
+                <td data-col="loanProduct" title="${charge.loan_product_name}">
+                    <span class="cellText clamp">${charge.loan_product_name}</span>
+                </td>
+                <td data-col="chargeType" title="${charge.charge_type}">
+                    <span class="cellText">${charge.charge_type}</span>
+                </td>
+                <td data-col="chargeContext" title="${charge.charge_context || '-'}">
+                    <span class="cellText">${charge.charge_context || '-'}</span>
+                </td>
+                <td data-col="description" title="${charge.charge_description}">
+                    <span class="cellText clamp">${charge.charge_description}</span>
+                </td>
+                <td data-col="feeValue" title="${feeDisplay}">
+                    <span class="cellText clamp">${feeDisplay}</span>
+                </td>
+                <td data-col="unit" title="${charge.fee_unit}">
+                    <span class="cellText">${charge.fee_unit}</span>
+                </td>
+                <td data-col="effectiveFrom" title="${charge.effective_from}">
+                    <span class="cellText">${charge.effective_from}</span>
+                </td>
+                <td data-col="status">
+                    <span class="status-badge status-${charge.status.toLowerCase()}">${charge.status}</span>
+                </td>
+                <td data-col="actions" class="actionsCell">
+                    <div class="actionsWrap">
+                        <button class="btn btn-primary btn-small" onclick="editRetailCharge('${charge.charge_id}')">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteRetailCharge('${charge.charge_id}')">Delete</button>
+                    </div>
                 </td>
             </tr>
         `;
     }).join('');
+    
+    // After rendering, apply column widths
+    if (window.gridCharges) {
+        window.gridCharges.applyWidths();
+    }
+}
+
+// Toggle row expansion
+function toggleRowExpand(rowIndex) {
+    const row = document.querySelector(`tr[data-row-id="${rowIndex}"]`);
+    const btn = row.querySelector('.expandBtn');
+    
+    if (row.classList.contains('expanded')) {
+        row.classList.remove('expanded');
+        btn.textContent = '▼';
+        btn.classList.remove('expanded');
+    } else {
+        row.classList.add('expanded');
+        btn.textContent = '▲';
+        btn.classList.add('expanded');
+    }
 }
 
 function updateRetailPagination() {
@@ -831,14 +883,43 @@ function populateRetailEditForm(charge) {
     document.getElementById('editRetailLoanProduct').value = charge.loan_product || '';
     document.getElementById('editRetailLoanProductName').value = charge.loan_product_name || '';
     document.getElementById('editRetailChargeType').value = charge.charge_type || '';
+    document.getElementById('editRetailChargeContext').value = charge.charge_context || 'GENERAL';
     document.getElementById('editRetailChargeDescription').value = charge.charge_description || '';
+    const feeTextEl = document.getElementById('editRetailFeeText');
+    if (feeTextEl) feeTextEl.value = charge.fee_text || '';
+    const answerTextEl = document.getElementById('editRetailAnswerText');
+    if (answerTextEl) answerTextEl.value = charge.answer_text || '';
+    const parseStatusEl = document.getElementById('editRetailParseStatus');
+    if (parseStatusEl) parseStatusEl.value = charge.parse_status || 'UNPARSED';
     document.getElementById('editRetailFeeValue').value = charge.fee_value || '';
+    const feeRateValueEl = document.getElementById('editRetailFeeRateValue');
+    if (feeRateValueEl) feeRateValueEl.value = charge.fee_rate_value || '';
+    const feeRateUnitEl = document.getElementById('editRetailFeeRateUnit');
+    if (feeRateUnitEl) feeRateUnitEl.value = charge.fee_rate_unit || '';
+    const feeAmountValueEl = document.getElementById('editRetailFeeAmountValue');
+    if (feeAmountValueEl) feeAmountValueEl.value = charge.fee_amount_value || '';
+    const feeAmountCurrencyEl = document.getElementById('editRetailFeeAmountCurrency');
+    if (feeAmountCurrencyEl) feeAmountCurrencyEl.value = charge.fee_amount_currency || '';
+    const feePeriodEl = document.getElementById('editRetailFeePeriod');
+    if (feePeriodEl) feePeriodEl.value = charge.fee_period || '';
+    const feeAppliesToEl = document.getElementById('editRetailFeeAppliesTo');
+    if (feeAppliesToEl) feeAppliesToEl.value = charge.fee_applies_to || '';
     document.getElementById('editRetailFeeUnit').value = charge.fee_unit || 'BDT';
-    document.getElementById('editRetailFeeBasis').value = charge.fee_basis || 'PER_TXN';
+    // Retail Asset fee_basis is a strict Postgres enum (PER_AMOUNT, PER_LOAN, etc.).
+    // Default to PER_AMOUNT to avoid invalid enum values (e.g., PER_REQUEST/PER_TXN).
+    const feeBasisEl = document.getElementById('editRetailFeeBasis');
+    if (feeBasisEl) {
+        const basis = (charge.fee_basis || 'PER_AMOUNT');
+        feeBasisEl.value = basis;
+        // If the existing value isn't in the dropdown, force a safe default.
+        if (feeBasisEl.value !== basis) {
+            feeBasisEl.value = 'PER_AMOUNT';
+        }
+    }
     document.getElementById('editRetailStatus').value = charge.status || 'ACTIVE';
     document.getElementById('editRetailPriority').value = charge.priority || 100;
     document.getElementById('editRetailRemarks').value = charge.remarks || '';
-    
+
     // Handle dates
     if (charge.effective_from) {
         const fromDate = charge.effective_from.split('T')[0];
@@ -867,8 +948,18 @@ async function handleSaveRetailCharge(e) {
         loan_product: document.getElementById('editRetailLoanProduct').value || null,
         loan_product_name: document.getElementById('editRetailLoanProductName').value || null,
         charge_type: document.getElementById('editRetailChargeType').value || null,
+        charge_context: document.getElementById('editRetailChargeContext').value || 'GENERAL',
         charge_description: document.getElementById('editRetailChargeDescription').value || null,
+        fee_text: (document.getElementById('editRetailFeeText') && document.getElementById('editRetailFeeText').value) ? document.getElementById('editRetailFeeText').value : null,
+        answer_text: (document.getElementById('editRetailAnswerText') && document.getElementById('editRetailAnswerText').value) ? document.getElementById('editRetailAnswerText').value : null,
+        parse_status: (document.getElementById('editRetailParseStatus') && document.getElementById('editRetailParseStatus').value) ? document.getElementById('editRetailParseStatus').value : null,
         fee_value: document.getElementById('editRetailFeeValue').value ? parseFloat(document.getElementById('editRetailFeeValue').value) : null,
+        fee_rate_value: (document.getElementById('editRetailFeeRateValue') && document.getElementById('editRetailFeeRateValue').value) ? parseFloat(document.getElementById('editRetailFeeRateValue').value) : null,
+        fee_rate_unit: (document.getElementById('editRetailFeeRateUnit') && document.getElementById('editRetailFeeRateUnit').value) ? document.getElementById('editRetailFeeRateUnit').value : null,
+        fee_amount_value: (document.getElementById('editRetailFeeAmountValue') && document.getElementById('editRetailFeeAmountValue').value) ? parseFloat(document.getElementById('editRetailFeeAmountValue').value) : null,
+        fee_amount_currency: (document.getElementById('editRetailFeeAmountCurrency') && document.getElementById('editRetailFeeAmountCurrency').value) ? document.getElementById('editRetailFeeAmountCurrency').value : null,
+        fee_period: (document.getElementById('editRetailFeePeriod') && document.getElementById('editRetailFeePeriod').value) ? document.getElementById('editRetailFeePeriod').value : null,
+        fee_applies_to: (document.getElementById('editRetailFeeAppliesTo') && document.getElementById('editRetailFeeAppliesTo').value) ? document.getElementById('editRetailFeeAppliesTo').value : null,
         fee_unit: document.getElementById('editRetailFeeUnit').value || null,
         fee_basis: document.getElementById('editRetailFeeBasis').value || null,
         status: document.getElementById('editRetailStatus').value || null,

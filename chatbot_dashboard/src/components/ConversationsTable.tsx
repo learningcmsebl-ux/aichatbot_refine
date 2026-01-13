@@ -33,6 +33,9 @@ const ConversationsTable: React.FC<ConversationsTableProps> = ({ conversations }
               Knowledge Base
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Client IP
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Time
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -68,6 +71,9 @@ const ConversationsTable: React.FC<ConversationsTableProps> = ({ conversations }
                 <td className="px-4 py-3 text-sm text-gray-600">
                   {conv.knowledge_base || 'N/A'}
                 </td>
+                <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">
+                  {conv.client_ip || 'N/A'}
+                </td>
                 <td className="px-4 py-3 text-sm text-gray-600">
                   {format(parseISO(conv.created_at), 'MMM dd, HH:mm')}
                 </td>
@@ -82,7 +88,7 @@ const ConversationsTable: React.FC<ConversationsTableProps> = ({ conversations }
               </tr>
               {expandedId === conv.id && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-4 bg-gray-50">
+                  <td colSpan={7} className="px-4 py-4 bg-gray-50">
                     <div className="space-y-3">
                       <div>
                         <h4 className="font-semibold text-gray-700 mb-1">User Message:</h4>
@@ -96,11 +102,26 @@ const ConversationsTable: React.FC<ConversationsTableProps> = ({ conversations }
                           {conv.assistant_response}
                         </p>
                       </div>
-                      {conv.response_time_ms && (
-                        <div className="text-xs text-gray-500">
-                          Response time: {conv.response_time_ms}ms
+                      {conv.sources && conv.sources.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-gray-700 mb-1">Sources:</h4>
+                          <div className="bg-white p-3 rounded border">
+                            <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                              {conv.sources.map((source, idx) => (
+                                <li key={idx}>{source}</li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
                       )}
+                      <div className="flex gap-4 text-xs text-gray-500">
+                        {conv.response_time_ms && (
+                          <span>Response time: {conv.response_time_ms}ms</span>
+                        )}
+                        {conv.client_ip && (
+                          <span>IP: <span className="font-mono">{conv.client_ip}</span></span>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

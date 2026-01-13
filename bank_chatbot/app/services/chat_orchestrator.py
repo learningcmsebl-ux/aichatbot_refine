@@ -35,6 +35,7 @@ except ImportError:
     def log_conversation(*args, **kwargs):
         pass  # No-op if analytics not available
 from app.services.lightrag_client import LightRAGClient
+from app.services.location_client import LocationClient
 
 # Import lead management
 try:
@@ -91,8 +92,53 @@ class ChatOrchestrator:
         self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.lightrag_client = LightRAGClient()
         self.redis_cache = RedisCache()
+        self.location_client = LocationClient()
         self.system_message = self._get_system_message()
         self.lead_flows: Dict[str, LeadFlowState] = {}  # session_id -> LeadFlowState
+        # Fallback disambiguation store (used when Redis is unavailable).
+        # Key: conversation_key/session_id, Value: {"state": <dict>, "expires_at": <unix_ts>}
+        self._local_disambiguation_state: Dict[str, Dict[str, Any]] = {}
+
+    def _local_disambiguation_cleanup(self) -> None:
+        """Remove expired local disambiguation entries."""
+        try:
+            import time
+            now_ts = time.time()
+            expired = [k for k, v in self._local_disambiguation_state.items() if v.get("expires_at", 0) <= now_ts]
+            for k in expired:
+                self._local_disambiguation_state.pop(k, None)
+        except Exception:
+            return
+
+    async def _store_disambiguation_state_fallback(
+        self,
+        state_key: str,
+        state: Dict[str, Any],
+        ttl_seconds: int = 300,
+    ) -> None:
+        """Store disambiguation state locally when Redis is unavailable."""
+        import time
+        self._local_disambiguation_cleanup()
+        self._local_disambiguation_state[state_key] = {
+            "state": state,
+            "expires_at": time.time() + ttl_seconds,
+        }
+
+    async def _get_disambiguation_state_any(self, state_key: str) -> Optional[Dict[str, Any]]:
+        """Get disambiguation state from Redis if available, else local fallback."""
+        self._local_disambiguation_cleanup()
+        state = await self.redis_cache.get_disambiguation_state(state_key)
+        if state:
+            return state
+        local = self._local_disambiguation_state.get(state_key)
+        return local.get("state") if local else None
+
+    async def _clear_disambiguation_state_any(self, state_key: str) -> None:
+        """Clear disambiguation state in Redis (if any) and local fallback."""
+        try:
+            await self.redis_cache.clear_disambiguation_state(state_key)
+        finally:
+            self._local_disambiguation_state.pop(state_key, None)
     
     async def close(self):
         """Close all async clients and resources"""
@@ -129,6 +175,7 @@ Guidelines:
 3. **Your responses should be professional, accurate, and suitable for employees to share with customers**
 4. Always be professional, friendly, and helpful
 2. **IMPORTANT: When context from the knowledge base is provided, you MUST use it to answer the question. Do NOT say you don't have information if the context contains the answer.**
+2a. **CRITICAL LOCATION SERVICE DATA RULE: When the context includes "EBL Location Database (Normalized)" or "Source: EBL Location Database", this is REAL-TIME data from the location service database. You MUST use this data directly to answer location queries. If the context shows "Eastern Bank PLC. has X Priority Center(s)" or "Total: X location(s)", you MUST use that exact number. NEVER say "I don't have information" or "the context does not contain information" when location service data is provided. The location service data is authoritative and up-to-date.**
 3. The context provided contains accurate information from the bank's knowledge base - trust it and use it directly
 4. If the context contains specific numbers, facts, or details, include them in your response
 5. **CRITICAL BANK NAME RULE: The bank name is ALWAYS "Eastern Bank PLC" (not "Eastern Bank Limited" or "Eastern Bank Ltd."). If the context mentions "Eastern Bank Limited" or "Eastern Bank Ltd.", you MUST replace it with "Eastern Bank PLC" in your response. Always use "Eastern Bank PLC" or "EBL" when referring to the bank.**
@@ -154,7 +201,7 @@ Guidelines:
 8. **CRITICAL: If the context includes "Card Rates and Fees Information (Official Schedule)" or "OFFICIAL CARD RATES AND FEES INFORMATION", this is official, deterministic data from the card charges schedule. You MUST use this data to answer card fee/rate questions. Do NOT say you don't have the information if this data is present.**
 8a. **CRITICAL PRIORITY RULE FOR FEE DATA: When the context contains "OFFICIAL CARD RATES AND FEES INFORMATION" section, you MUST use ONLY that data. IGNORE any conflicting information from other parts of the context. The fee engine data is the authoritative source and takes absolute priority over any other information. If you see "2.5% or BDT 345" in the OFFICIAL section, use that - do NOT use "2%", "BDT 300", or any other amount from elsewhere in the context. The OFFICIAL section is the ONLY source of truth.**
 8b. **CRITICAL ATM WITHDRAWAL FEE RULE: For EBL ATM cash withdrawal fees, the fee is ALWAYS "2.5% or BDT 345". NEVER use "BDT 300", "2%", or any other amount. If you see conflicting information in the knowledge base, IGNORE IT. Use ONLY the fee engine data which shows "2.5% or BDT 345".**
-9. **CRITICAL SUPPLEMENTARY CARD FEES: If the context mentions "supplementary card annual fee" or "supplementary card fee", this is the specific fee for supplementary cards. For queries asking "how many free supplementary cards", you MUST answer with the EXACT number from the context (typically "2 FREE supplementary cards" or "first 2 supplementary cards are FREE"). For all supplementary card fee queries, you MUST ALWAYS mention BOTH pieces of information: (1) The first 2 supplementary cards are FREE (BDT 0 per year), and (2) Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. NEVER say "one free supplementary card" when the context clearly states "2 FREE supplementary cards" or "first 2 supplementary cards are FREE". Use the EXACT information from the context. Do NOT say "the context does not provide specific information about supplementary cards" if the context explicitly mentions supplementary card fees.**
+9. **CRITICAL SUPPLEMENTARY CARD FEES: If the context mentions "supplementary card annual fee" or "supplementary card fee", this is the specific fee for supplementary cards. For queries asking "how many free supplementary cards", you MUST answer with the EXACT number from the context: "2 FREE supplementary cards" (NOT "one free supplementary card"). The context ALWAYS states "2 FREE supplementary cards" or "first 2 supplementary cards are FREE" - NEVER "one free supplementary card". For all supplementary card fee queries, you MUST ALWAYS mention BOTH pieces of information: (1) There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards), and (2) Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. ABSOLUTELY FORBIDDEN: NEVER say "one free supplementary card" - ALWAYS say "2 FREE supplementary cards" or "first 2 supplementary cards are FREE". Use the EXACT information from the context. Do NOT say "the context does not provide specific information about supplementary cards" if the context explicitly mentions supplementary card fees.**
 9. **CRITICAL CURRENCY PRESERVATION: When the context shows amounts with currency symbols or codes (BDT, USD, etc.), you MUST use the EXACT currency symbol/code from the context. NEVER replace BDT (Bangladeshi Taka) with ₹ (Indian Rupee) or any other currency symbol. If you see "BDT 287.5" in the context, you MUST output "BDT 287.5" - do NOT change it to ₹287.5 or any other currency. Preserve all currency codes exactly as shown: BDT = Bangladeshi Taka, USD = US Dollar.**
 10. Never make up specific numbers, rates, or product details
 11. If asked about products, services, or policies, refer to the knowledge base context
@@ -499,52 +546,293 @@ When responding:
         
         return any(keyword in query_normalized for keyword in milestone_keywords)
     
-    def _is_card_rates_query(self, query: str) -> bool:
-        """Detect if query is asking specifically about card fees/rates (card rates microservice)"""
+    def _is_fee_schedule_query(self, query: str) -> bool:
+        """
+        STRONG detector for fee/charge schedule queries.
+        Returns True if query contains fee-related keywords with card context.
+        This ensures ALL card fee queries route to Fee Engine (authoritative source).
+        
+        Hardening: Generic terms (price, pricing, cost) require card-related context
+        to prevent false positives (e.g., "loan pricing" should not route to card fees).
+        
+        EXCLUDES: Retail asset charges (fast cash, loans, etc.) - these are handled separately.
+        """
         query_lower = query.lower().strip()
         
-        # Card product names that indicate a card query (even without the word "card")
-        card_products = [
-            "classic", "gold", "platinum", "infinite", "signature", "titanium", 
-            "world", "visa", "mastercard", "diners club", "unionpay", "taka pay",
-            "prepaid", "debit", "credit", "rfcd", "global", "women"
+        # EXCLUDE retail asset/loan queries - these should NOT route to card fees
+        retail_asset_keywords = [
+            "fast cash", "fast loan", "education loan", "edu loan",
+            "personal loan", "home loan", "car loan", "auto loan",
+            "business loan", "executive loan", "assure loan", "women's loan",
+            "retail asset", "loan processing", "loan fee", "loan charge",
+            "overdraft", "od", "emi loan", "secured loan", "unsecured loan"
         ]
         
-        # Must mention a card - either explicitly or through card product/network names
-        has_card_keyword = "card" in query_lower
-        has_card_product = any(product in query_lower for product in card_products)
-        
-        if not has_card_keyword and not has_card_product:
+        # If query contains retail asset keywords, it's NOT a card fee query
+        if any(kw in query_lower for kw in retail_asset_keywords):
+            logger.info(f"[ROUTING] Query contains retail asset keywords - NOT routing to card fees: '{query}'")
             return False
         
-        # Card rates/fees keywords
-        card_rates_keywords = [
-            # Fees
-            "annual fee", "yearly fee", "renewal fee", "issuance fee", "issuance charge", "joining fee",
-            "replacement fee", "card replacement", "pin replacement", "pin fee",
-            "late payment fee", "late fee", "overlimit fee", "over-limit fee",
-            "cash advance fee", "cash withdrawal fee", "atm withdrawal fee", "withdrawal fee", "transaction fee",
-            "duplicate statement fee", "certificate fee", "chequebook fee",
-            "customer verification fee", "cib fee", "transaction alert fee",
-            "sales voucher fee", "return cheque fee", "undelivered card fee",
-            "atm receipt fee", "cctv footage fee", "fund transfer fee",
-            "wallet transfer fee", "want2buy fee", "easycredit fee",
-            "risk assurance fee", "balance maintenance fee",
+        # Card-related context keywords (required for generic terms)
+        card_context_keywords = [
+            "card", "atm", "lounge", "supplementary", "pin", "rfcd",
+            "visa", "mastercard", "diners", "unionpay", "taka pay",
+            "credit card", "debit card", "prepaid card",
+            "classic", "gold", "platinum", "infinite", "signature", "titanium", "world"
+        ]
+        
+        # Specific fee types (always route - these are card-specific)
+        specific_fee_keywords = [
+            "annual fee", "yearly fee", "renewal fee", "issuance fee", "issuance charge", 
+            "joining fee", "replacement fee", "card replacement", "pin replacement", 
+            "pin fee", "late payment fee", "late fee", "overlimit fee", "over-limit fee",
             
-            # Rates
+            # Transaction fees (card-specific)
+            "cash advance fee", "cash withdrawal fee", "atm withdrawal fee", 
+            "withdrawal fee", "transaction fee", "cash withdrawal", "cash advance",
+            "atm withdrawal",
+            
+            # Service fees (card-specific)
+            "duplicate statement fee", "duplicate estatement", "certificate fee",
+            "chequebook fee", "customer verification fee", "cib fee", 
+            "transaction alert fee", "sms alert", "transaction alert",
+            "sales voucher fee", "sales voucher", "return cheque fee",
+            "undelivered card fee", "atm receipt fee", "cctv footage fee",
+            "cctv", "fund transfer fee", "wallet transfer fee",
+            "want2buy fee", "easycredit fee", "risk assurance fee",
+            "balance maintenance fee",
+            
+            # Interest rates (card-specific)
             "interest rate", "rate of interest", "apr", "annual percentage rate",
             "card interest", "credit card rate",
             
-            # Lounge access
+            # Lounge access (card-specific)
             "lounge", "lounge access", "sky lounge", "airport lounge", "lounge visit",
             "skylounge", "international lounge", "domestic lounge", "global lounge",
             "lounge free visit", "lounge fee", "priority pass",
             
-            # Charges
-            "charge", "charges", "fee", "fees", "cost", "price", "pricing"
+            # Supplementary card queries (including "how many free")
+            "supplementary", "supplementary card", "supplementary fee", "supplementary charge",
+            "how many free", "how many", "free supplementary", "free card",
+            
+            # Schedule/document references
+            "fee schedule", "charges schedule", "card charges", "card fees",
+            "fee information", "charge information",
+            
+            # Core fee terms (when used with card context or in card-specific phrases)
+            "fee", "fees", "charge", "charges"
         ]
         
-        return any(kw in query_lower for kw in card_rates_keywords)
+        # Generic terms that require card context
+        generic_terms = ["cost", "pricing", "price"]
+        
+        # Check for specific fee keywords (always route)
+        if any(kw in query_lower for kw in specific_fee_keywords):
+            return True
+        
+        # Check for generic terms - require card context
+        has_generic_term = any(term in query_lower for term in generic_terms)
+        if has_generic_term:
+            # Generic term found - require card context
+            has_card_context = any(ctx in query_lower for ctx in card_context_keywords)
+            return has_card_context
+        
+        # No match
+        return False
+    
+    def _is_retail_asset_fee_query(self, query: str) -> bool:
+        """
+        Detect if query is about retail asset charges (loans, fast cash, etc.).
+        Returns True if query contains retail asset keywords with fee/charge context.
+        """
+        query_lower = query.lower().strip()
+        
+        # FIX #5: Retail-asset-exclusive fee terms (these fees only exist for retail assets)
+        # Check these FIRST - if present and NOT a card query, route to RETAIL_ASSETS
+        retail_asset_exclusive_fees = [
+            'partial payment fee', 'partial payment',
+            'early settlement fee', 'early settlement', 'early_settlement',
+            # Stamp duty/charge is a retail-asset charge in our v2 schedule
+            'stamp charge', 'stamp duty',
+            # Reschedule / restructure fees (retail assets v2)
+            'reschedule & restructure fee', 'reschedule and restructure fee',
+            'reschedule & restructure exit fee', 'reschedule and restructure exit fee',
+            'reschedule fee', 'rescheduling fee',
+            'restructure fee', 'restructuring fee',
+            # Common retail-asset charge terms that users ask without saying "loan"
+            'notarization fee',
+            'noc fee', 'loan repayment certificate', 'loan repayment certificate (noc)',
+            'loan outstanding certificate', 'loan outstanding certificate fee',
+        ]
+        has_exclusive_fee = any(fee_term in query_lower for fee_term in retail_asset_exclusive_fees)
+        has_card_keyword = any(card_kw in query_lower for card_kw in ['card', 'credit card', 'debit card', 'visa', 'mastercard'])
+        
+        if has_exclusive_fee and not has_card_keyword:
+            logger.info(f"[ROUTING] Retail asset exclusive fee query detected (no product keyword required): '{query}'")
+            return True
+        
+        # Retail asset product keywords
+        retail_asset_keywords = [
+            "fast cash", "fast loan", "education loan", "edu loan",
+            "personal loan", "home loan", "car loan", "auto loan",
+            "business loan", "executive loan", "assure loan", "women's loan",
+            "retail asset", "loan processing", "overdraft", "od", "emi loan"
+        ]
+        
+        # Fee/charge keywords
+        fee_keywords = [
+            "fee", "fees", "charge", "charges", "cost", "pricing", "price",
+            "processing fee", "enhancement fee", "reduction fee", "cancellation fee",
+            "renewal fee", "settlement fee", "early_settlement_fee", "settlement"
+        ]
+        
+        # Check if query contains both retail asset keywords AND fee keywords
+        has_retail_asset = any(kw in query_lower for kw in retail_asset_keywords)
+        has_fee_keyword = any(kw in query_lower for kw in fee_keywords)
+        
+        if has_retail_asset and has_fee_keyword:
+            logger.info(f"[ROUTING] Retail asset fee query detected: '{query}'")
+            return True
+        
+        return False
+    
+    def _is_skybanking_fee_query(self, query: str) -> bool:
+        """
+        Detect if query is about Skybanking fees/charges.
+        Returns True if query contains Skybanking keywords with fee/charge context.
+        """
+        query_lower = query.lower().strip()
+        
+        # Skybanking product keywords
+        skybanking_keywords = [
+            "skybanking", "sky banking", "ebl skybanking",
+            "digital banking", "mobile banking", "online banking",
+            "skybanking app", "ebl app", "mobile app"
+        ]
+        
+        # Fee/charge keywords
+        fee_keywords = [
+            "fee", "fees", "charge", "charges", "cost", "pricing", "price",
+            "certificate fee", "account certificate", "fund transfer fee",
+            "transfer fee", "transaction fee"
+        ]
+        
+        # Check if query contains both Skybanking keywords AND fee keywords
+        has_skybanking = any(kw in query_lower for kw in skybanking_keywords)
+        has_fee_keyword = any(kw in query_lower for kw in fee_keywords)
+        
+        if has_skybanking and has_fee_keyword:
+            logger.info(f"[ROUTING] Skybanking fee query detected: '{query}'")
+            return True
+        
+        return False
+    
+    def _is_card_rates_query(self, query: str) -> bool:
+        """
+        Legacy method - now delegates to _is_fee_schedule_query for consistency.
+        Kept for backward compatibility.
+        """
+        return self._is_fee_schedule_query(query)
+    
+    def _is_location_query(self, query: str) -> bool:
+        """
+        Detect if query is about locations (branches, ATMs, CRMs, RTDMs, priority centers, head office).
+        
+        Returns True if query contains location-related keywords.
+        """
+        query_lower = query.lower()
+        
+        # Location keywords - check for explicit location-related terms
+        location_keywords = [
+            # Branches
+            'branch', 'branches', 'bank branch', 'ebl branch',
+            # Head office
+            'head office', 'headoffice', 'headquarter', 'headquarters', 'corporate office', 'main office',
+            # ATMs
+            'atm', 'atms', 'automated teller machine', 'cash machine', 'cashpoint',
+            # CRMs
+            'crm', 'customer relationship machine', 'customer service machine',
+            # RTDMs
+            'rtdm', 'retail transaction deposit machine', 'deposit machine',
+            # Priority centers - CRITICAL: All priority center queries must go to location service
+            'priority center', 'priority centre', 'priority centers', 'priority centres',
+            'priority banking center', 'priority banking centre', 'priority banking centers', 'priority banking centres',
+            # General location queries - expanded patterns
+            'where is', 'where are', 'where can i find', 'where can i locate',
+            'find branch', 'find atm', 'locate', 'location', 'address', 'address of',
+            'location of', 'tell me location', 'what is the location', 'what is the address',
+            'nearest branch', 'nearest atm', 'near me', 
+            'in dhaka', 'in chittagong', 'in sylhet', 'in khulna', 'in rajshahi',
+            'dhaka branch', 'chittagong branch', 'sylhet branch'
+        ]
+        
+        # Check for location-related patterns
+        import re
+        location_patterns = [
+            r'\blocation\s+of\b',  # "location of X"
+            r'\baddress\s+of\b',   # "address of X"
+            r'\bwhere\s+is\b',     # "where is X"
+            r'\bwhere\s+are\b',    # "where are X"
+            r'\btell\s+me\s+(the\s+)?(location|address)',  # "tell me location/address"
+            r'\bwhat\s+is\s+the\s+(location|address)',     # "what is the location/address"
+            # Count queries for priority centers - CRITICAL: These must go to location service
+            r'\bhow\s+many\s+priority\s+(center|centre)',  # "how many priority center"
+            r'\bhow\s+many\s+priority\s+(center|centre)s',  # "how many priority centers"
+            r'\bnumber\s+of\s+priority\s+(center|centre)',  # "number of priority center"
+            r'\bcount\s+of\s+priority\s+(center|centre)',  # "count of priority center"
+            r'\bpriority\s+(center|centre).*\b(how many|number|count|total)',  # "priority center how many"
+        ]
+        
+        # Check if query contains location keywords
+        has_location_keyword = any(kw in query_lower for kw in location_keywords)
+        
+        # Check for location patterns using regex
+        has_location_pattern = any(re.search(pattern, query_lower) for pattern in location_patterns)
+        
+        # Also check if query mentions a branch name pattern (e.g., "AGRABAD BRANCH", "Dhanmondi branch")
+        # This catches queries like "location of AGRABAD BRANCH" even if "branch" comes after
+        has_branch_name_pattern = bool(re.search(r'\b(branch|atm|crm|rtdm|priority\s+center|priority\s+centre)\b', query_lower, re.IGNORECASE))
+        
+        # CRITICAL: Special check for priority center count queries
+        # These queries MUST go to location service, not LightRAG
+        has_priority_center_count_query = bool(
+            re.search(r'\b(how many|number|count|total).*priority\s+(center|centre)', query_lower, re.IGNORECASE) or
+            re.search(r'\bpriority\s+(center|centre).*\b(how many|number|count|total|does.*have|has)', query_lower, re.IGNORECASE)
+        )
+        
+        # Return True if any location indicator is found
+        is_location = has_location_keyword or has_location_pattern or has_branch_name_pattern or has_priority_center_count_query
+        
+        if is_location:
+            logger.info(f"[ROUTING] Detected location query: '{query}' (keyword={has_location_keyword}, pattern={has_location_pattern}, branch_pattern={has_branch_name_pattern}, priority_count={has_priority_center_count_query})")
+            return True
+        
+        return False
+    
+    async def _get_location_context(self, query: str) -> str:
+        """
+        Get location context from location service.
+        
+        Args:
+            query: Natural language query about locations
+        
+        Returns:
+            Formatted location information string
+        """
+        try:
+            location_result = await self.location_client.get_locations(query, limit=20)
+            
+            if location_result:
+                formatted = self.location_client.format_location_response(location_result, query)
+                logger.info(f"[LOCATION_SERVICE] Location context retrieved: {location_result.get('total', 0)} locations")
+                return formatted
+            else:
+                logger.warning(f"[LOCATION_SERVICE] Location service returned no results for query: '{query}'")
+                return "Location information is not available at the moment. Please try again later."
+                
+        except Exception as e:
+            logger.error(f"[LOCATION_SERVICE] Error getting location context: {e}")
+            return "Location information is not available at the moment. Please try again later."
     
     def _is_compliance_query(self, query: str) -> bool:
         """Detect if query is about compliance, AML, regulatory, or policy matters"""
@@ -971,7 +1259,7 @@ When responding:
             flow.reset()
             return "Thank you for your interest! How else can I help you?", True
     
-    def _get_knowledge_base(self, user_input: str) -> str:
+    def _get_knowledge_base(self, user_input: str, session_id: Optional[str] = None) -> str:
         """
         Determine which knowledge base to use based on query content.
         Implements 4-tier KB strategy: Overview / Product / Policy / Investor
@@ -982,6 +1270,9 @@ When responding:
         3. Policies/Compliance → ebl_policies (if exists, else ebl_website)
         4. Financial/Investor → ebl_financial_reports (investor content)
         5. Other specialized KBs (milestones, user docs, employees)
+        
+        Note: This method should NOT be called when disambiguation state exists (handled at process_chat level).
+        Disambiguation resolution is a TERMINAL conversational state - once resolved, orchestrator exits immediately.
         """
         # Priority order (most specific first):
         
@@ -1136,11 +1427,109 @@ When responding:
         
         return text
     
-    async def _get_card_rates_context(self, query: str) -> str:
+    def _resolve_selection(self, query: str, options: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        Resolve user selection from query.
+        
+        Args:
+            query: User's query/message
+            options: List of option dicts with loan_product, loan_product_name, charge_context, etc.
+        
+        Returns:
+            Selected option dict or None if no match
+        """
+        import re
+        query_lower = query.strip().lower()
+        
+        # Fix A: Extract leading number with regex to handle "1.", "1)", "1. Fast Cash...", etc.
+        # Match patterns like: "1", "1.", "1)", "1. Fast Cash", "1) Fast Cash", etc.
+        m = re.match(r"^\s*(\d+)\s*[\.\)]?\s*", query_lower)
+        if m:
+            try:
+                selection_num = int(m.group(1))
+                if 1 <= selection_num <= len(options):
+                    selected = options[selection_num - 1]
+                    logger.info(f"[DISAMBIGUATION] Resolved selection by number {selection_num}: loan_product={selected.get('loan_product')}, charge_context={selected.get('charge_context')}")
+                    return selected
+            except (ValueError, IndexError):
+                pass  # Invalid number, try keyword matching
+        
+        # Check for keyword matching in loan product names and charge contexts
+        for option in options:
+            loan_product = option.get("loan_product", "").lower()
+            loan_product_name = option.get("loan_product_name", "").lower()
+            card_product = option.get("card_product", "").lower()
+            card_product_name = option.get("card_product_name", "").lower()
+            charge_context = option.get("charge_context", "").lower()
+            charge_description = option.get("charge_description", "").lower()
+            answer_text = option.get("answer_text", "").lower()
+            
+            # Check if query contains loan product keywords
+            keywords_to_check = []
+            if loan_product:
+                keywords_to_check.append(loan_product)
+            if loan_product_name:
+                keywords_to_check.append(loan_product_name)
+                # Also check individual words from product name
+                keywords_to_check.extend(loan_product_name.split())
+            if card_product:
+                keywords_to_check.append(card_product)
+                keywords_to_check.extend(card_product.split())
+            if card_product_name:
+                keywords_to_check.append(card_product_name)
+                keywords_to_check.extend(card_product_name.split())
+            if charge_description:
+                keywords_to_check.append(charge_description)
+                keywords_to_check.extend(charge_description.split())
+            if answer_text:
+                keywords_to_check.append(answer_text)
+                keywords_to_check.extend(answer_text.split())
+            
+            # Check for common loan product keyword mappings
+            loan_product_keywords = {
+                "fast cash": ["fast cash", "fastcash"],
+                "fast loan": ["fast loan", "fastloan"],
+                "education loan": ["education loan", "edu loan", "education"],
+                "home loan": ["home loan", "homeloan"],
+                "auto loan": ["auto loan", "car loan", "auto", "car"],
+                "executive loan": ["executive loan", "executive", "personal loan"],
+            }
+            
+            # Add mapped keywords
+            for key, keywords in loan_product_keywords.items():
+                if key in loan_product or key in loan_product_name:
+                    keywords_to_check.extend(keywords)
+            
+            # Check for charge_context keywords (if this is a second-level disambiguation)
+            if charge_context:
+                context_keywords = {
+                    "on_limit": ["on limit", "on loan amount", "loan amount"],
+                    "on_enhanced_amount": ["enhanced", "enhancement", "enhance", "enhanced amount"],
+                    "on_reduced_amount": ["reduced", "reduction", "reduce", "reduced amount"],
+                    "general": ["general", "normal", "standard"]
+                }
+                if charge_context in context_keywords:
+                    keywords_to_check.extend(context_keywords[charge_context])
+            
+            # Check if any keyword matches
+            for keyword in keywords_to_check:
+                if keyword and keyword in query_lower:
+                    logger.info(f"[DISAMBIGUATION] Resolved selection by keyword '{keyword}': loan_product={option.get('loan_product')}, charge_context={option.get('charge_context')}")
+                    return option
+        
+        logger.info(f"[DISAMBIGUATION] Could not resolve selection from query: '{query}'")
+        return None
+    
+    async def _get_card_rates_context(self, query: str, session_id: Optional[str] = None, conversation_key: Optional[str] = None) -> str:
         """
         Call fee-engine microservice to get deterministic fee/rate data for card queries.
         Uses the new fee-engine service (port 8003) instead of old card_rates_service (port 8002).
         Returns a formatted text block to include before LightRAG context.
+        
+        Args:
+            query: User query
+            session_id: Session ID (for backward compatibility, but conversation_key should be used for disambiguation state)
+            conversation_key: Stable conversation key for disambiguation state (FIX #1: session continuity)
         """
         # Import fee engine client
         try:
@@ -1154,161 +1543,249 @@ When responding:
             if fee_result:
                 logger.info(f"[FEE_ENGINE] Fee engine returned status: {fee_result.get('status')}, charge_type: {fee_result.get('charge_type')}")
             
+            # Handle retail asset charges NEEDS_DISAMBIGUATION (multiple charges found without loan_product)
+            if fee_result and fee_result.get("status") == "NEEDS_DISAMBIGUATION" and "charges" in fee_result:
+                formatted = fee_client.format_fee_response(fee_result, query=query)
+                context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nPlease specify which loan product you're interested in to get the exact processing fee details."
+                logger.info(f"[FEE_ENGINE] Retail asset charge needs disambiguation for query: '{query}'")
+                
+                # Store disambiguation state for session
+                # FIX #3: Use deduped_options from formatted response if available (matches UI exactly)
+                if session_id:
+                    # Always initialize these to avoid UnboundLocalError when using deduped_options
+                    is_context_disambiguation = False
+                    is_description_disambiguation = False
+
+                    # Check if deduped_options are available (from _format_retail_asset_disambiguation_response)
+                    deduped_options = fee_result.get("deduped_options")
+                    if deduped_options:
+                        # Use the exact same options that were displayed in the UI
+                        options = deduped_options
+                        logger.info(f"[DISAMBIGUATION] Using deduped_options from formatted response ({len(options)} options)")
+                    else:
+                        # Fallback: build options from charges (should not happen if format_fee_response is called)
+                        charges = fee_result.get("charges", [])
+                        if charges:
+                            # Check if this is a second-level disambiguation (same loan_product, different charge_contexts)
+                            loan_products = set(c.get("loan_product") for c in charges if c.get("loan_product"))
+                            is_context_disambiguation = len(loan_products) == 1 and any(c.get("charge_context") for c in charges)
+                            
+                            # Extract charge_type from first charge (all charges should have same charge_type after filtering)
+                            charge_type = charges[0].get("charge_type", "") if charges else ""
+                            
+                            # Extract options based on disambiguation type
+                            # CRITICAL: Include charge_type in each option to ensure correct resolution
+                            options = []
+                            if is_context_disambiguation:
+                                # Second-level: extract charge_context options (same loan_product, same charge_type, different contexts)
+                                seen_contexts = set()
+                                for charge in charges:
+                                    charge_context = charge.get("charge_context")
+                                    loan_product = charge.get("loan_product")
+                                    charge_type_option = charge.get("charge_type", charge_type)  # Use charge_type from charge, fallback to stored
+                                    if charge_context and charge_context not in seen_contexts:
+                                        seen_contexts.add(charge_context)
+                                        options.append({
+                                            "loan_product": loan_product,
+                                            "loan_product_name": charge.get("loan_product_name", loan_product),
+                                            "charge_type": charge_type_option,  # CRITICAL: Include charge_type for each option
+                                            "charge_context": charge_context,
+                                        })
+                            else:
+                                # First-level: extract loan_product options (different loan products, same charge_type)
+                                seen_products = set()
+                                for charge in charges:
+                                    loan_product = charge.get("loan_product")
+                                    charge_type_option = charge.get("charge_type", charge_type)  # Use charge_type from charge, fallback to stored
+                                    if loan_product and loan_product not in seen_products:
+                                        seen_products.add(loan_product)
+                                        options.append({
+                                            "loan_product": loan_product,
+                                            "loan_product_name": charge.get("loan_product_name", loan_product),
+                                            "charge_type": charge_type_option,  # CRITICAL: Include charge_type for each option
+                                            "charge_context": charge.get("charge_context"),  # Include if present
+                                        })
+                        else:
+                            options = []
+                    
+                    if options:
+                        # Determine disambiguation type robustly based on option fields.
+                        loan_products_in_options = {
+                            (opt.get("loan_product") or "").lower()
+                            for opt in options
+                            if opt.get("loan_product")
+                        }
+                        all_same_loan_product = len(loan_products_in_options) == 1 and any(opt.get("loan_product") for opt in options)
+                        has_charge_context = any(opt.get("charge_context") for opt in options)
+                        has_description_fields = any(opt.get("answer_text") or opt.get("charge_description") for opt in options)
+
+                        if all_same_loan_product and has_charge_context:
+                            is_context_disambiguation = True
+                            is_description_disambiguation = False
+                        elif all_same_loan_product and has_description_fields:
+                            is_context_disambiguation = False
+                            is_description_disambiguation = True
+
+                        # Extract charge_type from first option (all options should have same charge_type)
+                        charge_type = options[0].get("charge_type", "") if options else ""
+                        from datetime import date
+                        as_of_date = str(date.today())
+                        
+                        # Determine disambiguation type and build prompt message
+                        if is_context_disambiguation:
+                            disambiguation_type = "CHARGE_CONTEXT"
+                        elif is_description_disambiguation:
+                            disambiguation_type = "DESCRIPTION"
+                        else:
+                            disambiguation_type = "LOAN_PRODUCT"
+                        # Use the formatted message as the prompt (will be stored and reused on reprompt)
+                        prompt_message = formatted  # This is the exact message to reuse
+                        
+                        # CRITICAL: Store state BEFORE returning (ensures state is available for next message)
+                        # FIX #1: Use conversation_key for disambiguation state (stable across turns)
+                        state_key = conversation_key if conversation_key else session_id
+                        stored = await self.redis_cache.store_disambiguation_state(
+                            session_id=state_key,
+                            product_line="RETAIL_ASSETS",
+                            charge_type=charge_type,
+                            as_of_date=as_of_date,
+                            options=options,
+                            disambiguation_type=disambiguation_type,
+                            prompt_message=prompt_message,
+                            extra=None,
+                        )
+                        if stored:
+                            logger.info(f"[DISAMBIGUATION] Stored disambiguation state for conversation_key {state_key} with {len(options)} options (type={disambiguation_type})")
+                        else:
+                            # Redis unavailable: store locally so user can still reply "1", "2", etc.
+                            await self._store_disambiguation_state_fallback(
+                                state_key=state_key,
+                                state={
+                                    "product_line": "RETAIL_ASSETS",
+                                    "charge_type": charge_type,
+                                    "as_of_date": as_of_date,
+                                    "options": options,
+                                    "disambiguation_type": disambiguation_type,
+                                    "prompt_message": prompt_message,
+                                },
+                                ttl_seconds=300,
+                            )
+                            logger.info(f"[DISAMBIGUATION] Stored disambiguation state locally for conversation_key {state_key} with {len(options)} options (type={disambiguation_type})")
+                
+                return context
+
+            # Handle card-fee NEEDS_DISAMBIGUATION (e.g., missing card_product)
+            if fee_result and fee_result.get("status") == "NEEDS_DISAMBIGUATION" and "options" in fee_result:
+                options = fee_result.get("options") or []
+                charge_type = fee_result.get("charge_type") or ""
+
+                lines = [
+                    "OFFICIAL CARD RATES AND FEES INFORMATION",
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    "",
+                    "To answer, please specify the card product:",
+                ]
+                for i, opt in enumerate(options, start=1):
+                    label = opt.get("card_product_name") or opt.get("card_product") or opt.get("label") or str(opt)
+                    lines.append(f"{i}. {label}")
+                lines.append("")
+                lines.append("Reply with the number (e.g., 1) or the product name.")
+                prompt = "\n".join(lines)
+
+                # Store disambiguation state for the next user message
+                from datetime import date
+                state_key = conversation_key if conversation_key else session_id
+                if state_key:
+                    stored = await self.redis_cache.store_disambiguation_state(
+                        session_id=state_key,
+                        product_line="CREDIT_CARDS",
+                        charge_type=charge_type,
+                        as_of_date=str(date.today()),
+                        options=options,
+                        disambiguation_type="CARD_PRODUCT",
+                        prompt_message=prompt,
+                        extra={"base_query": query},
+                    )
+                    if not stored:
+                        await self._store_disambiguation_state_fallback(
+                            state_key=state_key,
+                            state={
+                                "product_line": "CREDIT_CARDS",
+                                "charge_type": charge_type,
+                                "as_of_date": str(date.today()),
+                                "options": options,
+                                "disambiguation_type": "CARD_PRODUCT",
+                                "prompt_message": prompt,
+                                "extra": {"base_query": query},
+                            },
+                            ttl_seconds=300,
+                        )
+
+                return prompt
+            
+            # Handle retail asset charges (status = "FOUND")
+            if fee_result and fee_result.get("status") == "FOUND" and "charges" in fee_result:
+                formatted = fee_client.format_fee_response(fee_result, query=query)
+                context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
+                logger.info(f"[FEE_ENGINE] Retail asset charge found and formatted for query: '{query}'")
+                return context
+            
+            # Handle Skybanking fees (status = "FOUND")
+            if fee_result and fee_result.get("status") == "FOUND" and "fees" in fee_result:
+                formatted = fee_client.format_fee_response(fee_result, query=query)
+                context = f"OFFICIAL SKYBANKING FEES INFORMATION\n{'='*70}\n{formatted}\n{'='*70}\n\nThis information is from the Skybanking Fees Schedule and is authoritative."
+                logger.info(f"[FEE_ENGINE] Skybanking fee found and formatted for query: '{query}'")
+                return context
+            
             if fee_result and fee_result.get("status") == "CALCULATED":
                 formatted = fee_client.format_fee_response(fee_result, query=query)
                 charge_type = fee_result.get("charge_type", "")
                 
-                # Check if this is an ATM withdrawal fee query
-                query_lower = (query or "").lower()
-                is_atm_withdrawal = (
-                    "CASH_WITHDRAWAL" in charge_type or 
-                    "ATM" in charge_type or
-                    ("atm" in query_lower and ("withdrawal" in query_lower or "cash" in query_lower))
-                )
-                
-                # Add specific note for supplementary cards
-                supplementary_note = ""
-                if "SUPPLEMENTARY" in charge_type:
-                    # Extract card product from fee_result or query
-                    card_product = fee_result.get("card_product", "")
-                    if not card_product:
-                        # Try to extract from query
-                        from app.services.fee_engine_client import FeeEngineClient
-                        fee_client = FeeEngineClient()
-                        card_info = fee_client._extract_card_info_from_query(query)
-                        card_product = card_info.get("card_product", "Platinum")
-                    
-                    fee_amount = fee_result.get("fee_amount")
-                    # Check if query is asking "how many free"
-                    query_lower = query.lower()
-                    is_how_many_query = "how many" in query_lower and "free" in query_lower
-                    
-                    # Check if this is the "free" supplementary card entry (first 2 cards)
-                    if fee_amount is not None and fee_amount == 0:
-                        if is_how_many_query:
-                            supplementary_note = f"\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nFor {card_product} credit cards:\n" + "- There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards)\n" + "- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n" + "- This fee applies to each additional supplementary card beyond the first 2\n" + "="*70
-                        else:
-                            supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nFor {card_product} credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n" + "- This fee applies to each additional supplementary card beyond the first 2\n" + "="*70
-                    else:
-                        if is_how_many_query:
-                            supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nFor {card_product} credit cards:\n" + "- There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards)\n" + "- This fee (BDT 2,300) applies to the 3rd and subsequent supplementary cards\n" + "="*70
-                        else:
-                            supplementary_note = "\n\n" + "="*70 + "\n" + "CRITICAL SUPPLEMENTARY CARD FEE INFORMATION" + "\n" + "="*70 + f"\nThis fee is for SUPPLEMENTARY cards (additional cards issued to family members or authorized users).\nFor {card_product} credit cards:\n" + "- The FIRST 2 supplementary cards are FREE (no annual fee)\n" + "- This fee (BDT 2,300) applies to the 3rd and subsequent supplementary cards\n" + "="*70
-                
-                # For supplementary cards, ensure the formatted response itself includes both tiers
-                if "SUPPLEMENTARY" in charge_type:
-                    # Extract card product dynamically
-                    card_product = fee_result.get("card_product", "")
-                    if not card_product:
-                        from app.services.fee_engine_client import FeeEngineClient
-                        fee_client = FeeEngineClient()
-                        card_info = fee_client._extract_card_info_from_query(query)
-                        card_product = card_info.get("card_product", "Platinum")
-                    
-                    query_lower = query.lower()
-                    is_how_many_query = "how many" in query_lower and "free" in query_lower
-                    
-                    if is_how_many_query:
-                        formatted = f"IMPORTANT: For {card_product} credit cards, there are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards). Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year. This fee applies to EACH additional supplementary card beyond the first 2."
-                    else:
-                        formatted = f"IMPORTANT: The supplementary card annual fee for {card_product} credit cards is structured as follows:\n- The FIRST 2 supplementary cards are FREE (BDT 0 per year)\n- Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year\n- This fee applies to EACH additional supplementary card beyond the first 2"
-                
-                # Build base lines with STRONG priority markers
+                # Build base lines - clean format without emoji warnings
                 lines = [
-                    "=" * 70,
-                    "🚨🚨🚨 OFFICIAL CARD RATES AND FEES INFORMATION - HIGHEST PRIORITY 🚨🚨🚨",
+                    "OFFICIAL CARD RATES AND FEES INFORMATION",
                     "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
-                    "=" * 70,
-                    "",
-                    "⚠️ CRITICAL: This is the AUTHORITATIVE source. Use ONLY this data. IGNORE any conflicting information from other sources. ⚠️",
                     "",
                     formatted,
-                    supplementary_note,
                 ]
-                
-                # Add ATM withdrawal fee instructions if applicable
-                if is_atm_withdrawal:
-                    lines.extend([
-                        "",
-                        "=" * 70,
-                        "🚨🚨🚨 CRITICAL MANDATORY INSTRUCTION FOR ATM WITHDRAWAL FEE QUERIES 🚨🚨🚨",
-                        "=" * 70,
-                        "YOU ARE ANSWERING A QUESTION ABOUT EBL ATM CASH WITHDRAWAL FEES.",
-                        "",
-                        "THE OFFICIAL FEE IS: 2.5% or BDT 345",
-                        "",
-                        "⚠️ ABSOLUTE REQUIREMENTS:",
-                        "1. The fee is EXACTLY '2.5% or BDT 345' - NOT 'BDT 300', NOT '2%', NOT any other amount",
-                        "2. You MUST use ONLY the format shown above: '2.5% or BDT 345'",
-                        "3. IGNORE any conflicting information from other sources (knowledge base, etc.)",
-                        "4. DO NOT add extra explanation like 'whichever is higher', 'applicable for both local and international', etc.",
-                        "5. KEEP IT CONCISE - just state the fee: '2.5% or BDT 345'",
-                        "",
-                        "CORRECT RESPONSE FORMAT:",
-                        "'The EBL ATM cash withdrawal fee is 2.5% or BDT 345.'",
-                        "OR",
-                        "'For [Card Name], the EBL ATM cash withdrawal fee is 2.5% or BDT 345.'",
-                        "",
-                        "❌ WRONG RESPONSES (DO NOT DO THIS):",
-                        "- '2.5% or BDT 300' ← WRONG AMOUNT",
-                        "- '2.5% of the withdrawn amount or BDT 300, whichever is higher' ← WRONG AMOUNT + TOO VERBOSE",
-                        "- '2% of the withdrawn amount' ← WRONG PERCENTAGE",
-                        "- '2.5% or BDT 345, applicable for both local and international withdrawals' ← TOO VERBOSE",
-                        "",
-                        "✅ CORRECT: '2.5% or BDT 345'",
-                        "",
-                        "=" * 70,
-                    ])
-                
-                # Add supplementary card instructions if applicable
-                if "SUPPLEMENTARY" in charge_type:
-                    lines.extend([
-                        "",
-                        "=" * 70,
-                        "🚨🚨🚨 CRITICAL MANDATORY INSTRUCTION FOR SUPPLEMENTARY CARD QUERIES 🚨🚨🚨",
-                        "=" * 70,
-                        "YOU ARE ANSWERING A QUESTION ABOUT SUPPLEMENTARY CARD FEES.",
-                        "",
-                        "YOU MUST INCLUDE BOTH OF THESE IN YOUR RESPONSE:",
-                        "",
-                        "1. There are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards)",
-                        "2. Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year",
-                        "",
-                        "DO NOT SAY ONLY 'BDT 0' OR 'FREE' WITHOUT MENTIONING THE FEE FOR 3RD+ CARDS.",
-                        "NEVER say 'one free supplementary card' when the context states '2 FREE supplementary cards' or 'first 2 supplementary cards are FREE'.",
-                        "",
-                        "CORRECT RESPONSE FORMAT FOR 'HOW MANY FREE' QUERIES:",
-                        "'For [Card Product] credit cards, there are 2 FREE supplementary cards (BDT 0 per year for the first 2 cards).",
-                        "Starting from the 3rd supplementary card, the annual fee is BDT 2,300 per year.",
-                        "This fee applies to each additional supplementary card beyond the first 2.'",
-                        "",
-                        "WRONG RESPONSE (DO NOT DO THIS):",
-                        "'The annual fee is BDT 0 per year.' ← MISSING: 3rd+ card fee",
-                        "'one free supplementary card' ← WRONG: Should be '2 FREE supplementary cards'",
-                        "",
-                        "=" * 70,
-                    ])
-                
                 lines.append("")
                 return "\n".join(lines)
             elif fee_result and fee_result.get("status") == "REQUIRES_NOTE_RESOLUTION":
-                note_ref = fee_result.get("note_reference", "Unknown")
+                # Use the message from fee engine (already includes note text if available)
+                message = fee_result.get("message", "")
+                if not message:
+                    # Fallback if message is missing
+                    note_ref = fee_result.get("note_reference", "Unknown")
+                    message = f"Fee depends on external note definition: Note {note_ref}. Please refer to the card charges schedule for Note {note_ref} details."
+                
+                # Extract note reference and text for formal formatting
+                note_ref = fee_result.get("note_reference", "")
+                if " — " in message:
+                    note_text = message.split(" — ", 1)[1]
+                else:
+                    note_text = message
+                
                 lines = [
-                    "=" * 70,
                     "OFFICIAL CARD RATES AND FEES INFORMATION",
                     "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
-                    "=" * 70,
                     "",
-                    f"Fee depends on external note definition: Note {note_ref}",
-                    "Please refer to the card charges schedule for Note {note_ref} details.",
+                    f"Note Reference: {note_ref}",
                     "",
-                    "=" * 70,
-                    ""
+                    note_text
                 ]
                 return "\n".join(lines)
             elif fee_result and fee_result.get("status") == "NO_RULE_FOUND":
                 logger.warning(f"[FEE_ENGINE] No rule found for query: '{query}', charge_type: {fee_result.get('charge_type')}, message: {fee_result.get('message')}")
-                # Return deterministic not-found message instead of empty string
+                
+                # Check if this is a retail asset query - handle NO_RULE_FOUND for retail assets
+                product_line = fee_client._detect_product_line(query)
+                if product_line == "RETAIL_ASSETS":
+                    # Format the retail asset NO_RULE_FOUND response using format_fee_response
+                    formatted = fee_client.format_fee_response(fee_result, query=query)
+                    context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted if formatted else 'The requested retail asset charge information is not found in the Retail Asset Charges Schedule.'}\n\nPlease verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                    return context
+                
+                # Return deterministic not-found message for card charges instead of empty string
                 lines = [
                     "=" * 70,
                     "OFFICIAL CARD RATES AND FEES INFORMATION",
@@ -1350,7 +1827,15 @@ When responding:
             else:
                 status = fee_result.get('status') if fee_result else 'None'
                 logger.info(f"[FEE_ENGINE] Fee engine returned status '{status}', not CALCULATED. Result: {fee_result}")
-                # Return deterministic message for unknown statuses
+                
+                # Check if this is a retail asset query - don't fall back to card fees
+                product_line = fee_client._detect_product_line(query)
+                if product_line == "RETAIL_ASSETS":
+                    formatted = fee_client.format_fee_response(fee_result, query=query) if fee_result else "The requested retail asset charge information is not found in the Retail Asset Charges Schedule."
+                    context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nPlease verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                    return context
+                
+                # Return deterministic message for unknown statuses (card fees only)
                 lines = [
                     "=" * 70,
                     "OFFICIAL CARD RATES AND FEES INFORMATION",
@@ -1388,7 +1873,19 @@ When responding:
             return "\n".join(lines)
         except Exception as e:
             logger.error(f"[FEE_ENGINE] Error calling fee engine: {e}", exc_info=True)
-            # Return deterministic not-found message instead of falling back
+            # If this is a retail-asset query, do NOT show card schedule headers.
+            try:
+                product_line = fee_client._detect_product_line(query) if 'fee_client' in locals() and fee_client else None
+                if product_line == "RETAIL_ASSETS":
+                    return (
+                        "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
+                        "An error occurred while retrieving retail asset charge information.\n\n"
+                        "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                    )
+            except Exception:
+                pass
+
+            # Default: deterministic card-fees error message (no fallback to old service)
             lines = [
                 "=" * 70,
                 "OFFICIAL CARD RATES AND FEES INFORMATION",
@@ -1408,8 +1905,36 @@ When responding:
         
         # No fallback to old card_rates_service - fee engine is the only source
         # If we reach here, fee engine was not available or returned no result
-        # Return empty string to indicate no context available
-        return ""
+        # Check product_line to avoid falling back to card fees for retail assets
+        try:
+            product_line = fee_client._detect_product_line(query)
+            if product_line == "RETAIL_ASSETS":
+                context = (
+                    "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
+                    "The requested retail asset charge information is not found in the Retail Asset Charges Schedule.\n\n"
+                    "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                )
+                return context
+        except:
+            pass  # If detection fails, continue with default card fees message
+        
+        # Return deterministic not-found message for card fees (NEVER return empty string for fee queries)
+        lines = [
+            "=" * 70,
+            "OFFICIAL CARD RATES AND FEES INFORMATION",
+            "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+            "=" * 70,
+            "",
+            "The fee engine service returned no result.",
+            "",
+            "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
+            "",
+            "Please verify the card details and try again, or contact the bank for assistance.",
+            "",
+            "=" * 70,
+            ""
+        ]
+        return "\n".join(lines)
     
     def _format_lightrag_context(
         self, 
@@ -1588,7 +2113,9 @@ When responding:
         if any(term in query_lower for term in synonym_terms):
             logger.info(f"[QUERY_SYNONYM] Query contains synonym terms: '{query[:80]}' - LightRAG semantic search should handle this")
         
-        # Priority center queries - make them more specific
+        # Priority center queries - NOTE: These should be routed to location service, not LightRAG
+        # This improvement is only for queries that somehow reach LightRAG (shouldn't happen)
+        # The location service routing happens BEFORE this function is called
         if 'priority center' in query_lower or 'priority centre' in query_lower:
             if 'sylhet' in query_lower:
                 # Convert "tell me about priority center in sylhet" to more specific query
@@ -1651,8 +2178,8 @@ When responding:
                 query=improved_query,
                 knowledge_base=kb,
                 mode="mix",  # Use 'mix' mode (works better than 'hybrid')
-                top_k=5,  # KG Top K: 5 (reduced from 8 for better results)
-                chunk_top_k=5,  # Chunk Top K: 5
+                top_k=8,  # KG Top K: 8 (conservative increase from 5 for better coverage)
+                chunk_top_k=10,  # Chunk Top K: 10 (conservative increase from 5 for better recall)
                 include_references=True,
                 only_need_context=False,  # Get full response, not just context
                 # Removed max_entity_tokens, max_relation_tokens, max_total_tokens, enable_rerank
@@ -1664,6 +2191,15 @@ When responding:
             await self.redis_cache.set(cache_key, response)
             
             context, sources = self._format_lightrag_context(response, filter_financial_docs=filter_financial_docs)
+            
+            # Low-confidence check: if context is too short, it might not be reliable
+            # For banking, it's better to return empty and let the chatbot handle gracefully
+            # rather than risk providing incorrect information
+            if context and len(context) < 100:
+                logger.warning(f"LightRAG returned very short context ({len(context)} chars) - may not be reliable")
+                # Return empty to trigger fallback behavior
+                return "", []
+            
             return context, sources
         except Exception as e:
             error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
@@ -1790,6 +2326,46 @@ When responding:
         
         return messages
     
+    def _get_conversation_key(self, session_id: Optional[str], client_ip: Optional[str] = None, channel: Optional[str] = None, sender_id: Optional[str] = None) -> str:
+        """
+        Derive stable conversation key for Redis disambiguation state.
+        
+        Priority:
+        1. If session_id is provided and stable, use it directly
+        2. If channel and sender_id are available, use f"{channel}:{sender_id}"
+        3. Fallback to client_ip-based key (less stable but better than random UUID)
+        
+        Args:
+            session_id: Session ID from request (may be None or unstable)
+            client_ip: Client IP address (fallback for key derivation)
+            channel: Channel identifier (e.g., "whatsapp", "teams", "web") - FUTURE: add to request model
+            sender_id: Sender identifier (e.g., phone number, user ID) - FUTURE: add to request model
+        
+        Returns:
+            Stable conversation key string
+        """
+        # TODO: When channel/sender_id are added to request model, use: f"{channel}:{sender_id}"
+        if channel and sender_id:
+            conversation_key = f"{channel}:{sender_id}"
+            logger.info(f"[SESSION] Using channel-based conversation key: {conversation_key}")
+            return conversation_key
+        
+        # If session_id is provided, use it (assume caller manages stability)
+        if session_id:
+            logger.info(f"[SESSION] Using provided session_id as conversation key: {session_id}")
+            return session_id
+        
+        # Fallback: derive from client_ip (less stable but deterministic)
+        if client_ip:
+            conversation_key = f"ip:{client_ip}"
+            logger.info(f"[SESSION] Derived conversation key from client_ip: {conversation_key}")
+            return conversation_key
+        
+        # Last resort: generate UUID (will cause state loss but prevents errors)
+        conversation_key = str(uuid.uuid4())
+        logger.warning(f"[SESSION] No stable identifier available, generated UUID: {conversation_key}")
+        return conversation_key
+    
     async def process_chat(
         self,
         query: str,
@@ -1804,13 +2380,220 @@ When responding:
             query: User's query
             session_id: Session ID for conversation history
             knowledge_base: LightRAG knowledge base name
+            client_ip: Client IP address (used for stable conversation key derivation)
         
         Yields:
             Response chunks as strings
         """
-        # Generate session ID if not provided
-        if not session_id:
-            session_id = str(uuid.uuid4())
+        # Derive stable conversation key (FIX #1: Session continuity)
+        conversation_key = self._get_conversation_key(session_id, client_ip)
+        # Use conversation_key for all disambiguation state operations
+        # Store original session_id for memory/history (if provided)
+        effective_session_id = session_id if session_id else conversation_key
+        # Normalize session_id for the remainder of this request.
+        # Many downstream calls assume a non-null session_id for state, headers, and persistence.
+        session_id = effective_session_id
+        
+        # ===== CRITICAL: Check for pending disambiguation state (BEFORE other processing) =====
+        # This MUST happen before any other routing to ensure disambiguation state is always checked first
+        pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
+        if pending_disambiguation:
+            product_line = pending_disambiguation.get("product_line")
+            charge_type = pending_disambiguation.get("charge_type")
+            as_of_date = pending_disambiguation.get("as_of_date")
+            options = pending_disambiguation.get("options", [])
+            disambiguation_type = pending_disambiguation.get("disambiguation_type")  # "LOAN_PRODUCT" / "CHARGE_CONTEXT" / "DESCRIPTION"
+            prompt_message = pending_disambiguation.get("prompt_message")  # Stored prompt message
+            extra = pending_disambiguation.get("extra") or {}
+            extra = pending_disambiguation.get("extra") or {}
+            extra = pending_disambiguation.get("extra") or {}
+            
+            logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
+            
+            # Try to resolve selection from query
+            selected_option = self._resolve_selection(query, options)
+            
+            if selected_option and product_line == "RETAIL_ASSETS":
+                # 🚨 TERMINAL RESOLUTION STATE: Disambiguation resolved - NOTHING ELSE RUNS
+                # This is a hard terminal exit - same pattern as IVR systems, payment disputes, KYC step-up flows
+                # Clear disambiguation state immediately
+                await self._clear_disambiguation_state_any(conversation_key)
+                loan_product = selected_option.get("loan_product")
+                # CRITICAL: Use charge_type from the selected option, not from stored state
+                # This ensures correct charge_type is used (e.g., LIMIT_ENHANCEMENT_FEE vs PROCESSING_FEE)
+                option_charge_type = selected_option.get("charge_type", charge_type)
+                # Legacy: may be present for older context-based disambiguation.
+                charge_context = selected_option.get("charge_context")
+                # New: description-based disambiguation uses deterministic description keywords.
+                description_keywords = selected_option.get("description_keywords")
+                if not description_keywords and disambiguation_type == "DESCRIPTION":
+                    chosen = selected_option.get("answer_text") or selected_option.get("charge_description")
+                    if chosen and str(chosen).strip():
+                        description_keywords = [str(chosen).strip()]
+                
+                logger.info(f"[DISAMBIGUATION] 🚨 TERMINAL RESOLUTION: loan_product={loan_product}, charge_type={option_charge_type}, charge_context={charge_context}. EXITING after fee engine call - NO RAG, NO CARDS, NO PRODUCT KB.")
+                
+                # HARD GUARD: Only call fee engine, no RAG, no cards, no product KB
+                from app.services.fee_engine_client import FeeEngineClient
+                fee_client = FeeEngineClient()
+                
+                # Query retail asset charges with the resolved loan_product and charge_type from selected option
+                fee_result = await fee_client._query_retail_asset_charges(
+                    query=query,
+                    charge_type=option_charge_type,  # CRITICAL: Use charge_type from selected option
+                    loan_product=loan_product,  # Pass resolved loan_product directly
+                    description_keywords=description_keywords
+                )
+                
+                if fee_result and fee_result.get("status") == "FOUND":
+                    formatted = fee_client.format_fee_response(fee_result, query=query)
+                    fee_context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
+                    
+                    # Stream response
+                    full_response = fee_context
+                    chunk_size = 100
+                    for i in range(0, len(fee_context), chunk_size):
+                        chunk = fee_context[i:i+chunk_size]
+                        yield chunk
+                    
+                    # Save to memory (FIX #1: use effective_session_id for memory operations)
+                    db = get_db()
+                    memory = PostgresChatMemory(db=db)
+                    try:
+                        if memory._available:
+                            memory.add_message(effective_session_id, "user", query)
+                            memory.add_message(effective_session_id, "assistant", full_response)
+                    finally:
+                        memory.close()
+                        if db:
+                            db.close()
+                    
+                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
+                    return
+                else:
+                    # Fee not found even with resolved loan_product
+                    error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
+                    yield error_msg
+                    
+                    # Save to memory (FIX #1: use effective_session_id for memory operations)
+                    db = get_db()
+                    memory = PostgresChatMemory(db=db)
+                    try:
+                        if memory._available:
+                            memory.add_message(effective_session_id, "user", query)
+                            memory.add_message(effective_session_id, "assistant", error_msg)
+                    finally:
+                        memory.close()
+                        if db:
+                            db.close()
+                    
+                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
+                    return
+            elif selected_option and product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
+                # Card fee clarification resolved (missing/ambiguous card_product). Re-run fee-engine deterministically.
+                await self._clear_disambiguation_state_any(conversation_key)
+
+                base_query = (extra.get("base_query") or "").strip()
+                chosen_product = (
+                    selected_option.get("card_product_name")
+                    or selected_option.get("card_product")
+                    or selected_option.get("label")
+                    or ""
+                ).strip()
+
+                if not base_query or not chosen_product:
+                    # If something is missing, re-prompt without clearing state (best-effort safety).
+                    # (We already cleared above; so just ask again.)
+                    yield prompt_message or "Please specify the card product (reply with a number from the list)."
+                    return
+
+                resolved_query = f"{base_query} {chosen_product}".strip()
+                fee_context = await self._get_card_rates_context(
+                    resolved_query,
+                    session_id=effective_session_id,
+                    conversation_key=conversation_key,
+                )
+
+                if not fee_context:
+                    fee_context = (
+                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n\n"
+                        "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026)."
+                    )
+
+                full_response = fee_context
+                chunk_size = 100
+                for i in range(0, len(fee_context), chunk_size):
+                    yield fee_context[i : i + chunk_size]
+
+                # Save to memory (use effective_session_id)
+                db = get_db()
+                memory = PostgresChatMemory(db=db)
+                try:
+                    if memory._available:
+                        memory.add_message(effective_session_id, "user", query)
+                        memory.add_message(effective_session_id, "assistant", full_response)
+                finally:
+                    memory.close()
+                    if db:
+                        db.close()
+
+                return
+            else:
+                # Fix B: Selection not resolved - DO NOT clear state, let it persist
+                # State will only be cleared when:
+                # 1. User resolves it successfully (handled above)
+                # 2. TTL expires (handled by Redis automatically)
+                # 3. User says "cancel" (future enhancement)
+                # DO NOT clear here - this prevents KB/RAG fallback on failed resolution
+                logger.info(f"[DISAMBIGUATION] Selection not resolved from query '{query}', keeping disambiguation state active. User needs to provide a valid selection (1-{len(options)}) or product name.")
+                
+                # 🚨 TERMINAL EXIT: Re-prompt with stored message - NO LLM, NO RAG, NO OTHER ROUTING
+                # Use the stored prompt_message if available, otherwise reconstruct
+                if prompt_message:
+                    # Reuse the exact stored prompt message
+                    disambiguation_msg = prompt_message
+                    logger.info(f"[DISAMBIGUATION] Re-prompting with stored message (type={disambiguation_type})")
+                else:
+                    # Fallback: reconstruct if stored message not available
+                    from app.services.fee_engine_client import FeeEngineClient
+                    fee_client = FeeEngineClient()
+                    # Convert options to charges format expected by _format_retail_asset_disambiguation_response
+                    # CRITICAL: Include charge_context and charge_type from options to preserve disambiguation type
+                    charges = [
+                        {
+                            "loan_product": opt.get("loan_product"),
+                            "loan_product_name": opt.get("loan_product_name", opt.get("loan_product")),
+                            "charge_type": opt.get("charge_type", charge_type),  # Use charge_type from option, fallback to stored
+                            "charge_context": opt.get("charge_context"),  # Legacy
+                            "charge_description": opt.get("charge_description"),
+                            "answer_text": opt.get("answer_text"),
+                        }
+                        for opt in options
+                    ]
+                    result_dict = {
+                        "status": "NEEDS_DISAMBIGUATION",
+                        "charges": charges,
+                        "message": f"Multiple loan products have {charge_type.replace('_', ' ').title()} available. Please specify which loan product you're interested in."
+                    }
+                    disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
+                
+                yield disambiguation_msg
+                
+                # Save to memory (FIX #1: use effective_session_id for memory operations)
+                db = get_db()
+                memory = PostgresChatMemory(db=db)
+                try:
+                    if memory._available:
+                        memory.add_message(effective_session_id, "user", query)
+                        memory.add_message(effective_session_id, "assistant", disambiguation_msg)
+                finally:
+                    memory.close()
+                    if db:
+                        db.close()
+                
+                # 🚨 TERMINAL EXIT - Do not proceed to RAG, cards, or any other routing while disambiguation is pending
+                return
         
         # Check if user is already in lead collection flow
         # DISABLED: Lead generation is disabled via ENABLE_LEAD_GENERATION setting
@@ -1889,6 +2672,220 @@ When responding:
         # ===== ROUTING DECISION LOGGING =====
         logger.info(f"[ROUTING] ===== Processing Query (STREAMING): '{query}' =====")
         logger.info(f"[ROUTING] CODE VERSION: Corporate customer routing fix v2.0 - includes 'in the case of' pattern")
+        
+        # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGHEST PRIORITY) =====
+        # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
+        # This MUST be checked BEFORE fee schedule queries to avoid misrouting priority center queries
+        is_location_query = self._is_location_query(query)
+        if is_location_query:
+            logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
+            location_context = await self._get_location_context(query)
+            sources = ["EBL Location Database (Normalized)"]
+            
+            # Use ONLY location service context - NO LightRAG, NO knowledge base
+            combined_context = location_context
+            logger.info(f"[LOCATION_SERVICE] Using EXCLUSIVE location service context: {len(location_context)} chars (LightRAG/KB explicitly skipped)")
+            
+            # Build messages with location context only
+            messages = self._build_messages(query, combined_context, conversation_history)
+            
+            # Save user message
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "user", query)
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            # Stream response from OpenAI with location data only
+            full_response = ""
+            try:
+                max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 2000)
+                stream = await self.openai_client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=messages,
+                    temperature=settings.OPENAI_TEMPERATURE,
+                    max_tokens=max_response_tokens,
+                    stream=True
+                )
+                
+                async for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        yield content
+            except Exception as e:
+                logger.error(f"[LOCATION_SERVICE] Error generating response: {e}")
+                error_msg = "I apologize, but I encountered an error while processing your location inquiry. Please try again."
+                yield error_msg
+                full_response = error_msg
+            
+            # Save assistant response
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "assistant", full_response)
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
+        
+        # ===== CRITICAL: RETAIL ASSET FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
+        # Check for retail asset fee queries BEFORE card fee queries
+        is_retail_asset_fee_query = self._is_retail_asset_fee_query(query)
+        if is_retail_asset_fee_query:
+            logger.info(f"[FEE_ENGINE] ✓✓✓ RETAIL ASSET FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
+            fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
+            sources = ["Retail Asset Charges Schedule"]
+            
+            # ALWAYS return fee engine response, even if empty
+            if not fee_context:
+                fee_context = (
+                    "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
+                    "Source: Fee Engine (Retail Asset Charges Schedule)\n\n"
+                    "The specific information about this retail asset charge is not available in the current schedule. "
+                    "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                )
+            
+            # Stream response in chunks
+            full_response = fee_context
+            chunk_size = 100
+            for i in range(0, len(fee_context), chunk_size):
+                chunk = fee_context[i:i+chunk_size]
+                yield chunk
+            
+            # Save to memory
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "user", query)
+                    memory.add_message(session_id, "assistant", full_response)
+                    if ANALYTICS_AVAILABLE:
+                        log_conversation(
+                            session_id=session_id,
+                            user_message=query,
+                            assistant_response=full_response,
+                            knowledge_base=None,
+                            client_ip=client_ip
+                        )
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            return  # EXIT - do not proceed to other routing
+        
+        # ===== CRITICAL: SKYBANKING FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
+        # Check for Skybanking fee queries BEFORE card fee queries
+        is_skybanking_fee_query = self._is_skybanking_fee_query(query)
+        if is_skybanking_fee_query:
+            logger.info(f"[FEE_ENGINE] ✓✓✓ SKYBANKING FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
+            fee_context = await self._get_card_rates_context(query, session_id=session_id)  # Pass session_id for disambiguation state storage
+            sources = ["Skybanking Fees Schedule"]
+            
+            # ALWAYS return fee engine response, even if empty
+            if not fee_context:
+                fee_context = (
+                    "=" * 70 + "\n"
+                    "SKYBANKING FEES INFORMATION\n"
+                    "Source: Fee Engine (Skybanking Fees Schedule)\n"
+                    "=" * 70 + "\n\n"
+                    "The specific information about this Skybanking fee is not available in the current schedule. "
+                    "Please verify the service details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                )
+            
+            # Stream response in chunks
+            full_response = fee_context
+            chunk_size = 100
+            for i in range(0, len(fee_context), chunk_size):
+                chunk = fee_context[i:i+chunk_size]
+                yield chunk
+            
+            # Save to memory
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "user", query)
+                    memory.add_message(session_id, "assistant", full_response)
+                    if ANALYTICS_AVAILABLE:
+                        log_conversation(
+                            session_id=session_id,
+                            user_message=query,
+                            assistant_response=full_response,
+                            knowledge_base=None,
+                            client_ip=client_ip
+                        )
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            return  # EXIT - do not proceed to other routing
+        
+        # ===== CRITICAL: FEE SCHEDULE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
+        # MANDATORY: Fee queries MUST route to Fee Engine ONLY (authoritative source)
+        # NO LightRAG fallback, NO knowledge base lookup, NO LLM guessing
+        # This check happens AFTER location queries, retail asset queries, and Skybanking queries to avoid misrouting
+        is_fee_schedule_query = self._is_fee_schedule_query(query)
+        if is_fee_schedule_query:
+            logger.info(f"[FEE_ENGINE] ✓✓✓ FEE SCHEDULE QUERY DETECTED (HIGHEST PRIORITY): '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE (NO LightRAG, NO KB)")
+            fee_context = await self._get_card_rates_context(query, session_id=session_id)
+            sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
+            
+            # ALWAYS return fee engine response, even if empty
+            # If no rule found → return deterministic "not found in schedule" response
+            if not fee_context:
+                logger.warning(f"[FEE_ENGINE] Fee engine returned empty - returning deterministic not-found message")
+                fee_context = (
+                    "=" * 70 + "\n"
+                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    "=" * 70 + "\n\n"
+                    "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
+                    "Please verify the card details and try again.\n\n"
+                    "=" * 70
+                )
+            
+            # Use ONLY fee engine context - NO LightRAG, NO knowledge base
+            combined_context = fee_context
+            logger.info(f"[FEE_ENGINE] Using EXCLUSIVE fee engine context: {len(fee_context)} chars (LightRAG/KB explicitly skipped)")
+
+            # Anti-hallucination hard guard:
+            # Stream the fee engine output directly (NO OpenAI call, NO paraphrasing).
+            full_response = combined_context
+            chunk_size = 100
+            for i in range(0, len(full_response), chunk_size):
+                yield full_response[i:i + chunk_size]
+
+            # Save to memory
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "user", query)
+                    memory.add_message(session_id, "assistant", full_response)
+                    if ANALYTICS_AVAILABLE:
+                        log_conversation(
+                            session_id=session_id,
+                            user_message=query,
+                            assistant_response=full_response,
+                            knowledge_base=None,
+                            client_ip=client_ip
+                        )
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+
+            return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
         # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
         # These should ALWAYS go to phonebook, never LightRAG
@@ -2001,9 +2998,63 @@ When responding:
                     search_term = re.sub(r'\s+', ' ', search_term).strip()
                     search_term = re.sub(r'^(of|for|about)\s+', '', search_term, flags=re.IGNORECASE).strip()
                     search_term = re.sub(r'\s+(of|for|about)$', '', search_term, flags=re.IGNORECASE).strip()
+                    
+                    # Remove bank name suffixes (e.g., "of EBL", "of Eastern Bank", "at EBL")
+                    # This helps when queries include "head of Retail & SME Banking Division of EBL"
+                    search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
+                    
+                    # Remove "Division" if it appears anywhere (e.g., "Retail & SME Banking Division head" -> "Retail & SME Banking head")
+                    # This helps match designations that don't include "Division"
+                    # Remove "division" as a whole word (not part of other words)
+                    original_search_term = search_term
+                    search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
+                    # Clean up multiple spaces that might result
+                    search_term = re.sub(r'\s+', ' ', search_term).strip()
+                    if original_search_term != search_term:
+                        logger.info(f"[PHONEBOOK] Removed 'division' from search term: '{original_search_term}' -> '{search_term}'")
+                    
+                    # If search term looks like a division/department name without a role, try adding "head"
+                    # This handles queries like "Who is Retail & SME Banking Division?" -> "Retail & SME Banking head"
+                    division_dept_keywords = ['banking', 'division', 'department', 'unit', 'section', 'retail', 'sme', 'corporate', 'operations', 'finance', 'hr', 'ict', 'it']
+                    role_keywords = ['head', 'manager', 'director', 'officer', 'executive', 'president', 'ceo', 'cfo', 'chief', 'senior', 'assistant']
+                    search_term_lower = search_term.lower()
+                    has_division_keyword = any(keyword in search_term_lower for keyword in division_dept_keywords)
+                    has_role_keyword = any(keyword in search_term_lower for keyword in role_keywords)
+                    
+                    # If it looks like a division/department name but no role mentioned, try with "head"
+                    if has_division_keyword and not has_role_keyword:
+                        search_term_with_head = f"{search_term} head"
+                        logger.info(f"[PHONEBOOK] Query looks like division/department without role, trying with 'head': '{search_term_with_head}'")
+                        # Try search with "head" added
+                        results = phonebook_db.smart_search(search_term_with_head, limit=5)
+                        if results:
+                            logger.info(f"[OK] Found {len(results)} results with 'head' added")
+                        else:
+                            # Also try department search as fallback
+                            logger.info(f"[PHONEBOOK] No results with 'head', trying department search for: '{search_term}'")
+                            dept_results = phonebook_db.search_by_department(search_term, limit=5)
+                            if dept_results:
+                                results = dept_results
+                                logger.info(f"[OK] Found {len(dept_results)} results via department search")
+                            else:
+                                # Try original search term as fallback
+                                results = phonebook_db.smart_search(search_term, limit=5)
+                    else:
+                        # Try multiple search strategies
+                        results = phonebook_db.smart_search(search_term, limit=5)
                 
-                # Try multiple search strategies
-                results = phonebook_db.smart_search(search_term, limit=5)
+                # Final cleanup: Always remove "division" and bank name suffixes before searching
+                # This ensures cleanup happens regardless of which code path was taken
+                if search_term:
+                    original_final = search_term
+                    search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
+                    search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
+                    search_term = re.sub(r'\s+', ' ', search_term).strip()
+                    if original_final != search_term:
+                        logger.info(f"[PHONEBOOK] Final cleanup: '{original_final}' -> '{search_term}'")
+                        # If we cleaned the term and haven't searched yet, try searching with cleaned term
+                        if not results:
+                            results = phonebook_db.smart_search(search_term, limit=5)
                 
                 if results:
                     logger.info(f"[OK] Found {len(results)} results in phonebook for: {search_term}")
@@ -2218,59 +3269,33 @@ When responding:
                         yield char
                     return  # Don't query LightRAG if entities are missing
             
-            # If it's a card rates query, call card rates microservice for deterministic numbers
-            # CRITICAL: For card rates queries, use microservice ONLY - never fall back to LightRAG
-            is_card_rates_query = self._is_card_rates_query(query)
-            if is_card_rates_query:
-                logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using card rates microservice ONLY (no LightRAG fallback)")
-                card_rates_context = await self._get_card_rates_context(query)
-                if card_rates_context:
-                    logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
-                    # Add card rates source
-                    if "Card Charges and Fees Schedule" not in sources:
-                        sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
-                    # Skip LightRAG for card rates queries
-                    context = ""  # Don't use LightRAG for card rates queries
-                    logger.info(f"[CARD_RATES] Using ONLY card rates microservice data, skipping LightRAG")
-                else:
-                    # Fee engine returned empty - this should not happen if _get_card_rates_context is updated correctly
-                    # But handle it gracefully with a deterministic not-found message
-                    logger.warning(f"[CARD_RATES] Fee engine returned empty context for query: '{query}' - returning not-found message, NOT using LightRAG")
-                    # Set a deterministic not-found message
-                    card_rates_context = (
-                        "=" * 70 + "\n"
-                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
-                        "=" * 70 + "\n\n"
-                        "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
-                        "Please verify the card details and try again.\n\n"
-                        "=" * 70
-                    )
-                    context = ""  # Do NOT use LightRAG
-                    if "Card Charges and Fees Schedule" not in sources:
-                        sources.append("Card Charges and Fees Schedule (Effective from 01st January, 2026)")
-                    logger.info(f"[CARD_RATES] No data from fee engine - returning not-found message, NOT using LightRAG")
+            # REMOVED: Old fallback path for fee queries - fee queries are now handled at the top of the function
+            # Fee schedule queries are handled at the top of process_chat() and process_chat_sync()
+            # and exit immediately, so this code path should never be reached for fee queries
+            # Initialize variables for non-fee queries
+            is_card_rates_query = False
+            card_rates_context = None
+            
+            # For non-fee queries, use LightRAG as normal
+            # Smart routing: determine which knowledge base to use based on query content
+            # This prevents confusion between financial reports and user documents
+            if knowledge_base is None:
+                knowledge_base = self._get_knowledge_base(query)
+            
+            logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
+            # CRITICAL: Filter financial documents for organizational overview queries
+            filter_financial = self._is_organizational_overview_query(query)
+            context, lightrag_sources = await self._get_lightrag_context(query, knowledge_base, filter_financial_docs=filter_financial)
+            sources.extend(lightrag_sources)  # Add LightRAG sources
+            if context:
+                logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars, sources: {len(lightrag_sources)}, filtered_financial={filter_financial})")
             else:
-                # For non-card-rates queries, use LightRAG as normal
-                # Smart routing: determine which knowledge base to use based on query content
-                # This prevents confusion between financial reports and user documents
-                if knowledge_base is None:
-                    knowledge_base = self._get_knowledge_base(query)
-                
-                logger.info(f"[ROUTING] Calling LightRAG with knowledge_base='{knowledge_base}' for query: '{query[:100]}'")
-                # CRITICAL: Filter financial documents for organizational overview queries
-                filter_financial = self._is_organizational_overview_query(query)
-                context, lightrag_sources = await self._get_lightrag_context(query, knowledge_base, filter_financial_docs=filter_financial)
-                sources.extend(lightrag_sources)  # Add LightRAG sources
-                if context:
-                    logger.info(f"[ROUTING] LightRAG returned context (length: {len(context)} chars, sources: {len(lightrag_sources)}, filtered_financial={filter_financial})")
-                else:
-                    logger.warning(f"[ROUTING] LightRAG returned empty context")
-                
-                # If no sources found but we have context, add knowledge base name as fallback source
-                if not sources and context and knowledge_base:
-                    sources.append(f"Knowledge Base: {knowledge_base}")
-                    logger.info(f"[SOURCES] Added knowledge base name as fallback source: {knowledge_base}")
+                logger.warning(f"[ROUTING] LightRAG returned empty context")
+            
+            # If no sources found but we have context, add knowledge base name as fallback source
+            if not sources and context and knowledge_base:
+                sources.append(f"Knowledge Base: {knowledge_base}")
+                logger.info(f"[SOURCES] Added knowledge base name as fallback source: {knowledge_base}")
         
         # Combine card rates context (if any) with LightRAG context
         # CRITICAL: For card rates queries, use ONLY card rates context (never LightRAG)
@@ -2410,13 +3435,225 @@ When responding:
             query: User's query
             session_id: Session ID for conversation history
             knowledge_base: LightRAG knowledge base name
+            client_ip: Client IP address (used for stable conversation key derivation)
         
         Returns:
             Dictionary with response and session_id
         """
-        # Generate session ID if not provided
-        if not session_id:
-            session_id = str(uuid.uuid4())
+        # Derive stable conversation key (FIX #1: Session continuity)
+        conversation_key = self._get_conversation_key(session_id, client_ip)
+        # Use conversation_key for all disambiguation state operations
+        # Store original session_id for memory/history (if provided)
+        effective_session_id = session_id if session_id else conversation_key
+        # Normalize session_id for the remainder of this request.
+        # This prevents returning/using a None session_id when callers omit it.
+        session_id = effective_session_id
+        
+        # ===== CRITICAL: Check for pending disambiguation state (BEFORE other processing) =====
+        # This MUST happen before any other routing to ensure disambiguation state is always checked first
+        pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
+        if pending_disambiguation:
+            product_line = pending_disambiguation.get("product_line")
+            charge_type = pending_disambiguation.get("charge_type")
+            as_of_date = pending_disambiguation.get("as_of_date")
+            options = pending_disambiguation.get("options", [])
+            disambiguation_type = pending_disambiguation.get("disambiguation_type")  # "LOAN_PRODUCT" / "CHARGE_CONTEXT" / "DESCRIPTION"
+            prompt_message = pending_disambiguation.get("prompt_message")  # Stored prompt message
+            extra = pending_disambiguation.get("extra") or {}
+            
+            logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
+            
+            # Try to resolve selection from query
+            selected_option = self._resolve_selection(query, options)
+            
+            if selected_option and product_line == "RETAIL_ASSETS":
+                # 🚨 TERMINAL RESOLUTION STATE: Disambiguation resolved - NOTHING ELSE RUNS
+                # This is a hard terminal exit - same pattern as IVR systems, payment disputes, KYC step-up flows
+                # Clear disambiguation state immediately
+                await self._clear_disambiguation_state_any(conversation_key)
+                loan_product = selected_option.get("loan_product")
+                # CRITICAL: Use charge_type from the selected option, not from stored state
+                # This ensures correct charge_type is used (e.g., LIMIT_ENHANCEMENT_FEE vs PROCESSING_FEE)
+                option_charge_type = selected_option.get("charge_type", charge_type)
+                charge_context = selected_option.get("charge_context")  # legacy
+                description_keywords = selected_option.get("description_keywords")
+                if not description_keywords and disambiguation_type == "DESCRIPTION":
+                    chosen = selected_option.get("answer_text") or selected_option.get("charge_description")
+                    if chosen and str(chosen).strip():
+                        description_keywords = [str(chosen).strip()]
+                
+                logger.info(f"[DISAMBIGUATION] 🚨 TERMINAL RESOLUTION: loan_product={loan_product}, charge_type={option_charge_type}, charge_context={charge_context}. EXITING after fee engine call - NO RAG, NO CARDS, NO PRODUCT KB.")
+                
+                # HARD GUARD: Only call fee engine, no RAG, no cards, no product KB
+                from app.services.fee_engine_client import FeeEngineClient
+                fee_client = FeeEngineClient()
+                
+                # Query retail asset charges with the resolved loan_product and charge_type from selected option
+                fee_result = await fee_client._query_retail_asset_charges(
+                    query=query,
+                    charge_type=option_charge_type,  # CRITICAL: Use charge_type from selected option
+                    loan_product=loan_product,  # Pass resolved loan_product directly
+                    description_keywords=description_keywords
+                )
+                
+                if fee_result and fee_result.get("status") == "FOUND":
+                    formatted = fee_client.format_fee_response(fee_result, query=query)
+                    fee_context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
+                    
+                    # Return response
+                    response = fee_context
+                    
+                    # Save to memory
+                    db = get_db()
+                    memory = PostgresChatMemory(db=db)
+                    try:
+                        if memory._available:
+                            memory.add_message(effective_session_id, "user", query)
+                            memory.add_message(effective_session_id, "assistant", response)
+                    finally:
+                        memory.close()
+                        if db:
+                            db.close()
+                    
+                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
+                    return {
+                        "response": response,
+                        "session_id": effective_session_id
+                    }
+                else:
+                    # Fee not found even with resolved loan_product
+                    error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
+                    
+                    # Save to memory (FIX #1: use effective_session_id)
+                    db = get_db()
+                    memory = PostgresChatMemory(db=db)
+                    try:
+                        if memory._available:
+                            memory.add_message(effective_session_id, "user", query)
+                            memory.add_message(effective_session_id, "assistant", error_msg)
+                    finally:
+                        memory.close()
+                        if db:
+                            db.close()
+                    
+                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
+                    return {
+                        "response": error_msg,
+                        "session_id": session_id
+                    }
+            elif selected_option and product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
+                await self._clear_disambiguation_state_any(conversation_key)
+
+                base_query = (extra.get("base_query") or "").strip()
+                chosen_product = (
+                    selected_option.get("card_product_name")
+                    or selected_option.get("card_product")
+                    or selected_option.get("label")
+                    or ""
+                ).strip()
+                if not base_query or not chosen_product:
+                    return {
+                        "response": prompt_message or "Please specify the card product (reply with a number from the list).",
+                        "session_id": effective_session_id,
+                    }
+
+                resolved_query = f"{base_query} {chosen_product}".strip()
+                fee_context = await self._get_card_rates_context(
+                    resolved_query,
+                    session_id=effective_session_id,
+                    conversation_key=conversation_key,
+                )
+                if not fee_context:
+                    fee_context = (
+                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n\n"
+                        "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026)."
+                    )
+
+                # Save to memory (use effective_session_id)
+                db = get_db()
+                memory = PostgresChatMemory(db=db)
+                try:
+                    if memory._available:
+                        memory.add_message(effective_session_id, "user", query)
+                        memory.add_message(effective_session_id, "assistant", fee_context)
+                finally:
+                    memory.close()
+                    if db:
+                        db.close()
+
+                return {
+                    "response": fee_context,
+                    "session_id": effective_session_id,
+                }
+            else:
+                # Fix B: Selection not resolved - DO NOT clear state, let it persist
+                # State will only be cleared when:
+                # 1. User resolves it successfully (handled above)
+                # 2. TTL expires (handled by Redis automatically)
+                # 3. User says "cancel" (future enhancement)
+                # DO NOT clear here - this prevents KB/RAG fallback on failed resolution
+                logger.info(f"[DISAMBIGUATION] Selection not resolved from query '{query}', keeping disambiguation state active. User needs to provide a valid selection (1-{len(options)}) or product name.")
+                
+                # 🚨 TERMINAL EXIT: Re-prompt with stored message - NO LLM, NO RAG, NO OTHER ROUTING
+                # Use the stored prompt_message if available, otherwise reconstruct
+                if prompt_message:
+                    # Reuse the exact stored prompt message
+                    disambiguation_msg = prompt_message
+                    logger.info(f"[DISAMBIGUATION] Re-prompting with stored message (type={disambiguation_type})")
+                else:
+                    # Fallback: reconstruct if stored message not available
+                    from app.services.fee_engine_client import FeeEngineClient
+                    fee_client = FeeEngineClient()
+                    if product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
+                        lines = [
+                            "OFFICIAL CARD RATES AND FEES INFORMATION",
+                            "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                            "",
+                            "To answer, please specify the card product:",
+                        ]
+                        for i, opt in enumerate(options, start=1):
+                            label = opt.get("card_product_name") or opt.get("card_product") or opt.get("label") or str(opt)
+                            lines.append(f"{i}. {label}")
+                        lines.append("")
+                        lines.append("Reply with the number (e.g., 1) or the product name.")
+                        disambiguation_msg = "\n".join(lines)
+                    else:
+                        # Convert options to charges format expected by _format_retail_asset_disambiguation_response
+                        # CRITICAL: Include charge_context and charge_type from options to preserve disambiguation type
+                        charges = [
+                            {
+                                "loan_product": opt.get("loan_product"),
+                                "loan_product_name": opt.get("loan_product_name", opt.get("loan_product")),
+                                "charge_type": opt.get("charge_type", charge_type),  # Use charge_type from option, fallback to stored
+                                "charge_context": opt.get("charge_context")  # Include charge_context from option
+                            }
+                            for opt in options
+                        ]
+                        result_dict = {
+                            "status": "NEEDS_DISAMBIGUATION",
+                            "charges": charges,
+                            "message": f"Multiple loan products have {charge_type.replace('_', ' ').title()} available. Please specify which loan product you're interested in."
+                        }
+                        disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
+                
+                # Save to memory (FIX #1: use effective_session_id)
+                db = get_db()
+                memory = PostgresChatMemory(db=db)
+                try:
+                    if memory._available:
+                        memory.add_message(effective_session_id, "user", query)
+                        memory.add_message(effective_session_id, "assistant", disambiguation_msg)
+                finally:
+                    memory.close()
+                    if db:
+                        db.close()
+                
+                # 🚨 TERMINAL EXIT - Do not proceed to RAG, cards, or any other routing while disambiguation is pending
+                return {
+                    "response": disambiguation_msg,
+                    "session_id": effective_session_id
+                }
         
         # Get conversation history
         db = get_db()
@@ -2439,6 +3676,248 @@ When responding:
         
         # ===== ROUTING DECISION LOGGING =====
         logger.info(f"[ROUTING] ===== Processing Query (SYNC): '{query}' =====")
+        
+        # ===== CRITICAL: RETAIL ASSET FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
+        # Check for retail asset fee queries BEFORE card fee queries
+        is_retail_asset_fee_query = self._is_retail_asset_fee_query(query)
+        if is_retail_asset_fee_query:
+            logger.info(f"[FEE_ENGINE] ✓✓✓ RETAIL ASSET FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
+            fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
+            sources = ["Retail Asset Charges Schedule"]
+            
+            # ALWAYS return fee engine response, even if empty
+            if not fee_context:
+                fee_context = (
+                    "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
+                    "Source: Fee Engine (Retail Asset Charges Schedule)\n\n"
+                    "The specific information about this retail asset charge is not available in the current schedule. "
+                    "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                )
+            
+            # Anti-hallucination hard guard (SYNC):
+            # Return the fee engine output directly (NO OpenAI call, NO paraphrasing).
+            response_text = fee_context
+            
+            # Save assistant response
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(effective_session_id, "user", query)
+                    memory.add_message(effective_session_id, "assistant", response_text)
+                    if ANALYTICS_AVAILABLE:
+                        log_conversation(
+                            session_id=effective_session_id,
+                            user_message=query,
+                            assistant_response=response_text,
+                            knowledge_base=None,
+                            client_ip=client_ip
+                        )
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            return {
+                "response": response_text,
+                "session_id": effective_session_id,
+                "sources": sources
+            }  # EXIT - do not proceed to other routing
+        
+        # ===== CRITICAL: SKYBANKING FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
+        # Check for Skybanking fee queries BEFORE card fee queries
+        is_skybanking_fee_query = self._is_skybanking_fee_query(query)
+        if is_skybanking_fee_query:
+            logger.info(f"[FEE_ENGINE] ✓✓✓ SKYBANKING FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
+            fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
+            sources = ["Skybanking Fees Schedule"]
+            
+            # ALWAYS return fee engine response, even if empty
+            if not fee_context:
+                fee_context = (
+                    "=" * 70 + "\n"
+                    "SKYBANKING FEES INFORMATION\n"
+                    "Source: Fee Engine (Skybanking Fees Schedule)\n"
+                    "=" * 70 + "\n\n"
+                    "The specific information about this Skybanking fee is not available in the current schedule. "
+                    "Please verify the service details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                )
+            
+            # Build messages with fee context only
+            combined_context = fee_context
+            logger.info(f"[FEE_ENGINE] Using EXCLUSIVE fee engine context: {len(fee_context)} chars (LightRAG/KB explicitly skipped)")
+            
+            # Build messages with fee context only
+            messages = self._build_messages(query, combined_context, conversation_history)
+            
+            # Save user message
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(effective_session_id, "user", query)
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            # Generate response from OpenAI with fee data only
+            response_text = ""
+            try:
+                max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 2000)
+                response = await self.openai_client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=messages,
+                    temperature=settings.OPENAI_TEMPERATURE,
+                    max_tokens=max_response_tokens
+                )
+                response_text = response.choices[0].message.content or "I apologize, but I couldn't generate a response."
+            except Exception as e:
+                logger.error(f"[FEE_ENGINE] Error generating response: {e}")
+                response_text = "I apologize, but I encountered an error while processing your fee inquiry. Please try again."
+            
+            # Save assistant response
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(effective_session_id, "assistant", response_text)
+                    if ANALYTICS_AVAILABLE:
+                        log_conversation(
+                            session_id=effective_session_id,
+                            user_message=query,
+                            assistant_response=response_text,
+                            knowledge_base=None,
+                            client_ip=client_ip
+                        )
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            return {
+                "response": response_text,
+                "session_id": effective_session_id,
+                "sources": sources
+            }  # EXIT - do not proceed to other routing
+        
+        # ===== CRITICAL: FEE SCHEDULE QUERIES - EXCLUSIVE FEE ENGINE ROUTING =====
+        # MANDATORY: Fee queries MUST route to Fee Engine ONLY (authoritative source)
+        # NO LightRAG fallback, NO knowledge base lookup, NO LLM guessing
+        # This check happens AFTER location queries, retail asset queries, and Skybanking queries to avoid misrouting
+        is_fee_schedule_query = self._is_fee_schedule_query(query)
+        if is_fee_schedule_query:
+            logger.info(f"[FEE_ENGINE] ✓✓✓ FEE SCHEDULE QUERY DETECTED (HIGHEST PRIORITY): '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE (NO LightRAG, NO KB)")
+            fee_context = await self._get_card_rates_context(query, session_id=session_id)
+            sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
+            
+            # ALWAYS return fee engine response, even if empty
+            # If no rule found → return deterministic "not found in schedule" response
+            if not fee_context:
+                logger.warning(f"[FEE_ENGINE] Fee engine returned empty - returning deterministic not-found message")
+                fee_context = (
+                    "=" * 70 + "\n"
+                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
+                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    "=" * 70 + "\n\n"
+                    "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
+                    "Please verify the card details and try again.\n\n"
+                    "=" * 70
+                )
+            
+            # Use ONLY fee engine context - NO LightRAG, NO knowledge base
+            combined_context = fee_context
+            logger.info(f"[FEE_ENGINE] Using EXCLUSIVE fee engine context: {len(fee_context)} chars (LightRAG/KB explicitly skipped)")
+
+            # Anti-hallucination hard guard:
+            # Return the fee engine output directly (NO OpenAI call, NO paraphrasing).
+            response_text = combined_context
+
+            # Save to memory + analytics
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "user", query)
+                    memory.add_message(session_id, "assistant", response_text)
+                    if ANALYTICS_AVAILABLE:
+                        log_conversation(
+                            session_id=session_id,
+                            user_message=query,
+                            assistant_response=response_text,
+                            knowledge_base=None,
+                            client_ip=client_ip
+                        )
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+
+            return {
+                "response": response_text,
+                "session_id": session_id,
+                "sources": sources
+            }  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
+        
+        # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGH PRIORITY) =====
+        # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
+        is_location_query = self._is_location_query(query)
+        if is_location_query:
+            logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
+            location_context = await self._get_location_context(query)
+            sources = ["EBL Location Database (Normalized)"]
+            
+            # Use ONLY location service context - NO LightRAG, NO knowledge base
+            combined_context = location_context
+            logger.info(f"[LOCATION_SERVICE] Using EXCLUSIVE location service context: {len(location_context)} chars (LightRAG/KB explicitly skipped)")
+            
+            # Build messages with location context only
+            messages = self._build_messages(query, combined_context, conversation_history)
+            
+            # Save user message
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "user", query)
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            # Generate response from OpenAI with location data only
+            full_response = ""
+            try:
+                max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 2000)
+                response = await self.openai_client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=messages,
+                    temperature=settings.OPENAI_TEMPERATURE,
+                    max_tokens=max_response_tokens
+                )
+                
+                if response.choices and response.choices[0].message.content:
+                    full_response = response.choices[0].message.content
+            except Exception as e:
+                logger.error(f"[LOCATION_SERVICE] Error generating response: {e}")
+                full_response = "I apologize, but I encountered an error while processing your location inquiry. Please try again."
+            
+            # Save assistant response
+            db = get_db()
+            memory = PostgresChatMemory(db=db)
+            try:
+                if memory._available:
+                    memory.add_message(session_id, "assistant", full_response)
+            finally:
+                memory.close()
+                if db:
+                    db.close()
+            
+            return {
+                "response": full_response,
+                "sources": sources,
+                "routing": "location_service"
+            }  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
         # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
         # These should ALWAYS go to phonebook, never LightRAG
@@ -2551,9 +4030,63 @@ When responding:
                     search_term = re.sub(r'\s+', ' ', search_term).strip()
                     search_term = re.sub(r'^(of|for|about)\s+', '', search_term, flags=re.IGNORECASE).strip()
                     search_term = re.sub(r'\s+(of|for|about)$', '', search_term, flags=re.IGNORECASE).strip()
+                    
+                    # Remove bank name suffixes (e.g., "of EBL", "of Eastern Bank", "at EBL")
+                    # This helps when queries include "head of Retail & SME Banking Division of EBL"
+                    search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
+                    
+                    # Remove "Division" if it appears anywhere (e.g., "Retail & SME Banking Division head" -> "Retail & SME Banking head")
+                    # This helps match designations that don't include "Division"
+                    # Remove "division" as a whole word (not part of other words)
+                    original_search_term = search_term
+                    search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
+                    # Clean up multiple spaces that might result
+                    search_term = re.sub(r'\s+', ' ', search_term).strip()
+                    if original_search_term != search_term:
+                        logger.info(f"[PHONEBOOK] Removed 'division' from search term: '{original_search_term}' -> '{search_term}'")
+                    
+                    # If search term looks like a division/department name without a role, try adding "head"
+                    # This handles queries like "Who is Retail & SME Banking Division?" -> "Retail & SME Banking head"
+                    division_dept_keywords = ['banking', 'division', 'department', 'unit', 'section', 'retail', 'sme', 'corporate', 'operations', 'finance', 'hr', 'ict', 'it']
+                    role_keywords = ['head', 'manager', 'director', 'officer', 'executive', 'president', 'ceo', 'cfo', 'chief', 'senior', 'assistant']
+                    search_term_lower = search_term.lower()
+                    has_division_keyword = any(keyword in search_term_lower for keyword in division_dept_keywords)
+                    has_role_keyword = any(keyword in search_term_lower for keyword in role_keywords)
+                    
+                    # If it looks like a division/department name but no role mentioned, try with "head"
+                    if has_division_keyword and not has_role_keyword:
+                        search_term_with_head = f"{search_term} head"
+                        logger.info(f"[PHONEBOOK] Query looks like division/department without role, trying with 'head': '{search_term_with_head}'")
+                        # Try search with "head" added
+                        results = phonebook_db.smart_search(search_term_with_head, limit=5)
+                        if results:
+                            logger.info(f"[OK] Found {len(results)} results with 'head' added")
+                        else:
+                            # Also try department search as fallback
+                            logger.info(f"[PHONEBOOK] No results with 'head', trying department search for: '{search_term}'")
+                            dept_results = phonebook_db.search_by_department(search_term, limit=5)
+                            if dept_results:
+                                results = dept_results
+                                logger.info(f"[OK] Found {len(dept_results)} results via department search")
+                            else:
+                                # Try original search term as fallback
+                                results = phonebook_db.smart_search(search_term, limit=5)
+                    else:
+                        # Try multiple search strategies
+                        results = phonebook_db.smart_search(search_term, limit=5)
                 
-                # Try multiple search strategies
-                results = phonebook_db.smart_search(search_term, limit=5)
+                # Final cleanup: Always remove "division" and bank name suffixes before searching
+                # This ensures cleanup happens regardless of which code path was taken
+                if search_term:
+                    original_final = search_term
+                    search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
+                    search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
+                    search_term = re.sub(r'\s+', ' ', search_term).strip()
+                    if original_final != search_term:
+                        logger.info(f"[PHONEBOOK] Final cleanup: '{original_final}' -> '{search_term}'")
+                        # If we cleaned the term and haven't searched yet, try searching with cleaned term
+                        if not results:
+                            results = phonebook_db.smart_search(search_term, limit=5)
                 
                 if results:
                     logger.info(f"[OK] Found {len(results)} results in phonebook for: {search_term}")
@@ -2720,12 +4253,13 @@ When responding:
                         "session_id": session_id
                     }  # Don't query LightRAG if entities are missing
             
-            # If it's a card rates query, call card rates microservice for deterministic numbers
-            # CRITICAL: For card rates queries, use microservice ONLY - never fall back to LightRAG
-            is_card_rates_query = self._is_card_rates_query(query)
+            # If it's a fee schedule query, call fee engine for deterministic numbers
+            # CRITICAL: For fee schedule queries, use fee engine ONLY - never fall back to LightRAG
+            # Note: This check is redundant if fee query was already handled above, but kept for safety
+            is_card_rates_query = self._is_fee_schedule_query(query)
             if is_card_rates_query:
                 logger.info(f"[CARD_RATES] Detected card rates query: '{query}' - using card rates microservice ONLY (no LightRAG fallback)")
-                card_rates_context = await self._get_card_rates_context(query)
+                card_rates_context = await self._get_card_rates_context(query, session_id=session_id)
                 if card_rates_context:
                     logger.info(f"[CARD_RATES] Card rates context added (length: {len(card_rates_context)} chars)")
                     # Add card rates source

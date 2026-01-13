@@ -10,6 +10,7 @@ body {
     min-height: 100vh;
     padding: 20px;
     color: #333;
+    overflow-x: hidden;
 }
 
 .container {
@@ -89,17 +90,23 @@ header p {
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(5px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-content {
     background-color: white;
-    margin: 5% auto;
-    padding: 30px;
+    margin: 2% auto;
+    padding: 25px;
     border-radius: 12px;
     width: 90%;
-    max-width: 500px;
+    max-width: 600px;
+    max-height: 96vh;
+    overflow-y: auto;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     animation: slideIn 0.3s ease;
+    position: relative;
+    box-sizing: border-box;
 }
 
 .modal-large {
@@ -192,6 +199,9 @@ header p {
     transition: all 0.3s;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    box-sizing: border-box;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .btn-primary {
@@ -302,8 +312,181 @@ header p {
 
 .table-container {
     overflow-x: auto;
+    overflow-y: visible;
     border: 1px solid #e0e0e0;
     border-radius: 6px;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+/* Excel-like Grid Container */
+.gridScroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+/* Grid Table - Fixed Layout */
+.gridTable {
+    table-layout: fixed;
+    border-collapse: collapse;
+    min-width: 100%;
+    width: max-content;
+    background: white;
+}
+
+.gridTable th,
+.gridTable td {
+    vertical-align: top;
+    padding: 10px 8px;
+    border-bottom: 1px solid #e0e0e0;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.gridTable th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    user-select: none;
+    padding-right: 20px;
+}
+
+/* Column Resizer Handle */
+.colResizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    cursor: col-resize;
+    z-index: 1;
+    background: transparent;
+}
+
+.colResizer:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.colResizer:active,
+body.resizing .colResizer {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Prevent text selection while resizing */
+body.resizing {
+    user-select: none;
+    cursor: col-resize !important;
+}
+
+body.resizing * {
+    cursor: col-resize !important;
+}
+
+/* Expand Column */
+.expandCol {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    text-align: center;
+    padding: 10px 4px !important;
+}
+
+.expandBtn {
+    cursor: pointer;
+    font-size: 14px;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+    font-weight: 600;
+}
+
+.expandBtn:hover {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.4);
+}
+
+.expandBtn:active {
+    transform: scale(0.95);
+}
+
+.expandBtn.expanded {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+    color: #5566d9;
+}
+
+/* Cell Text with Clamping */
+.cellText {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+}
+
+.cellText.clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+/* Expanded rows show full text */
+tr.expanded .cellText.clamp {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+}
+
+/* Row hover effect */
+.gridTable tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.gridTable tbody tr.expanded {
+    background-color: #f0f4ff;
+}
+
+.gridTable tbody tr.expanded:hover {
+    background-color: #e8f0ff;
+}
+
+/* Actions Column - Never Wrap */
+.actionsCol {
+    padding-right: 8px !important;
+}
+
+.actionsCell {
+    white-space: nowrap !important;
+}
+
+.actionsWrap {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* Ensure retail charges table container allows horizontal scroll */
+#retail-assets-tab .table-container {
+    overflow-x: auto;
+    overflow-y: visible;
+    width: 100%;
+    max-width: 100%;
+    position: relative;
 }
 
 table {
@@ -312,6 +495,7 @@ table {
     background: white;
 }
 
+/* Standard table styles for non-grid tables */
 thead {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -324,12 +508,16 @@ th {
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    vertical-align: middle;
 }
 
 td {
     padding: 12px 15px;
     border-bottom: 1px solid #e0e0e0;
     font-size: 14px;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 tbody tr:hover {
@@ -348,7 +536,10 @@ tbody tr:last-child td {
 
 .actions-cell {
     display: flex;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .status-badge {
@@ -417,7 +608,100 @@ tbody tr:last-child td {
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+    .container {
+        max-width: 100%;
+        margin: 10px;
+        border-radius: 8px;
+    }
+    
+    header {
+        padding: 20px;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
+    
+    .tabs {
+        padding: 15px 20px 0;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    .tab-btn {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .filters-section {
+        padding: 20px;
+    }
+    
+    .table-section {
+        padding: 20px;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .table-info {
+        flex-wrap: wrap;
+    }
+    
+    .modal-content {
+        width: 95%;
+        max-width: 650px;
+        margin: 1% auto;
+        padding: 20px;
+        max-height: 98vh;
+        overflow-y: auto;
+        box-sizing: border-box;
+    }
+    
+    .modal-large {
+        max-width: 95%;
+        max-height: 98vh;
+    }
+}
+
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .container {
+        margin: 0;
+        border-radius: 0;
+    }
+    
+    header {
+        padding: 15px;
+    }
+    
+    header h1 {
+        font-size: 1.5em;
+    }
+    
+    header p {
+        font-size: 0.9em;
+    }
+    
+    .tabs {
+        padding: 10px 15px 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    
     .form-grid {
         grid-template-columns: 1fr;
     }
@@ -426,17 +710,120 @@ tbody tr:last-child td {
         grid-template-columns: 1fr;
     }
     
+    .filters-section {
+        padding: 15px;
+    }
+    
+    .table-section {
+        padding: 15px;
+    }
+    
     .table-container {
-        overflow-x: scroll;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    table {
+        min-width: 600px;
+    }
+    
+    th, td {
+        padding: 8px 10px;
+        font-size: 12px;
     }
     
     .modal-content {
-        width: 95%;
-        margin: 10% auto;
+        width: 100%;
+        margin: 0;
+        padding: 15px;
+        border-radius: 0;
+        max-height: 100vh;
+        max-width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overflow-y: auto;
+        box-sizing: border-box;
     }
     
     .modal-large {
-        max-width: 95%;
+        max-width: 100%;
+        max-height: 100vh;
+    }
+    
+    .modal-header {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+    
+    .pagination {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.2em;
+    }
+    
+    .tab-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+    
+    .filters-section h2,
+    .table-header h2 {
+        font-size: 1.2em;
+    }
+    
+    th {
+        padding: 8px 6px;
+        font-size: 11px;
+    }
+    
+    td {
+        padding: 6px;
+        font-size: 11px;
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .modal-content {
+        padding: 12px;
+    }
+    
+    .form-group label {
+        font-size: 13px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 8px;
+        font-size: 13px;
     }
 }
 

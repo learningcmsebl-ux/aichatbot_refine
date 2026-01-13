@@ -64,13 +64,11 @@ def migrate_phonebook():
             from phonebook_postgres import Employee
             existing_count = session.query(Employee).count()
             if existing_count > 0:
-                response = input(f"PostgreSQL already has {existing_count} records. Overwrite? (y/N): ")
-                if response.lower() != 'y':
-                    print("Migration cancelled")
-                    return False
+                print(f"PostgreSQL already has {existing_count} records.")
                 print("Clearing existing data...")
                 session.query(Employee).delete()
                 session.commit()
+                print("✓ Existing data cleared")
         
         # Read all records from SQLite
         print("Reading records from SQLite...")
@@ -87,20 +85,21 @@ def migrate_phonebook():
             
             for record in records:
                 try:
+                    # sqlite3.Row uses bracket notation, not .get()
                     employee = Employee(
-                        employee_id=record['employee_id'],
+                        employee_id=record['employee_id'] if 'employee_id' in record.keys() else None,
                         full_name=record['full_name'],
-                        first_name=record.get('first_name'),
-                        last_name=record.get('last_name'),
-                        designation=record.get('designation'),
-                        department=record.get('department'),
-                        division=record.get('division'),
-                        email=record.get('email'),
-                        telephone=record.get('telephone'),
-                        pabx=record.get('pabx'),
-                        ip_phone=record.get('ip_phone'),
-                        mobile=record.get('mobile'),
-                        group_email=record.get('group_email')
+                        first_name=record['first_name'] if 'first_name' in record.keys() else None,
+                        last_name=record['last_name'] if 'last_name' in record.keys() else None,
+                        designation=record['designation'] if 'designation' in record.keys() else None,
+                        department=record['department'] if 'department' in record.keys() else None,
+                        division=record['division'] if 'division' in record.keys() else None,
+                        email=record['email'] if 'email' in record.keys() else None,
+                        telephone=record['telephone'] if 'telephone' in record.keys() else None,
+                        pabx=record['pabx'] if 'pabx' in record.keys() else None,
+                        ip_phone=record['ip_phone'] if 'ip_phone' in record.keys() else None,
+                        mobile=record['mobile'] if 'mobile' in record.keys() else None,
+                        group_email=record['group_email'] if 'group_email' in record.keys() else None
                     )
                     session.add(employee)
                     migrated += 1
@@ -111,7 +110,8 @@ def migrate_phonebook():
                         
                 except Exception as e:
                     failed += 1
-                    print(f"  ⚠ Failed to migrate {record.get('full_name', 'unknown')}: {e}")
+                    full_name = record['full_name'] if 'full_name' in record.keys() else 'unknown'
+                    print(f"  ⚠ Failed to migrate {full_name}: {e}")
                     continue
             
             session.commit()
@@ -205,15 +205,13 @@ def migrate_analytics():
         with _get_session() as session:
             existing_conv = session.query(Conversation).count()
             if existing_conv > 0:
-                response = input(f"PostgreSQL already has {existing_conv} conversations. Overwrite? (y/N): ")
-                if response.lower() != 'y':
-                    print("Migration cancelled")
-                    return False
+                print(f"PostgreSQL already has {existing_conv} conversations.")
                 print("Clearing existing data...")
                 session.query(Conversation).delete()
                 session.query(Question).delete()
                 session.query(PerformanceMetric).delete()
                 session.commit()
+                print("✓ Existing data cleared")
         
         # Migrate conversations
         if conv_count > 0:
@@ -228,15 +226,16 @@ def migrate_analytics():
                 for record in conversations:
                     try:
                         # Parse datetime
-                        created_at = datetime.fromisoformat(record['created_at']) if record['created_at'] else datetime.utcnow()
+                        created_at_str = record['created_at'] if 'created_at' in record.keys() and record['created_at'] else None
+                        created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.utcnow()
                         
                         conversation = Conversation(
                             session_id=record['session_id'],
                             user_message=record['user_message'],
                             assistant_response=record['assistant_response'],
                             is_answered=record['is_answered'],
-                            knowledge_base=record.get('knowledge_base'),
-                            response_time_ms=record.get('response_time_ms'),
+                            knowledge_base=record['knowledge_base'] if 'knowledge_base' in record.keys() else None,
+                            response_time_ms=record['response_time_ms'] if 'response_time_ms' in record.keys() else None,
                             created_at=created_at
                         )
                         session.add(conversation)
@@ -248,7 +247,8 @@ def migrate_analytics():
                             
                     except Exception as e:
                         failed += 1
-                        print(f"  ⚠ Failed to migrate conversation {record.get('id', 'unknown')}: {e}")
+                        conv_id = record['id'] if 'id' in record.keys() else 'unknown'
+                        print(f"  ⚠ Failed to migrate conversation {conv_id}: {e}")
                         continue
                 
                 session.commit()
@@ -270,12 +270,14 @@ def migrate_analytics():
             with _get_session() as session:
                 for record in questions:
                     try:
-                        first_asked = datetime.fromisoformat(record['first_asked']) if record['first_asked'] else datetime.utcnow()
-                        last_asked = datetime.fromisoformat(record['last_asked']) if record['last_asked'] else datetime.utcnow()
+                        first_asked_str = record['first_asked'] if 'first_asked' in record.keys() and record['first_asked'] else None
+                        last_asked_str = record['last_asked'] if 'last_asked' in record.keys() and record['last_asked'] else None
+                        first_asked = datetime.fromisoformat(first_asked_str) if first_asked_str else datetime.utcnow()
+                        last_asked = datetime.fromisoformat(last_asked_str) if last_asked_str else datetime.utcnow()
                         
                         question = Question(
                             question_text=record['question_text'],
-                            normalized_question=record.get('normalized_question'),
+                            normalized_question=record['normalized_question'] if 'normalized_question' in record.keys() else None,
                             total_asked=record['total_asked'],
                             answered_count=record['answered_count'],
                             unanswered_count=record['unanswered_count'],
@@ -311,14 +313,15 @@ def migrate_analytics():
                     try:
                         # Parse date
                         from datetime import date as date_type
-                        metric_date = date_type.fromisoformat(record['date']) if record['date'] else date_type.today()
+                        date_str = record['date'] if 'date' in record.keys() and record['date'] else None
+                        metric_date = date_type.fromisoformat(date_str) if date_str else date_type.today()
                         
                         metric = PerformanceMetric(
                             date=metric_date,
                             total_conversations=record['total_conversations'],
                             answered_count=record['answered_count'],
                             unanswered_count=record['unanswered_count'],
-                            avg_response_time_ms=record.get('avg_response_time_ms')
+                            avg_response_time_ms=record['avg_response_time_ms'] if 'avg_response_time_ms' in record.keys() else None
                         )
                         session.add(metric)
                         migrated += 1
@@ -393,10 +396,7 @@ def main():
     if phonebook_exists:
         success = migrate_phonebook()
         if not success:
-            print("Phonebook migration failed. Continue with analytics? (y/N): ", end="")
-            response = input()
-            if response.lower() != 'y':
-                return
+            print("⚠ Phonebook migration failed. Continuing with analytics...")
     
     # Migrate analytics
     if analytics_exists:

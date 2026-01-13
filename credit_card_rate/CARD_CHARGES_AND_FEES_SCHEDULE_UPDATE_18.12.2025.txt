@@ -1,0 +1,3253 @@
+================================================================================
+CARD CHARGES AND FEES SCHEDULE
+================================================================================
+
+Effective from 01st January, 2026
+
+
+
+================================================================================
+CHARGE TYPE: Issuance/Renewal/Annual Fee Primary Card
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 1,725
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Gold
+Full Card Name: Credit Card Visa Gold
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 5,750
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women Platinum
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 4,600**
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 11,500
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 13,800
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 28,750
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 5,750
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 8,625
+
+Card Category: Credit Card
+Card Network: Diners Club International
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 2,000
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Card Product: Platinum
+Full Card Name: Credit Card UnionPay Platinum
+Charge Amount/Fee: BDT 5,750
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: According to Note 17
+
+Card Category: Debit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 690
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Platinum
+Card Network: Visa
+Full Card Name: Debit Card Platinum
+Charge Amount/Fee: BDT 690
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Signature (Regular)/World
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 1150
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Card Product: Global/Mastercard World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: $11.5
+
+Card Category: Debit Card
+Card Network: UnionPay International
+Card Product: UnionPay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 345
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: According to Note 9
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 575/$11.5
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 920
+
+
+================================================================================
+CHARGE TYPE: Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 1st Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 1st Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: Diners Club International
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 1st & 2nd Card free
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 1st & 2nd Card free
+
+
+
+================================================================================
+CHARGE TYPE: Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 1,725
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 1,725
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 999
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 1150
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 13.8
+
+
+
+================================================================================
+CHARGE TYPE: Number of Internatinoal SkyLounge Free Visit (Annual)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: According to Card Nature
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: According to Note 33
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: Unlimited
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: According to Note 33
+
+
+
+================================================================================
+CHARGE TYPE: Number of Domestic SkyLounge Free Visit (Annual)
+================================================================================
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: Unlimited
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: According to Card Nature
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: According to Note 33
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: Unlimited
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: According to Note 33
+
+
+
+================================================================================
+CHARGE TYPE: Global Lounge Access Fee (per individual)
+================================================================================
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: $36/Note 41
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: According to Note 33
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: According to Note 33
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: $35/ BDT 3500
+
+
+
+================================================================================
+CHARGE TYPE: Number of Global Lounge Free Visit (Annual)
+================================================================================
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 6
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 10
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 13
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: According to Card Nature
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: 12
+
+
+
+================================================================================
+CHARGE TYPE: Card Replacement Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 1,380
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 1,150
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 10.35
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 690
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 805
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 11.5
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 345
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 230
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 575/ $11.5
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 575/ $11.5
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 575/ $11.5
+
+
+
+================================================================================
+CHARGE TYPE: PIN Replacement Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 6.9
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 690
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 805
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 11.5
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 575
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 230
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 575/ $11.5
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 575/ $11.5
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 575/ $11.5
+
+
+
+================================================================================
+CHARGE TYPE: Late Payment Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 1150/$13.8
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 1150/$13.8
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 1,380 / $ 17.25
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 17.25
+
+
+
+================================================================================
+CHARGE TYPE: Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 2.5% or BDT 345
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 2.5% or BDT 345
+
+
+
+================================================================================
+CHARGE TYPE: Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 3.45% or BDT 345/ $5.75
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: According to Note 12
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: According to Note 12
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: According to Note 12
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: According to Note 12
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 2.88
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: According to Note 12
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: According to Note 12
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: According to Note 12
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: According to Note 12/1.15%/$2.3
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: According to Note 12/1.15%/$2.3
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: According to Note 12/1.15%/$2.3
+
+
+
+================================================================================
+CHARGE TYPE: Interest Rate (Annual)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 0.25
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 0.25
+
+
+
+================================================================================
+CHARGE TYPE: Return Cheque Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 575
+
+
+
+================================================================================
+CHARGE TYPE: Duplicate E-Statement Fee (per month)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 230
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 1.15
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 57.5/ $1.15
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 57.5/ $1.15
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 57.5/ $1.15
+
+
+
+================================================================================
+CHARGE TYPE: Overlimit Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 1,380/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 1,380/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 1782.5/$ 17.25
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 1380/$ 11.5
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 1380/$ 11.5
+
+
+
+================================================================================
+CHARGE TYPE: Sales Voucher Retrieval Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 11.5
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 345
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 345
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 345
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 11.5
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 345
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 345
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 345
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 345/$11.5
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 345/$11.5
+
+
+
+================================================================================
+CHARGE TYPE: Certificate Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 575
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 6.9
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 1.15
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 57.5
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 57.5/$1.15
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 57.5/$1.15
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 57.5/$1.15
+
+
+
+================================================================================
+CHARGE TYPE: Risk Assurance Fee - on outstanding*
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 0.0035
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 0.0035
+
+
+
+================================================================================
+CHARGE TYPE: Card Chequebook Fee - (10 leaves)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 287.5
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 287.5
+
+
+
+================================================================================
+CHARGE TYPE: Card Cheque Processing Fee (whichever higher)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 2.3% or BDT 575
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 2.3% or BDT 575
+
+
+
+================================================================================
+CHARGE TYPE: Customer Verification/CIB Fee
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 115
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 1.73
+
+
+
+================================================================================
+CHARGE TYPE: Transaction Alert Fee (annual)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 460
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 3.45
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: According to Note 49
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: According to Note 49
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: According to Note 49
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: According to Note 49
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: According to Note 49
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: According to Note 49
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: According to Note 49
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 230
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 460/$3.45
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 460/$3.45
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 460/$3.45
+
+
+
+================================================================================
+CHARGE TYPE: Want2Buy/EasyCredit Adjustment Fee (whichever higher)***
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 2.3% or BDT 575/$5.75
+
+
+
+================================================================================
+CHARGE TYPE: Undelivered Card/PIN Destruction Fee
+================================================================================
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 230
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 230
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 230
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 5.75
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 230
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 230
+
+
+
+================================================================================
+CHARGE TYPE: ATM Receipt Fee (EBL)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 3.45
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 3.45
+
+
+
+================================================================================
+CHARGE TYPE: ATM CCTV Footage Fee (EBL Card)-Inside Dhaka
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 21
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 21
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 2,300
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 2,300
+
+
+
+================================================================================
+CHARGE TYPE: ATM CCTV Footage Fee (EBL Card)-Outside Dhaka
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 21
+
+Card Category: Debit Card
+Card Network: Visa
+Card Product: Classic
+Full Card Name: Debit Card Classic
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Debit Card
+Card Network: Platinum/Titanium
+Full Card Name: Debit Card Platinum/Titanium
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Debit Card
+Card Network: Visa/Mastercard
+Full Card Name: Debit Card Signature (Regular)/World
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Debit Card
+Card Network: Visa
+Full Card Name: Debit Card Signature Priority
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Debit Card
+Card Network: Global/Master Card World RFCD
+Full Card Name: Debit Card Global/Master Card World RFCD
+Charge Amount/Fee: 21
+
+Card Category: Debit Card
+Card Network: Union Pay Classic
+Full Card Name: Debit Card Union Pay Classic
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Debit Card
+Card Network: TakaPay
+Full Card Name: Debit Card TakaPay
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Prepaid Card
+Card Network: Visa
+Card Product: Payroll
+Full Card Name: Prepaid Card Payroll
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Prepaid Card
+Card Network: UnionPay/Mastercard/VISA Prepaid Card
+Full Card Name: Prepaid Card UnionPay/Mastercard/VISA Prepaid Card
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Prepaid Card
+Card Network: Diners Club/FX/ACCA
+Full Card Name: Prepaid Card Diners Club/FX/ACCA
+Charge Amount/Fee: BDT 3,450
+
+Card Category: Prepaid Card
+Card Network: Mastercard
+Card Product: Mastercard Women Prepaid Card
+Full Card Name: Prepaid Card Mastercard  Women Prepaid Card
+Charge Amount/Fee: BDT 3,450
+
+
+
+================================================================================
+CHARGE TYPE: Fund Transfer Fee (EBL Skybanking App)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 0.023
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 0.023
+
+
+
+================================================================================
+CHARGE TYPE: Wallet Transfer Fee (Add Money from app - MFS & PSP)
+================================================================================
+
+Card Category: Credit Card
+Card Network: VISA
+Card Product: Classic
+Full Card Name: Credit Card VISA Classic
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Gold
+Full Card Name: Credit Card Gold
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Platinum
+Full Card Name: Credit Card Platinum
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Women  Platinum
+Full Card Name: Credit Card Women  Platinum
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Army/Air Force/ Navy Platinum
+Full Card Name: Credit Card Army/Air Force/ Navy Platinum
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Corporate Platinum
+Full Card Name: Credit Card Corporate Platinum
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Lite/Women Signature
+Full Card Name: Credit Card Signature Lite/Women Signature
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Signature Acci
+Full Card Name: Credit Card Signature Acci
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Visa
+Card Product: Infinite
+Full Card Name: Credit Card Infinite
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: Titanium
+Full Card Name: Credit Card Mastercard Titanium
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Mastercard
+Card Product: World
+Full Card Name: Credit Card World
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: Diners Club
+Full Card Name: Credit Card Diners Club
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: UnionPay International
+Full Card Name: Credit Card Union Pay Platinum
+Charge Amount/Fee: 0.0115
+
+Card Category: Credit Card
+Card Network: FX Credit
+Full Card Name: Credit Card FX Credit
+Charge Amount/Fee: 0.0115
+
+
+
+================================================================================
+CHARGE TYPE: Notes
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 1. 15% VAT will be charged as applicable on all fees and charges and this shall not be waived under any circumstances. (*VAT is not applicable for Global Lounge Access Fee & Risk Assurance Fee)
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 2. Number of free SkyLounge visits annually: every Platinum, Signature, Titanium, World, Diners Club, UnionPay Platinum, Corporate Platinum - 1 cardholder + 1 guest. For supplementary card- Only cardholder and cardholder's  child of  upto 12 years of age is free.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 3. Annual/renewal fee will be waived for all credit cards (except for Signature Acci and Infinite) if 24 settled transactions are made within 1 year from the first day of the card's annual validity period, and for Diners Club cards if 18 settled transactions are made. Annual/renewal fee will be waived for Infinite card if a minimum of BDT 10 lac transaction is made annually. In this regard, cash withdrawal/advance, card cheque, QR, Easy Credit, utility bill payment and purchase transactions will be considered.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 4. The Card Department will determine the card type based on the limit set by the Credit Department.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 5. This Schedule of Charges applies to all types of regular transactions. The same will be applied for Stamp duty or any other relevant charges (if any). The Bank reserves the right to deduct charges (if any) not mentioned in the Schedule of Charges without any notice.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 6. All EBL cards will be provided with transaction alert service and transaction alert fee will be applicable.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 7. If any charges are applicable from another bank, it will be collected from the customer.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 8. Any changes or modifications to the Schedule of Charges will be notified through the EBL website (www.ebl.com.bd)
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 9. Issuance/annual/renewal and all fees of institutions under Corporate Agreement, Co-brand and Payroll Banking will be governed by their respective agreements.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 10. The Bank may, at its sole discretion, charge a minimum of Tk 0 for any of the above services/fees.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 11. If a closure request is submitted within 30 days before the card is renewed, the next annual/renewal fee will apply.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 13. If a Visa cardholder wants to use the Global Lounge, a Priority Pass is required. Priority Pass will be issued subject to the cardholder's application.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 14. Issuance fee is not applicable for Army/Navy/Air Force Platinum cards.**
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 15. Issuance/renewal fee is not applicable for Diners Club International Vroom Co-brand Card.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 16. EMI early-settlement fee is not applicable for EBL ZIP.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 17. Issuance/annual/renewal fee (including VAT) for FX cards: Platinum USD 57.5, Corporate Platinum USD 13.8, Signature Lite USD 103.5, Signature Acci USD 172.5, Titanium USD 146, World USD 69.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 19. To avail the meet and greet service of Diners Club Card, Tk. 1150 will be charged per visit (inclusive of VAT).
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 20. Fee applicable for personalized image card: Tk. 1,148.85 (inclusive of VAT).
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 21. Annual fee for EasyCredit and Want2Buy cards: 20% interest rate (reducing balance method). For Easy Credit an issuance fee of 2.3% or Tk. 575 (whichever is higher) (inclusive of Vat).
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 22. For ATM's CCTV footage of other bank cards, a charge of BDT 2,875 (inclusive of VAT) is applicable.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 23. Fund transfer can be done from credit card to any bank account or Bkash account using the SkyBanking app. A fund transfer fee will be applicable in this case.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 24. Issuance/replacement fee of BDT 1150/USD 10 applies (except for Visa Infinite cards) for Priority Pass issuance/replacement. The validity of the Priority Pass is 3 years from the date of issuance.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 25. A card replacement fee applies in case of product type change.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 26. Issuance fee for EBL Virtual Prepaid card BDT 230 (inclusive of VAT).
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 27. Excise duty applies on the annual outstanding balance exceeding the limit on credit cards and the annual balance exceeding the limit on prepaid cards. Details available on https://www.ebl.com.bd/ED
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 28. Easy Credit adjustment charge applies if an applicant closes the EMI before the term ends.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 30. Cash withdrawal charges using EBL Agent Outlet POS Machine: The aforementioned cash withdrawal advance fee applies for credit cards. A fee of Tk. 20 (inclusive of VAT) applies for cash withdrawal on debit and prepaid cards.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 33.To know about the details regarding EBL SKYLOUNGE visit, please visit - https://ebl.com.bd/skylounge
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 34. Balance Maintenance Fee: If the outstanding balance on a credit card is Tk. 5,000 or more, a balance maintenance fee of 0.575% or BDT 690 (including VAT) (whichever is higher) applies per billing on the exceeding balance.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 37. Visit, https://ebl.com.bd/wearebl/, for details on WEAREBL.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 41. Local Lounge visit is not included in Global Lounge free visit. To use Local Lounge, EBL declared card payment rate will be applicable****. Local Lounge means all lounges that are situated inside the geographical border of Bangladesh (except for global lounges). To know more about EBL SKYLOUNGE and get access, please visit https://ebl.com.bd/skylounge
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 44. Fees will be applicable for availing Card Chequebooks against a credit card. It will only be issued upon request by the respective cardholder.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 45. Passport Endorsement Fee of BDT 300 (inclusive of VAT) will be applicable for each card.
+================================================================================
+
+
+
+================================================================================
+CHARGE TYPE: 49. For information regarding EBL Account transaction alert fee, please visit the Page-02 of the EBL Retail Banking Charges.
+================================================================================
+

@@ -4,6 +4,7 @@ export interface Message {
   timestamp?: Date;
   isStreaming?: boolean;
   error?: boolean;
+  sources?: string[];
 }
 
 export interface ChatRequest {
@@ -16,5 +17,6 @@ export interface ChatRequest {
 export interface ChatResponse {
   response: string;
   session_id: string;
+  sources?: string[];
 }
 

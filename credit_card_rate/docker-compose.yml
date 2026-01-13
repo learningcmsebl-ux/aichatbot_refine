@@ -47,6 +47,8 @@ services:
     volumes:
       # Mount application code for automatic updates (no rebuild needed)
       - ./fee_engine/admin_panel/admin_api.py:/app/admin_panel/admin_api.py
+      # Mount fee_engine_service.py so admin panel can import updated models
+      - ./fee_engine/fee_engine_service.py:/app/fee_engine_service.py
       # Mount static files (HTML, JS, CSS) for automatic updates
       - ./fee_engine/admin_panel/static:/app/admin_panel/static
     environment:

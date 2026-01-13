@@ -1,0 +1,4069 @@
+{
+  "metadata": {
+    "source_file": "CARD_CHARGES_AND_FEES_SCHEDULE_UPDATE_18.12.2025.txt",
+    "total_records": 503,
+    "charge_types": [
+      "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "ATM Receipt Fee (EBL)",
+      "Card Cheque Processing Fee (whichever higher)",
+      "Card Chequebook Fee - (10 leaves)",
+      "Card Replacement Fee",
+      "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "Certificate Fee",
+      "Customer Verification/CIB Fee",
+      "Duplicate E-Statement Fee (per month)",
+      "Fund Transfer Fee (EBL Skybanking App)",
+      "Global Lounge Access Fee (per individual)",
+      "Interest Rate (Annual)",
+      "Issuance/Renewal/Annual Fee Primary Card",
+      "Late Payment Fee",
+      "Number of Domestic SkyLounge Free Visit (Annual)",
+      "Number of Global Lounge Free Visit (Annual)",
+      "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "Overlimit Fee",
+      "PIN Replacement Fee",
+      "Return Cheque Fee",
+      "Risk Assurance Fee - on outstanding*",
+      "Sales Voucher Retrieval Fee",
+      "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "Transaction Alert Fee (annual)",
+      "Undelivered Card/PIN Destruction Fee",
+      "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***"
+    ],
+    "card_categories": [
+      "Credit Card",
+      "Debit Card",
+      "Prepaid Card"
+    ]
+  },
+  "records": [
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 1,725"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Gold",
+      "full_name": "Credit Card Visa Gold",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 5,750"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women Platinum",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 4,600**"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 11,500"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 13,800"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 28,750"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 5,750"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 8,625"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club International/Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 2,000"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": "Platinum",
+      "full_name": "Credit Card UnionPay Platinum",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 5,750"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "According to Note 17"
+    },
+    {
+      "category": "Debit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 690"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Visa",
+      "product": "Platinum",
+      "full_name": "Debit Card Platinum",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 690"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Signature (Regular)/World",
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 1150"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": "Global/Mastercard World RFCD",
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "$11.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "UnionPay International",
+      "product": "UnionPay Classic",
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "According to Note 9"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 575/$11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Issuance/Renewal/Annual Fee Primary Card",
+      "amount_raw": "BDT 920"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club International",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (Number of Free cards)",
+      "amount_raw": "1st & 2nd Card free"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 1,725"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 1,725"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 999"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "BDT 1150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Supplementary Card - Issuance/Renewal/Annual Fee (from 2nd and 3rd card)",
+      "amount_raw": "13.8"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "According to Card Nature"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "According to Note 33"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Number of Internatinoal SkyLounge Free Visit (Annual)",
+      "amount_raw": "According to Note 33"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "According to Card Nature"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "According to Note 33"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "Unlimited"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Number of Domestic SkyLounge Free Visit (Annual)",
+      "amount_raw": "According to Note 33"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$36/Note 41"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "According to Note 33"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "According to Note 33"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Global Lounge Access Fee (per individual)",
+      "amount_raw": "$35/ BDT 3500"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Number of Global Lounge Free Visit (Annual)",
+      "amount_raw": "6"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Number of Global Lounge Free Visit (Annual)",
+      "amount_raw": "10"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Number of Global Lounge Free Visit (Annual)",
+      "amount_raw": "13"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Number of Global Lounge Free Visit (Annual)",
+      "amount_raw": "According to Card Nature"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Number of Global Lounge Free Visit (Annual)",
+      "amount_raw": "12"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,380"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 1,150"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "10.35"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 690"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 805"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "11.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 575/ $11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 575/ $11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Card Replacement Fee",
+      "amount_raw": "BDT 575/ $11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "6.9"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 690"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 805"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "11.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575/ $11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575/ $11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "PIN Replacement Fee",
+      "amount_raw": "BDT 575/ $11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1150/$13.8"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1150/$13.8"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "BDT 1,380 / $ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Late Payment Fee",
+      "amount_raw": "17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - EBL ATM",
+      "amount_raw": "2.5% or BDT 345"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "3.45% or BDT 345/ $5.75"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "2.88"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12/1.15%/$2.3"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12/1.15%/$2.3"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Cash Withdrawal/Advance Fee (whichever higher) - Other Bank ATM",
+      "amount_raw": "According to Note 12/1.15%/$2.3"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Interest Rate (Annual)",
+      "amount_raw": "0.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Return Cheque Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "1.15"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 57.5/ $1.15"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 57.5/ $1.15"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Duplicate E-Statement Fee (per month)",
+      "amount_raw": "BDT 57.5/ $1.15"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1,380/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1,380/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1782.5/$ 17.25"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1380/$ 11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Overlimit Fee",
+      "amount_raw": "BDT 1380/$ 11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "11.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "11.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Sales Voucher Retrieval Fee",
+      "amount_raw": "BDT 345/$11.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "6.9"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "1.15"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5/$1.15"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5/$1.15"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Certificate Fee",
+      "amount_raw": "BDT 57.5/$1.15"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Risk Assurance Fee - on outstanding*",
+      "amount_raw": "0.0035"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Card Chequebook Fee - (10 leaves)",
+      "amount_raw": "BDT 287.5"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Card Cheque Processing Fee (whichever higher)",
+      "amount_raw": "2.3% or BDT 575"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "BDT 115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Customer Verification/CIB Fee",
+      "amount_raw": "1.73"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "According to Note 49"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460/$3.45"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460/$3.45"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "Transaction Alert Fee (annual)",
+      "amount_raw": "BDT 460/$3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Want2Buy/EasyCredit Adjustment Fee (whichever higher)***",
+      "amount_raw": "2.3% or BDT 575/$5.75"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "Undelivered Card/PIN Destruction Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "Undelivered Card/PIN Destruction Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "Undelivered Card/PIN Destruction Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "Undelivered Card/PIN Destruction Fee",
+      "amount_raw": "5.75"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "Undelivered Card/PIN Destruction Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "Undelivered Card/PIN Destruction Fee",
+      "amount_raw": "BDT 230"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "ATM Receipt Fee (EBL)",
+      "amount_raw": "BDT 3.45"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "21"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "21"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Inside Dhaka",
+      "amount_raw": "BDT 2,300"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "21"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": "Classic",
+      "full_name": "Debit Card Classic",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Platinum/Titanium",
+      "product": null,
+      "full_name": "Debit Card Platinum/Titanium",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa/Mastercard",
+      "product": null,
+      "full_name": "Debit Card Signature (Regular)/World",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Visa",
+      "product": null,
+      "full_name": "Debit Card Signature Priority",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Global/Master Card World RFCD",
+      "product": null,
+      "full_name": "Debit Card Global/Master Card World RFCD",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "21"
+    },
+    {
+      "category": "Debit Card",
+      "network": "Union Pay Classic",
+      "product": null,
+      "full_name": "Debit Card Union Pay Classic",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Debit Card",
+      "network": "TakaPay",
+      "product": null,
+      "full_name": "Debit Card TakaPay",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Visa",
+      "product": "Payroll",
+      "full_name": "Prepaid Card Payroll",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "UnionPay/Mastercard/VISA Prepaid Card",
+      "product": null,
+      "full_name": "Prepaid Card UnionPay/Mastercard/VISA Prepaid Card",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Diners Club/FX/ACCA",
+      "product": null,
+      "full_name": "Prepaid Card Diners Club/FX/ACCA",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Prepaid Card",
+      "network": "Mastercard",
+      "product": "Mastercard Women Prepaid Card",
+      "full_name": "Prepaid Card Mastercard  Women Prepaid Card",
+      "charge_type": "ATM CCTV Footage Fee (EBL Card)-Outside Dhaka",
+      "amount_raw": "BDT 3,450"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Fund Transfer Fee (EBL Skybanking App)",
+      "amount_raw": "0.023"
+    },
+    {
+      "category": "Credit Card",
+      "network": "VISA",
+      "product": "Classic",
+      "full_name": "Credit Card VISA Classic",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Gold",
+      "full_name": "Credit Card Gold",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Platinum",
+      "full_name": "Credit Card Platinum",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Women  Platinum",
+      "full_name": "Credit Card Women  Platinum",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Army/Air Force/ Navy Platinum",
+      "full_name": "Credit Card Army/Air Force/ Navy Platinum",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Corporate Platinum",
+      "full_name": "Credit Card Corporate Platinum",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Lite/Women Signature",
+      "full_name": "Credit Card Signature Lite/Women Signature",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Signature Acci",
+      "full_name": "Credit Card Signature Acci",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Visa",
+      "product": "Infinite",
+      "full_name": "Credit Card Infinite",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "Titanium",
+      "full_name": "Credit Card Mastercard Titanium",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Mastercard",
+      "product": "World",
+      "full_name": "Credit Card World",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "Diners Club",
+      "product": null,
+      "full_name": "Credit Card Diners Club",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "UnionPay International",
+      "product": null,
+      "full_name": "Credit Card Union Pay Platinum",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    },
+    {
+      "category": "Credit Card",
+      "network": "FX Credit",
+      "product": null,
+      "full_name": "Credit Card FX Credit",
+      "charge_type": "Wallet Transfer Fee (Add Money from app - MFS & PSP)",
+      "amount_raw": "0.0115"
+    }
+  ]
+}

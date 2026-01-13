@@ -11,6 +11,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8001',
         changeOrigin: true,
+        // Important: Don't buffer streaming responses
+        buffer: false,
+        // Forward headers that might contain client IP
+        headers: {
+          // Vite will forward X-Client-IP if sent by frontend
+        },
       }
     }
   }

@@ -35,7 +35,9 @@ export interface Conversation {
   is_answered: boolean;
   knowledge_base: string | null;
   response_time_ms: number | null;
+  client_ip: string | null;
   created_at: string;
+  sources?: string[];
 }
 
 export interface HealthStatus {

@@ -25,6 +25,9 @@ debug_router = APIRouter()
 # Initialize orchestrator (singleton)
 orchestrator = ChatOrchestrator()
 
+# Export orchestrator for shutdown hook
+__all__ = ['orchestrator', 'health_router', 'chat_router', 'analytics_router', 'debug_router']
+
 
 # Request/Response Models
 class ChatRequest(BaseModel):

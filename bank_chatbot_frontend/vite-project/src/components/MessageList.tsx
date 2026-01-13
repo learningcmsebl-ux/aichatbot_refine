@@ -10,53 +10,92 @@ interface MessageListProps {
 export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMessageCountRef = useRef<number>(0);
 
-  // Smooth scroll to bottom when new messages arrive
-  useEffect(() => {
+  // Check if user is near bottom (within 150px)
+  const isNearBottom = () => {
+    if (!containerRef.current) return true;
+    const container = containerRef.current;
+    const threshold = 150;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  };
+
+  // Scroll to bottom - use instant scroll during streaming, smooth for new messages
+  const scrollToBottom = (smooth: boolean = false) => {
     if (messagesEndRef.current) {
-      const timer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'end',
-        });
-      }, 100);
-      return () => clearTimeout(timer);
+      messagesEndRef.current.scrollIntoView({
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'end',
+      });
     }
-  }, [messages, isLoading]);
+  };
 
-  // Auto-scroll during streaming
+  // Handle new message added (not streaming update)
   useEffect(() => {
-    if (isLoading && containerRef.current) {
-      const container = containerRef.current;
-      const shouldScroll =
-        container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    const currentMessageCount = messages.length;
+    const isNewMessage = currentMessageCount > lastMessageCountRef.current;
+    lastMessageCountRef.current = currentMessageCount;
+
+    if (isNewMessage) {
+      // New message added - use smooth scroll
+      scrollToBottom(true);
+    }
+  }, [messages.length]);
+
+  // Auto-scroll during streaming (instant, no smooth animation)
+  // Throttled to prevent excessive scrolling on every chunk
+  useEffect(() => {
+    // Clear any pending scroll
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // Only auto-scroll if user is near bottom and content is streaming
+    const lastMessage = messages[messages.length - 1];
+    const isStreaming = lastMessage?.isStreaming || isLoading;
+    
+    if (isStreaming) {
+      // Check if near bottom
+      const nearBottom = isNearBottom();
       
-      if (shouldScroll) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (nearBottom) {
+        // Throttle scroll updates to ~30fps during streaming (every 33ms)
+        scrollTimeoutRef.current = setTimeout(() => {
+          requestAnimationFrame(() => {
+            scrollToBottom(false); // Instant scroll during streaming
+          });
+        }, 33);
       }
     }
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [messages, isLoading]);
 
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-5 rounded-lg mb-2.5 flex flex-col gap-4 min-h-0 scroll-smooth"
+      className="flex-1 overflow-y-auto rounded-lg mb-2.5 flex flex-col min-h-0 scroll-smooth"
       style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '10px 20px 20px 20px',
-        backgroundColor: '#f9fafb',
+        padding: '20px',
+        backgroundColor: '#ffffff',
         borderRadius: '10px',
         marginBottom: '10px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '15px',
+        gap: '0px',
         minHeight: 0,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-        color: '#1f2937',
-        lineHeight: 1.55,
-        fontSize: '16px',
-        letterSpacing: '0.1px',
+        color: '#353740',
+        lineHeight: 1.5,
+        fontSize: '15px',
+        letterSpacing: '0',
         scrollBehavior: 'smooth',
       }}
     >
@@ -80,39 +119,51 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
           {messages.map((message, index) => (
             <MessageBubble key={`${message.role}-${index}-${message.timestamp?.getTime()}`} message={message} />
           ))}
-          {isLoading && (
-            <div className="message-enter self-start">
+          {/* Only show loading indicator if there's no streaming message already */}
+          {isLoading && !messages.some(msg => msg.isStreaming) && (
+            <div className="message-enter flex items-start gap-3">
+              {/* Avatar on the left side */}
               <div
-                className="bg-[#f3f4f6] text-[#111827] self-start rounded-2xl px-4 py-4 my-3 whitespace-pre-line relative"
+                className="flex-shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg"
                 style={{
-                  backgroundColor: '#f3f4f6',
-                  color: '#111827',
-                  alignSelf: 'flex-start',
-                  whiteSpace: 'pre-line',
-                  padding: '16px 18px 16px 88px',
-                  borderRadius: '14px',
-                  margin: '12px 0',
-                  borderLeft: '3px solid #003366',
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #0d9375 0%, #0a7a5f 100%)',
+                  boxShadow: '0 2px 8px rgba(13, 147, 117, 0.3)',
+                  flexShrink: 0,
+                  marginTop: '4px',
                 }}
               >
                 <div
-                  className="absolute left-4 top-4 rounded-xl bg-cover bg-center border-2 border-gray-200 shadow-sm"
+                  className="rounded-full bg-cover bg-center"
                   style={{
-                    left: '18px',
-                    top: '18px',
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '12px',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
                     backgroundImage: 'url(/dia-avatar.png)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center 20%',
                     backgroundRepeat: 'no-repeat',
-                    border: '2px solid #e5e7eb',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
                   }}
                 />
-                <div className="flex items-center gap-1.5 py-2">
+              </div>
+              <div
+                className="bg-[#f7f7f8] text-[#353740] rounded-2xl px-4 py-3 my-1 whitespace-pre-line relative flex-1"
+                style={{
+                  backgroundColor: '#f7f7f8',
+                  color: '#353740',
+                  whiteSpace: 'pre-line',
+                  padding: '12px 16px',
+                  borderRadius: '18px',
+                  margin: '4px 0',
+                  maxWidth: 'calc(85% - 44px)',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  borderLeft: '3px solid #10a37f',
+                }}
+              >
+                <div className="flex items-center gap-1.5 py-1">
                   <div className="thinking-dot"></div>
                   <div className="thinking-dot"></div>
                   <div className="thinking-dot"></div>
@@ -126,3 +177,4 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
     </div>
   );
 };
+
