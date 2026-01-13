@@ -80,6 +80,14 @@ class LeadFlowState:
 class ChatOrchestrator:
     """Orchestrates chat processing with PostgreSQL, Redis, and LightRAG"""
     
+    # Constants for repeated strings
+    OFFICIAL_CARD_RATES_HEADER = "OFFICIAL CARD RATES AND FEES INFORMATION"
+    OFFICIAL_RETAIL_ASSET_HEADER = "OFFICIAL RETAIL ASSET CHARGES INFORMATION"
+    OFFICIAL_SKYBANKING_HEADER = "OFFICIAL SKYBANKING FEES INFORMATION"
+    FEE_ENGINE_SOURCE = "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)"
+    FEE_ENGINE_SOURCE_RETAIL = "Source: Fee Engine (Retail Asset Charges Schedule)"
+    FEE_ENGINE_SOURCE_SKYBANKING = "Source: Fee Engine (Skybanking Fees Schedule)"
+    
     def __init__(self):
         self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.lightrag_client = LightRAGClient()
@@ -164,6 +172,175 @@ class ChatOrchestrator:
         """Stream text in chunks."""
         for i in range(0, len(text), chunk_size):
             yield text[i:i + chunk_size]
+    
+    async def _handle_disambiguation_resolution(
+        self,
+        query: str,
+        conversation_key: str,
+        session_id: str,
+        pending_disambiguation: Dict[str, Any],
+        is_streaming: bool
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Handle disambiguation state resolution.
+        
+        Args:
+            query: User's query
+            conversation_key: Stable conversation key
+            session_id: Session ID for memory operations
+            pending_disambiguation: Disambiguation state dict
+            is_streaming: True for streaming mode, False for sync mode
+        
+        Returns:
+            For streaming: None (yields chunks via generator)
+            For sync: Dict with "response" and "session_id", or None if not in disambiguation
+        """
+        product_line = pending_disambiguation.get("product_line")
+        charge_type = pending_disambiguation.get("charge_type")
+        options = pending_disambiguation.get("options", [])
+        disambiguation_type = pending_disambiguation.get("disambiguation_type")
+        prompt_message = pending_disambiguation.get("prompt_message")
+        extra = pending_disambiguation.get("extra") or {}
+        
+        logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
+        
+        # Try to resolve selection from query
+        selected_option = self._resolve_selection(query, options)
+        
+        if selected_option and product_line == "RETAIL_ASSETS":
+            # 🚨 TERMINAL RESOLUTION STATE: Disambiguation resolved - NOTHING ELSE RUNS
+            await self._clear_disambiguation_state_any(conversation_key)
+            loan_product = selected_option.get("loan_product")
+            option_charge_type = selected_option.get("charge_type", charge_type)
+            charge_context = selected_option.get("charge_context")
+            description_keywords = selected_option.get("description_keywords")
+            if not description_keywords and disambiguation_type == "DESCRIPTION":
+                chosen = selected_option.get("answer_text") or selected_option.get("charge_description")
+                if chosen and str(chosen).strip():
+                    description_keywords = [str(chosen).strip()]
+            
+            logger.info(f"[DISAMBIGUATION] 🚨 TERMINAL RESOLUTION: loan_product={loan_product}, charge_type={option_charge_type}, charge_context={charge_context}. EXITING after fee engine call - NO RAG, NO CARDS, NO PRODUCT KB.")
+            
+            # HARD GUARD: Only call fee engine, no RAG, no cards, no product KB
+            from app.services.fee_engine_client import FeeEngineClient
+            fee_client = FeeEngineClient()
+            
+            fee_result = await fee_client._query_retail_asset_charges(
+                query=query,
+                charge_type=option_charge_type,
+                loan_product=loan_product,
+                description_keywords=description_keywords
+            )
+            
+            if fee_result and fee_result.get("status") == "FOUND":
+                formatted = fee_client.format_fee_response(fee_result, query=query)
+                fee_context = f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
+                
+                # Save to memory
+                await self._persist_turn(session_id, query, fee_context)
+                
+                if is_streaming:
+                    # For streaming, return a marker that indicates we should yield and exit
+                    return {"action": "yield_and_exit", "response": fee_context}
+                else:
+                    return {"response": fee_context, "session_id": session_id}
+            else:
+                error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
+                await self._persist_turn(session_id, query, error_msg)
+                
+                if is_streaming:
+                    return {"action": "yield_and_exit", "response": error_msg}
+                else:
+                    return {"response": error_msg, "session_id": session_id}
+        
+        elif selected_option and product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
+            await self._clear_disambiguation_state_any(conversation_key)
+            
+            base_query = (extra.get("base_query") or "").strip()
+            chosen_product = (
+                selected_option.get("card_product_name")
+                or selected_option.get("card_product")
+                or selected_option.get("label")
+                or ""
+            ).strip()
+            
+            if not base_query or not chosen_product:
+                response_text = prompt_message or "Please specify the card product (reply with a number from the list)."
+                if is_streaming:
+                    return {"action": "yield_and_exit", "response": response_text}
+                else:
+                    return {"response": response_text, "session_id": session_id}
+            
+            resolved_query = f"{base_query} {chosen_product}".strip()
+            fee_context = await self._get_card_rates_context(
+                resolved_query,
+                session_id=session_id,
+                conversation_key=conversation_key,
+            )
+            
+            if not fee_context:
+                fee_context = (
+                    f"{self.OFFICIAL_CARD_RATES_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE}\n\n"
+                    "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026)."
+                )
+            
+            await self._persist_turn(session_id, query, fee_context)
+            
+            if is_streaming:
+                return {"action": "yield_and_exit", "response": fee_context}
+            else:
+                return {"response": fee_context, "session_id": session_id}
+        
+        else:
+            # Selection not resolved - re-prompt
+            logger.info(f"[DISAMBIGUATION] Selection not resolved from query '{query}', keeping disambiguation state active. User needs to provide a valid selection (1-{len(options)}) or product name.")
+            
+            if prompt_message:
+                disambiguation_msg = prompt_message
+                logger.info(f"[DISAMBIGUATION] Re-prompting with stored message (type={disambiguation_type})")
+            else:
+                # Fallback: reconstruct if stored message not available
+                from app.services.fee_engine_client import FeeEngineClient
+                fee_client = FeeEngineClient()
+                if product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
+                    lines = [
+                        self.OFFICIAL_CARD_RATES_HEADER,
+                        self.FEE_ENGINE_SOURCE,
+                        "",
+                        "To answer, please specify the card product:",
+                    ]
+                    for i, opt in enumerate(options, start=1):
+                        label = opt.get("card_product_name") or opt.get("card_product") or opt.get("label") or str(opt)
+                        lines.append(f"{i}. {label}")
+                    lines.append("")
+                    lines.append("Reply with the number (e.g., 1) or the product name.")
+                    disambiguation_msg = "\n".join(lines)
+                else:
+                    charges = [
+                        {
+                            "loan_product": opt.get("loan_product"),
+                            "loan_product_name": opt.get("loan_product_name", opt.get("loan_product")),
+                            "charge_type": opt.get("charge_type", charge_type),
+                            "charge_context": opt.get("charge_context"),
+                            "charge_description": opt.get("charge_description"),
+                            "answer_text": opt.get("answer_text"),
+                        }
+                        for opt in options
+                    ]
+                    result_dict = {
+                        "status": "NEEDS_DISAMBIGUATION",
+                        "charges": charges,
+                        "message": f"Multiple loan products have {charge_type.replace('_', ' ').title()} available. Please specify which loan product you're interested in."
+                    }
+                    disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
+            
+            await self._persist_turn(session_id, query, disambiguation_msg)
+            
+            if is_streaming:
+                return {"action": "yield_and_exit", "response": disambiguation_msg}
+            else:
+                return {"response": disambiguation_msg, "session_id": session_id}
     
     async def close(self):
         """Close all async clients and resources"""
@@ -1590,7 +1767,7 @@ When responding:
             # Handle retail asset charges NEEDS_DISAMBIGUATION (multiple charges found without loan_product)
             if fee_result and fee_result.get("status") == "NEEDS_DISAMBIGUATION" and "charges" in fee_result:
                 formatted = fee_client.format_fee_response(fee_result, query=query)
-                context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nPlease specify which loan product you're interested in to get the exact processing fee details."
+                context = f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n{formatted}\n\nPlease specify which loan product you're interested in to get the exact processing fee details."
                 logger.info(f"[FEE_ENGINE] Retail asset charge needs disambiguation for query: '{query}'")
                 
                 # Store disambiguation state for session
@@ -1725,8 +1902,8 @@ When responding:
                 charge_type = fee_result.get("charge_type") or ""
 
                 lines = [
-                    "OFFICIAL CARD RATES AND FEES INFORMATION",
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    self.OFFICIAL_CARD_RATES_HEADER,
+                    self.FEE_ENGINE_SOURCE,
                     "",
                     "To answer, please specify the card product:",
                 ]
@@ -1778,7 +1955,7 @@ When responding:
             # Handle Skybanking fees (status = "FOUND")
             if fee_result and fee_result.get("status") == "FOUND" and "fees" in fee_result:
                 formatted = fee_client.format_fee_response(fee_result, query=query)
-                context = f"OFFICIAL SKYBANKING FEES INFORMATION\n{'='*70}\n{formatted}\n{'='*70}\n\nThis information is from the Skybanking Fees Schedule and is authoritative."
+                context = f"{self.OFFICIAL_SKYBANKING_HEADER}\n{'='*70}\n{formatted}\n{'='*70}\n\nThis information is from the Skybanking Fees Schedule and is authoritative."
                 logger.info(f"[FEE_ENGINE] Skybanking fee found and formatted for query: '{query}'")
                 return context
             
@@ -1788,8 +1965,8 @@ When responding:
                 
                 # Build base lines - clean format without emoji warnings
                 lines = [
-                    "OFFICIAL CARD RATES AND FEES INFORMATION",
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    self.OFFICIAL_CARD_RATES_HEADER,
+                    self.FEE_ENGINE_SOURCE,
                     "",
                     formatted,
                 ]
@@ -1811,8 +1988,8 @@ When responding:
                     note_text = message
                 
                 lines = [
-                    "OFFICIAL CARD RATES AND FEES INFORMATION",
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    self.OFFICIAL_CARD_RATES_HEADER,
+                    self.FEE_ENGINE_SOURCE,
                     "",
                     f"Note Reference: {note_ref}",
                     "",
@@ -1833,8 +2010,8 @@ When responding:
                 # Return deterministic not-found message for card charges instead of empty string
                 lines = [
                     "=" * 70,
-                    "OFFICIAL CARD RATES AND FEES INFORMATION",
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    self.OFFICIAL_CARD_RATES_HEADER,
+                    self.FEE_ENGINE_SOURCE,
                     "=" * 70,
                     "",
                     "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).",
@@ -1855,8 +2032,8 @@ When responding:
                 message = fee_result.get("message", "Fee rule exists but currency conversion required.")
                 lines = [
                     "=" * 70,
-                    "OFFICIAL CARD RATES AND FEES INFORMATION",
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    self.OFFICIAL_CARD_RATES_HEADER,
+                    self.FEE_ENGINE_SOURCE,
                     "=" * 70,
                     "",
                     f"The fee information requires currency conversion: {message}",
@@ -1877,14 +2054,14 @@ When responding:
                 product_line = fee_client._detect_product_line(query)
                 if product_line == "RETAIL_ASSETS":
                     formatted = fee_client.format_fee_response(fee_result, query=query) if fee_result else "The requested retail asset charge information is not found in the Retail Asset Charges Schedule."
-                    context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nPlease verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                    context = f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n{formatted}\n\nPlease verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                     return context
                 
                 # Return deterministic message for unknown statuses (card fees only)
                 lines = [
                     "=" * 70,
-                    "OFFICIAL CARD RATES AND FEES INFORMATION",
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                    self.OFFICIAL_CARD_RATES_HEADER,
+                    self.FEE_ENGINE_SOURCE,
                     "=" * 70,
                     "",
                     f"The requested fee information could not be retrieved (status: {status}).",
@@ -1902,8 +2079,8 @@ When responding:
             # Return deterministic not-found message instead of falling back
             lines = [
                 "=" * 70,
-                "OFFICIAL CARD RATES AND FEES INFORMATION",
-                "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                self.OFFICIAL_CARD_RATES_HEADER,
+                self.FEE_ENGINE_SOURCE,
                 "=" * 70,
                 "",
                 "The fee engine service is not available.",
@@ -1923,7 +2100,7 @@ When responding:
                 product_line = fee_client._detect_product_line(query) if 'fee_client' in locals() and fee_client else None
                 if product_line == "RETAIL_ASSETS":
                     return (
-                        "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
+                        f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n"
                         "An error occurred while retrieving retail asset charge information.\n\n"
                         "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                     )
@@ -1933,8 +2110,8 @@ When responding:
             # Default: deterministic card-fees error message (no fallback to old service)
             lines = [
                 "=" * 70,
-                "OFFICIAL CARD RATES AND FEES INFORMATION",
-                "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+                self.OFFICIAL_CARD_RATES_HEADER,
+                self.FEE_ENGINE_SOURCE,
                 "=" * 70,
                 "",
                 "An error occurred while retrieving fee information.",
@@ -1966,8 +2143,8 @@ When responding:
         # Return deterministic not-found message for card fees (NEVER return empty string for fee queries)
         lines = [
             "=" * 70,
-            "OFFICIAL CARD RATES AND FEES INFORMATION",
-            "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
+            self.OFFICIAL_CARD_RATES_HEADER,
+                            self.FEE_ENGINE_SOURCE,
             "=" * 70,
             "",
             "The fee engine service returned no result.",
@@ -2296,7 +2473,7 @@ When responding:
             is_supplementary_query = "supplementary" in query_lower and ("fee" in query_lower or "annual" in query_lower)
             
             # Add supplementary card reminder if context contains fee-engine data
-            if is_supplementary_query and ("OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context):
+            if is_supplementary_query and (self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context):
                 supplementary_card_reminder = "\n\n" + "="*70 + "\n💳 CRITICAL: SUPPLEMENTARY CARD FEES 💳\n" + "="*70 + "\n**MANDATORY**: Include BOTH: (1) First 2 cards FREE (BDT 0/year), (2) 3rd+ cards BDT 2,300/year.\n**FORBIDDEN**: Do NOT say only 'BDT 0' without mentioning 3rd+ card fee.\n**CORRECT**: 'First 2 supplementary cards are free (BDT 0/year). Starting from 3rd card, annual fee is BDT 2,300/year.'\n" + "="*70
             
             # Check if this is an organizational overview query
@@ -2322,7 +2499,7 @@ When responding:
                         partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
             
             # Add currency preservation reminder if card rates context is present
-            if "OFFICIAL CARD RATES AND FEES INFORMATION" in context or "Card Rates and Fees Information" in context:
+            if self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context:
                 currency_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL CURRENCY RULE 🚨\n" + "="*70 + "\nThe context above contains currency codes like 'BDT' and 'USD'. You MUST use the EXACT currency code from the context.\n\nEXAMPLES:\n- If context shows 'BDT 287.5', you MUST output 'BDT 287.5' (NOT ₹287.5)\n- If context shows 'BDT 1,725', you MUST output 'BDT 1,725' (NOT ₹1,725)\n- If context shows 'USD 57.5', you MUST output 'USD 57.5'\n\nNEVER replace BDT with ₹ or any other currency symbol. BDT = Bangladeshi Taka.\n\n**CONCISENESS RULE**: For monetary values in Bangladesh, use ONE format only (BDT + Lakhs) and state it ONCE. Do NOT repeat the amount in different formats or in explanation text.\n" + "="*70
             
             # Add bank name reminder if context mentions "Eastern Bank Limited"
@@ -2443,160 +2620,17 @@ When responding:
         # This MUST happen before any other routing to ensure disambiguation state is always checked first
         pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
         if pending_disambiguation:
-            product_line = pending_disambiguation.get("product_line")
-            charge_type = pending_disambiguation.get("charge_type")
-            as_of_date = pending_disambiguation.get("as_of_date")
-            options = pending_disambiguation.get("options", [])
-            disambiguation_type = pending_disambiguation.get("disambiguation_type")  # "LOAN_PRODUCT" / "CHARGE_CONTEXT" / "DESCRIPTION"
-            prompt_message = pending_disambiguation.get("prompt_message")  # Stored prompt message
-            extra = pending_disambiguation.get("extra") or {}
-            
-            logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
-            
-            # Try to resolve selection from query
-            selected_option = self._resolve_selection(query, options)
-            
-            if selected_option and product_line == "RETAIL_ASSETS":
-                # 🚨 TERMINAL RESOLUTION STATE: Disambiguation resolved - NOTHING ELSE RUNS
-                # This is a hard terminal exit - same pattern as IVR systems, payment disputes, KYC step-up flows
-                # Clear disambiguation state immediately
-                await self._clear_disambiguation_state_any(conversation_key)
-                loan_product = selected_option.get("loan_product")
-                # CRITICAL: Use charge_type from the selected option, not from stored state
-                # This ensures correct charge_type is used (e.g., LIMIT_ENHANCEMENT_FEE vs PROCESSING_FEE)
-                option_charge_type = selected_option.get("charge_type", charge_type)
-                # Legacy: may be present for older context-based disambiguation.
-                charge_context = selected_option.get("charge_context")
-                # New: description-based disambiguation uses deterministic description keywords.
-                description_keywords = selected_option.get("description_keywords")
-                if not description_keywords and disambiguation_type == "DESCRIPTION":
-                    chosen = selected_option.get("answer_text") or selected_option.get("charge_description")
-                    if chosen and str(chosen).strip():
-                        description_keywords = [str(chosen).strip()]
-                
-                logger.info(f"[DISAMBIGUATION] 🚨 TERMINAL RESOLUTION: loan_product={loan_product}, charge_type={option_charge_type}, charge_context={charge_context}. EXITING after fee engine call - NO RAG, NO CARDS, NO PRODUCT KB.")
-                
-                # HARD GUARD: Only call fee engine, no RAG, no cards, no product KB
-                from app.services.fee_engine_client import FeeEngineClient
-                fee_client = FeeEngineClient()
-                
-                # Query retail asset charges with the resolved loan_product and charge_type from selected option
-                fee_result = await fee_client._query_retail_asset_charges(
-                    query=query,
-                    charge_type=option_charge_type,  # CRITICAL: Use charge_type from selected option
-                    loan_product=loan_product,  # Pass resolved loan_product directly
-                    description_keywords=description_keywords
-                )
-                
-                if fee_result and fee_result.get("status") == "FOUND":
-                    formatted = fee_client.format_fee_response(fee_result, query=query)
-                    fee_context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
-                    
-                    # Stream response
-                    full_response = fee_context
-                    async for chunk in self._stream_text(fee_context):
-                        yield chunk
-                    
-                    # Save to memory
-                    await self._persist_turn(effective_session_id, query, full_response)
-                    
-                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
-                    return
-                else:
-                    # Fee not found even with resolved loan_product
-                    error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
-                    yield error_msg
-                    
-                    # Save to memory
-                    await self._persist_turn(effective_session_id, query, error_msg)
-                    
-                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
-                    return
-            elif selected_option and product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
-                # Card fee clarification resolved (missing/ambiguous card_product). Re-run fee-engine deterministically.
-                await self._clear_disambiguation_state_any(conversation_key)
-
-                base_query = (extra.get("base_query") or "").strip()
-                chosen_product = (
-                    selected_option.get("card_product_name")
-                    or selected_option.get("card_product")
-                    or selected_option.get("label")
-                    or ""
-                ).strip()
-
-                if not base_query or not chosen_product:
-                    # If something is missing, re-prompt without clearing state (best-effort safety).
-                    # (We already cleared above; so just ask again.)
-                    yield prompt_message or "Please specify the card product (reply with a number from the list)."
-                    return
-
-                resolved_query = f"{base_query} {chosen_product}".strip()
-                fee_context = await self._get_card_rates_context(
-                    resolved_query,
-                    session_id=effective_session_id,
-                    conversation_key=conversation_key,
-                )
-
-                if not fee_context:
-                    fee_context = (
-                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n\n"
-                        "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026)."
-                    )
-
-                full_response = fee_context
-                async for chunk in self._stream_text(fee_context):
+            result = await self._handle_disambiguation_resolution(
+                query=query,
+                conversation_key=conversation_key,
+                session_id=effective_session_id,
+                pending_disambiguation=pending_disambiguation,
+                is_streaming=True
+            )
+            if result:
+                # Stream the response and exit
+                async for chunk in self._stream_text(result["response"]):
                     yield chunk
-
-                # Save to memory
-                await self._persist_turn(effective_session_id, query, full_response)
-
-                return
-            else:
-                # Fix B: Selection not resolved - DO NOT clear state, let it persist
-                # State will only be cleared when:
-                # 1. User resolves it successfully (handled above)
-                # 2. TTL expires (handled by Redis automatically)
-                # 3. User says "cancel" (future enhancement)
-                # DO NOT clear here - this prevents KB/RAG fallback on failed resolution
-                logger.info(f"[DISAMBIGUATION] Selection not resolved from query '{query}', keeping disambiguation state active. User needs to provide a valid selection (1-{len(options)}) or product name.")
-                
-                # 🚨 TERMINAL EXIT: Re-prompt with stored message - NO LLM, NO RAG, NO OTHER ROUTING
-                # Use the stored prompt_message if available, otherwise reconstruct
-                if prompt_message:
-                    # Reuse the exact stored prompt message
-                    disambiguation_msg = prompt_message
-                    logger.info(f"[DISAMBIGUATION] Re-prompting with stored message (type={disambiguation_type})")
-                else:
-                    # Fallback: reconstruct if stored message not available
-                    from app.services.fee_engine_client import FeeEngineClient
-                    fee_client = FeeEngineClient()
-                    # Convert options to charges format expected by _format_retail_asset_disambiguation_response
-                    # CRITICAL: Include charge_context and charge_type from options to preserve disambiguation type
-                    charges = [
-                        {
-                            "loan_product": opt.get("loan_product"),
-                            "loan_product_name": opt.get("loan_product_name", opt.get("loan_product")),
-                            "charge_type": opt.get("charge_type", charge_type),  # Use charge_type from option, fallback to stored
-                            "charge_context": opt.get("charge_context"),  # Legacy
-                            "charge_description": opt.get("charge_description"),
-                            "answer_text": opt.get("answer_text"),
-                        }
-                        for opt in options
-                    ]
-                    result_dict = {
-                        "status": "NEEDS_DISAMBIGUATION",
-                        "charges": charges,
-                        "message": f"Multiple loan products have {charge_type.replace('_', ' ').title()} available. Please specify which loan product you're interested in."
-                    }
-                    disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
-                
-                yield disambiguation_msg
-                
-                # Save to memory
-                await self._persist_turn(effective_session_id, query, disambiguation_msg)
-                
-                # 🚨 TERMINAL EXIT - Do not proceed to RAG, cards, or any other routing while disambiguation is pending
                 return
         
         # Check if user is already in lead collection flow
@@ -2714,8 +2748,8 @@ When responding:
             # ALWAYS return fee engine response, even if empty
             if not fee_context:
                 fee_context = (
-                    "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
-                    "Source: Fee Engine (Retail Asset Charges Schedule)\n\n"
+                    f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE_RETAIL}\n\n"
                     "The specific information about this retail asset charge is not available in the current schedule. "
                     "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                 )
@@ -2742,7 +2776,7 @@ When responding:
             if not fee_context:
                 fee_context = (
                     "=" * 70 + "\n"
-                    "SKYBANKING FEES INFORMATION\n"
+                    f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
                     "Source: Fee Engine (Skybanking Fees Schedule)\n"
                     "=" * 70 + "\n\n"
                     "The specific information about this Skybanking fee is not available in the current schedule. "
@@ -2775,8 +2809,8 @@ When responding:
                 logger.warning(f"[FEE_ENGINE] Fee engine returned empty - returning deterministic not-found message")
                 fee_context = (
                     "=" * 70 + "\n"
-                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    f"{self.OFFICIAL_CARD_RATES_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE}\n"
                     "=" * 70 + "\n\n"
                     "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
                     "Please verify the card details and try again.\n\n"
@@ -3150,8 +3184,8 @@ When responding:
                 # But handle gracefully with a not-found message
                 combined_context = (
                     "=" * 70 + "\n"
-                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    f"{self.OFFICIAL_CARD_RATES_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE}\n"
                     "=" * 70 + "\n\n"
                     "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
                     "Please verify the card details and try again.\n\n"
@@ -3265,171 +3299,15 @@ When responding:
         # This MUST happen before any other routing to ensure disambiguation state is always checked first
         pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
         if pending_disambiguation:
-            product_line = pending_disambiguation.get("product_line")
-            charge_type = pending_disambiguation.get("charge_type")
-            as_of_date = pending_disambiguation.get("as_of_date")
-            options = pending_disambiguation.get("options", [])
-            disambiguation_type = pending_disambiguation.get("disambiguation_type")  # "LOAN_PRODUCT" / "CHARGE_CONTEXT" / "DESCRIPTION"
-            prompt_message = pending_disambiguation.get("prompt_message")  # Stored prompt message
-            extra = pending_disambiguation.get("extra") or {}
-            
-            logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
-            
-            # Try to resolve selection from query
-            selected_option = self._resolve_selection(query, options)
-            
-            if selected_option and product_line == "RETAIL_ASSETS":
-                # 🚨 TERMINAL RESOLUTION STATE: Disambiguation resolved - NOTHING ELSE RUNS
-                # This is a hard terminal exit - same pattern as IVR systems, payment disputes, KYC step-up flows
-                # Clear disambiguation state immediately
-                await self._clear_disambiguation_state_any(conversation_key)
-                loan_product = selected_option.get("loan_product")
-                # CRITICAL: Use charge_type from the selected option, not from stored state
-                # This ensures correct charge_type is used (e.g., LIMIT_ENHANCEMENT_FEE vs PROCESSING_FEE)
-                option_charge_type = selected_option.get("charge_type", charge_type)
-                charge_context = selected_option.get("charge_context")  # legacy
-                description_keywords = selected_option.get("description_keywords")
-                if not description_keywords and disambiguation_type == "DESCRIPTION":
-                    chosen = selected_option.get("answer_text") or selected_option.get("charge_description")
-                    if chosen and str(chosen).strip():
-                        description_keywords = [str(chosen).strip()]
-                
-                logger.info(f"[DISAMBIGUATION] 🚨 TERMINAL RESOLUTION: loan_product={loan_product}, charge_type={option_charge_type}, charge_context={charge_context}. EXITING after fee engine call - NO RAG, NO CARDS, NO PRODUCT KB.")
-                
-                # HARD GUARD: Only call fee engine, no RAG, no cards, no product KB
-                from app.services.fee_engine_client import FeeEngineClient
-                fee_client = FeeEngineClient()
-                
-                # Query retail asset charges with the resolved loan_product and charge_type from selected option
-                fee_result = await fee_client._query_retail_asset_charges(
-                    query=query,
-                    charge_type=option_charge_type,  # CRITICAL: Use charge_type from selected option
-                    loan_product=loan_product,  # Pass resolved loan_product directly
-                    description_keywords=description_keywords
-                )
-                
-                if fee_result and fee_result.get("status") == "FOUND":
-                    formatted = fee_client.format_fee_response(fee_result, query=query)
-                    fee_context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
-                    
-                    # Return response
-                    response = fee_context
-                    
-                    # Save to memory
-                    await self._persist_turn(effective_session_id, query, response)
-                    
-                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
-                    return {
-                        "response": response,
-                        "session_id": effective_session_id
-                    }
-                else:
-                    # Fee not found even with resolved loan_product
-                    error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
-                    
-                    # Save to memory
-                    await self._persist_turn(effective_session_id, query, error_msg)
-                    
-                    # 🚨 TERMINAL EXIT - NO FALLBACK, NO RAG, NO CARDS, NO PRODUCT KB
-                    return {
-                        "response": error_msg,
-                        "session_id": session_id
-                    }
-            elif selected_option and product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
-                await self._clear_disambiguation_state_any(conversation_key)
-
-                base_query = (extra.get("base_query") or "").strip()
-                chosen_product = (
-                    selected_option.get("card_product_name")
-                    or selected_option.get("card_product")
-                    or selected_option.get("label")
-                    or ""
-                ).strip()
-                if not base_query or not chosen_product:
-                    return {
-                        "response": prompt_message or "Please specify the card product (reply with a number from the list).",
-                        "session_id": effective_session_id,
-                    }
-
-                resolved_query = f"{base_query} {chosen_product}".strip()
-                fee_context = await self._get_card_rates_context(
-                    resolved_query,
-                    session_id=effective_session_id,
-                    conversation_key=conversation_key,
-                )
-                if not fee_context:
-                    fee_context = (
-                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n\n"
-                        "The requested fee information is not available in the Card Charges and Fees Schedule (effective 01 Jan 2026)."
-                    )
-
-                # Save to memory
-                await self._persist_turn(effective_session_id, query, fee_context)
-
-                return {
-                    "response": fee_context,
-                    "session_id": effective_session_id,
-                }
-            else:
-                # Fix B: Selection not resolved - DO NOT clear state, let it persist
-                # State will only be cleared when:
-                # 1. User resolves it successfully (handled above)
-                # 2. TTL expires (handled by Redis automatically)
-                # 3. User says "cancel" (future enhancement)
-                # DO NOT clear here - this prevents KB/RAG fallback on failed resolution
-                logger.info(f"[DISAMBIGUATION] Selection not resolved from query '{query}', keeping disambiguation state active. User needs to provide a valid selection (1-{len(options)}) or product name.")
-                
-                # 🚨 TERMINAL EXIT: Re-prompt with stored message - NO LLM, NO RAG, NO OTHER ROUTING
-                # Use the stored prompt_message if available, otherwise reconstruct
-                if prompt_message:
-                    # Reuse the exact stored prompt message
-                    disambiguation_msg = prompt_message
-                    logger.info(f"[DISAMBIGUATION] Re-prompting with stored message (type={disambiguation_type})")
-                else:
-                    # Fallback: reconstruct if stored message not available
-                    from app.services.fee_engine_client import FeeEngineClient
-                    fee_client = FeeEngineClient()
-                    if product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
-                        lines = [
-                            "OFFICIAL CARD RATES AND FEES INFORMATION",
-                            "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)",
-                            "",
-                            "To answer, please specify the card product:",
-                        ]
-                        for i, opt in enumerate(options, start=1):
-                            label = opt.get("card_product_name") or opt.get("card_product") or opt.get("label") or str(opt)
-                            lines.append(f"{i}. {label}")
-                        lines.append("")
-                        lines.append("Reply with the number (e.g., 1) or the product name.")
-                        disambiguation_msg = "\n".join(lines)
-                    else:
-                        # Convert options to charges format expected by _format_retail_asset_disambiguation_response
-                        # CRITICAL: Include charge_context and charge_type from options to preserve disambiguation type
-                        charges = [
-                            {
-                                "loan_product": opt.get("loan_product"),
-                                "loan_product_name": opt.get("loan_product_name", opt.get("loan_product")),
-                                "charge_type": opt.get("charge_type", charge_type),  # Use charge_type from option, fallback to stored
-                                "charge_context": opt.get("charge_context")  # Include charge_context from option
-                            }
-                            for opt in options
-                        ]
-                        result_dict = {
-                            "status": "NEEDS_DISAMBIGUATION",
-                            "charges": charges,
-                            "message": f"Multiple loan products have {charge_type.replace('_', ' ').title()} available. Please specify which loan product you're interested in."
-                        }
-                        disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
-                
-                # Save to memory
-                await self._persist_turn(effective_session_id, query, disambiguation_msg)
-                
-                # 🚨 TERMINAL EXIT - Do not proceed to RAG, cards, or any other routing while disambiguation is pending
-                return {
-                    "response": disambiguation_msg,
-                    "session_id": effective_session_id
-                }
+            result = await self._handle_disambiguation_resolution(
+                query=query,
+                conversation_key=conversation_key,
+                session_id=effective_session_id,
+                pending_disambiguation=pending_disambiguation,
+                is_streaming=False
+            )
+            if result:
+                return result
         
         # Get conversation history
         db = get_db()
@@ -3464,8 +3342,8 @@ When responding:
             # ALWAYS return fee engine response, even if empty
             if not fee_context:
                 fee_context = (
-                    "OFFICIAL RETAIL ASSET CHARGES INFORMATION\n"
-                    "Source: Fee Engine (Retail Asset Charges Schedule)\n\n"
+                    f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE_RETAIL}\n\n"
                     "The specific information about this retail asset charge is not available in the current schedule. "
                     "Please verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                 )
@@ -3495,7 +3373,7 @@ When responding:
             if not fee_context:
                 fee_context = (
                     "=" * 70 + "\n"
-                    "SKYBANKING FEES INFORMATION\n"
+                    f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
                     "Source: Fee Engine (Skybanking Fees Schedule)\n"
                     "=" * 70 + "\n\n"
                     "The specific information about this Skybanking fee is not available in the current schedule. "
@@ -3549,8 +3427,8 @@ When responding:
                 logger.warning(f"[FEE_ENGINE] Fee engine returned empty - returning deterministic not-found message")
                 fee_context = (
                     "=" * 70 + "\n"
-                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    f"{self.OFFICIAL_CARD_RATES_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE}\n"
                     "=" * 70 + "\n\n"
                     "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
                     "Please verify the card details and try again.\n\n"
@@ -3900,8 +3778,8 @@ When responding:
                     # Set a deterministic not-found message
                     card_rates_context = (
                         "=" * 70 + "\n"
-                        "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                        "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                        f"{self.OFFICIAL_CARD_RATES_HEADER}\n"
+                        f"{self.FEE_ENGINE_SOURCE}\n"
                         "=" * 70 + "\n\n"
                         "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
                         "Please verify the card details and try again.\n\n"
@@ -3946,8 +3824,8 @@ When responding:
                 # But handle gracefully with a not-found message
                 combined_context = (
                     "=" * 70 + "\n"
-                    "OFFICIAL CARD RATES AND FEES INFORMATION\n"
-                    "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)\n"
+                    f"{self.OFFICIAL_CARD_RATES_HEADER}\n"
+                    f"{self.FEE_ENGINE_SOURCE}\n"
                     "=" * 70 + "\n\n"
                     "The requested fee information is not found in the Card Charges and Fees Schedule (effective 01 Jan 2026).\n"
                     "Please verify the card details and try again.\n\n"
