@@ -87,6 +87,13 @@ class ChatOrchestrator:
     FEE_ENGINE_SOURCE = "Source: Fee Engine (Card Charges and Fees Schedule - Effective from 01st January, 2026)"
     FEE_ENGINE_SOURCE_RETAIL = "Source: Fee Engine (Retail Asset Charges Schedule)"
     FEE_ENGINE_SOURCE_SKYBANKING = "Source: Fee Engine (Skybanking Fees Schedule)"
+
+    # Prompt sizing guards (Phase 5)
+    # These are intentionally generous; they only activate when prompt add-ons become excessively large.
+    MAX_SINGLE_REMINDER_CHARS = 4000
+    MAX_TOTAL_PROMPT_ADDONS_CHARS = 12000
+    SOURCES_MARKER_PREFIX = "\n\n__SOURCES__"
+    SOURCES_MARKER_SUFFIX = "__SOURCES__"
     
     def __init__(self):
         self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -124,19 +131,203 @@ class ChatOrchestrator:
             "expires_at": time.time() + ttl_seconds,
         }
 
+    async def _set_disambiguation_state_any(
+        self,
+        state_key: str,
+        state: Dict[str, Any],
+        ttl_seconds: int = 300,
+    ) -> None:
+        """Set disambiguation state in Redis if available; fall back to local store on error."""
+        try:
+            await self.redis_cache.set_disambiguation_state(state_key, state, ttl=ttl_seconds)
+        except Exception as e:
+            logger.warning(f"[DISAMBIGUATION] Redis set failed for key='{state_key}', using local fallback: {e}")
+            await self._store_disambiguation_state_fallback(state_key, state, ttl_seconds=ttl_seconds)
+
+    async def _store_disambiguation_state_any(
+        self,
+        *,
+        state_key: str,
+        product_line: str,
+        charge_type: str,
+        as_of_date: str,
+        options: List[Dict[str, Any]],
+        disambiguation_type: str,
+        prompt_message: str,
+        extra: Optional[Dict[str, Any]] = None,
+        ttl_seconds: int = 300,
+    ) -> None:
+        """
+        Store disambiguation state in Redis when possible; fall back to local in-process state on error.
+        """
+        try:
+            stored = await self.redis_cache.store_disambiguation_state(
+                session_id=state_key,
+                product_line=product_line,
+                charge_type=charge_type,
+                as_of_date=as_of_date,
+                options=options,
+                disambiguation_type=disambiguation_type,
+                prompt_message=prompt_message,
+                extra=extra,
+            )
+        except Exception as e:
+            stored = False
+            logger.warning(f"[DISAMBIGUATION] Redis store failed for conversation_key {state_key}; using local fallback: {e}")
+
+        if stored:
+            return
+
+        await self._store_disambiguation_state_fallback(
+            state_key=state_key,
+            state={
+                "product_line": product_line,
+                "charge_type": charge_type,
+                "as_of_date": as_of_date,
+                "options": options,
+                "disambiguation_type": disambiguation_type,
+                "prompt_message": prompt_message,
+                **({"extra": extra} if extra is not None else {}),
+            },
+            ttl_seconds=ttl_seconds,
+        )
+
+    def _format_sources_marker(self, sources: List[str]) -> str:
+        """Format sources as a trailing marker chunk (frontend parses this)."""
+        try:
+            import json
+            sources_json = json.dumps({"type": "sources", "sources": sources})
+            return f"{self.SOURCES_MARKER_PREFIX}{sources_json}{self.SOURCES_MARKER_SUFFIX}"
+        except Exception:
+            return ""
+
+    def _cap_prompt_section(self, label: str, text: str, max_chars: int) -> str:
+        """Cap very large prompt sections (guardrail for token bloat)."""
+        if not text:
+            return ""
+        if len(text) <= max_chars:
+            return text
+        logger.warning(f"[PROMPT] Capping '{label}' from {len(text)} to {max_chars} chars")
+        return text[:max_chars] + "\n\n[... truncated ...]"
+
+    def _build_prompt_addons(
+        self,
+        query: str,
+        context: str,
+        conversation_history: List[Dict[str, str]],
+    ) -> str:
+        """
+        Build the additional guidance blocks appended to the user message when context exists.
+
+        Note: This is intentionally behavior-preserving; it reorganizes existing logic and adds size caps.
+        """
+        if not context:
+            return ""
+
+        query_lower = (query or "").lower()
+        context_lower = (context or "").lower()
+
+        org_overview_reminder = ""
+        partial_info_reminder = ""
+        currency_reminder = ""
+        bank_name_reminder = ""
+        conciseness_reminder = ""
+        semantic_reminder = ""
+        followup_reminder = ""
+        supplementary_card_reminder = ""
+
+        # Supplementary card reminder (only when fee-engine data is present)
+        is_supplementary_query = "supplementary" in query_lower and ("fee" in query_lower or "annual" in query_lower)
+        if is_supplementary_query and (self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context):
+            supplementary_card_reminder = "\n\n" + "="*70 + "\n💳 CRITICAL: SUPPLEMENTARY CARD FEES 💳\n" + "="*70 + "\n**MANDATORY**: Include BOTH: (1) First 2 cards FREE (BDT 0/year), (2) 3rd+ cards BDT 2,300/year.\n**FORBIDDEN**: Do NOT say only 'BDT 0' without mentioning 3rd+ card fee.\n**CORRECT**: 'First 2 supplementary cards are free (BDT 0/year). Starting from 3rd card, annual fee is BDT 2,300/year.'\n" + "="*70
+
+        # Organizational overview reminder
+        if self._is_organizational_overview_query(query):
+            org_overview_reminder = "\n\n" + "="*70 + "\n🏦 ORGANIZATIONAL OVERVIEW QUERY - CRITICAL FILTERING RULES 🏦\n" + "="*70 + "\n**MANDATORY**: This is a GENERAL/CUSTOMER-FACING overview query about Eastern Bank PLC.\n\n**INCLUDE ONLY:**\n- Establishment year\n- Country of operation\n- Core banking services (accounts, loans, cards, etc.)\n- Major customer-facing platforms (e.g., EBLConnect)\n\n**EXCLUDE (DO NOT USE):**\n- Annual report details\n- Accounting, valuation, fair value discussions\n- Subsidiaries' financial treatments\n- Management/board-level analysis\n- Investor, audit, or regulatory document content\n\n**IF MIXED CONTENT IS RETRIEVED:**\n- Prefer customer-facing content\n- Discard investor/financial-statement-only information\n- Keep tone neutral, concise, and informational (NOT marketing, NOT investor-focused)\n\n**EXAMPLE CORRECT RESPONSE:**\n'Eastern Bank PLC. was established in [year] and operates in Bangladesh. It offers core banking services including savings accounts, current accounts, loans, credit cards, and digital banking platforms like EBLConnect.'\n\n**EXAMPLE WRONG RESPONSE:**\n'Eastern Bank PLC. reported total assets of BDT X in the annual report... [financial details]... The bank's subsidiaries are accounted for using... [accounting details]'\n" + "="*70
+
+        # Partial information handling reminder
+        specific_detail_indicators = ['minimum', 'balance', 'interest', 'rate', 'fee', 'charge', 'amount', 'requirement', 'eligibility', 'process', 'procedure', 'settlement', 'how to', 'steps', 'method']
+        if any(indicator in query_lower for indicator in specific_detail_indicators):
+            product_indicators = ['super hpa', 'hpa account', 'account', 'card', 'loan', 'product', 'service', 'easycredit', 'easy credit', 'want2buy', 'want 2 buy']
+            if any(indicator in context_lower for indicator in product_indicators):
+                is_easycredit_query = 'easycredit' in query_lower or 'easy credit' in query_lower
+                if is_easycredit_query:
+                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE - EASYCREDIT QUERY 🚨\n" + "="*70 + "\nThe context above contains information about EasyCredit (interest rate, issuance fee, etc.).\n\nYOU MUST:\n1. FIRST: Extract and provide ALL available EasyCredit information from the context:\n   - Interest rate (20% reducing balance method)\n   - Issuance fee (2.3% or Tk. 575, whichever is higher, inclusive of VAT)\n   - Any other EasyCredit details mentioned\n2. THEN: Note what specific information is missing (e.g., 'However, the specific early settlement process is not detailed in the available information')\n3. NEVER say 'the specifics are not detailed' or 'the specific details are not provided' WITHOUT first providing the available EasyCredit information\n\nEXAMPLE CORRECT RESPONSE:\n'EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). However, the specific early settlement process is not detailed in the available information. Please contact the bank directly for this specific detail.'\n\nEXAMPLE WRONG RESPONSE:\n'While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance...' ← FORBIDDEN - missing available EasyCredit info\n" + "="*70
+                else:
+                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
+
+        # Currency preservation reminder (only when card rates context is present)
+        if self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context:
+            currency_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL CURRENCY RULE 🚨\n" + "="*70 + "\nThe context above contains currency codes like 'BDT' and 'USD'. You MUST use the EXACT currency code from the context.\n\nEXAMPLES:\n- If context shows 'BDT 287.5', you MUST output 'BDT 287.5' (NOT ₹287.5)\n- If context shows 'BDT 1,725', you MUST output 'BDT 1,725' (NOT ₹1,725)\n- If context shows 'USD 57.5', you MUST output 'USD 57.5'\n\nNEVER replace BDT with ₹ or any other currency symbol. BDT = Bangladeshi Taka.\n\n**CONCISENESS RULE**: For monetary values in Bangladesh, use ONE format only (BDT + Lakhs) and state it ONCE. Do NOT repeat the amount in different formats or in explanation text.\n" + "="*70
+
+        # Bank name reminder
+        if "Eastern Bank Limited" in context or "Eastern Bank Ltd" in context or "Eastern Bank PLC" in context:
+            bank_name_reminder = "\n\n" + "="*70 + "\n🏦 CRITICAL BANK NAME RULE 🏦\n" + "="*70 + "\n**MANDATORY**: The bank name is ALWAYS 'Eastern Bank PLC.' (with a period, NOT 'Eastern Bank Limited' or 'Eastern Bank Ltd.').\n\nIf the context mentions 'Eastern Bank Limited' or 'Eastern Bank Ltd.', you MUST replace it with 'Eastern Bank PLC.' in your response.\n\nAlways use 'Eastern Bank PLC.' (with period) or 'EBL' when referring to the bank.\n" + "="*70
+
+        # Conciseness reminder
+        has_monetary_terms = any(term in context_lower for term in ['bdt', 'lakh', 'lakhs', 'crore', 'taka', 'tk'])
+        is_general_query = any(phrase in query_lower for phrase in ['tell me more', 'tell me about', 'what is', 'explain', 'describe'])
+        if has_monetary_terms or is_general_query:
+            conciseness_reminder = "\n\n" + "="*70 + "\n📝 CRITICAL CONCISENESS RULES - READ CAREFULLY 📝\n" + "="*70 + "\n**MANDATORY RULES - VIOLATIONS ARE FORBIDDEN:**\n\n1. **Product/Account Names**:\n   - Mention the name ONCE at the beginning (e.g., 'Special Notice Deposit (SND) accounts')\n   - Then use ONLY: 'it', 'this account', 'this product', 'the account', 'they' (for plural)\n   - FORBIDDEN: Repeating the full product name in subsequent sentences\n\n2. **FORBIDDEN FILLER PHRASES - NEVER USE THESE:**\n   - 'making them an excellent choice'\n   - 'demonstrate EBL's commitment'\n   - 'form an integral part'\n   - 'making them a critical part'\n   - 'In essence', 'As per'\n   - 'These accounts are a testament to'\n   - 'substantial popularity'\n   - 'considerable balances'\n   - 'wide range'\n   - 'diverse needs'\n   - 'commitment to providing'\n\n3. **FORBIDDEN MARKETING LANGUAGE - NEVER USE:**\n   - 'excellent choice', 'substantial', 'considerable', 'wide range', 'diverse', 'commitment', 'demonstrate', 'testament to'\n\n4. **Response Style**:\n   - Be direct: State what it IS and what it DOES\n   - Keep it to 2-4 sentences for 'tell me more' queries\n   - Focus on key features and facts, not marketing language\n   - Do NOT restate the same information in different sentences\n\n5. **Monetary Values (if applicable)**:\n   - Use ONE format: 'BDT X lakhs'\n   - State ONCE only\n\n**EXAMPLE CORRECT (2 sentences):**\n'Special Notice Deposit (SND) accounts are short-term deposit accounts for businesses requiring limited notice for withdrawals. They help manage liquidity while earning interest on short-term savings.'\n\n**EXAMPLE WRONG (repetitive, filler phrases, marketing language):**\n'Special Notice Deposit (SND) accounts are a type of savings account... These accounts have gained substantial popularity... SND accounts are part of EBL's wide range... These accounts demonstrate EBL's commitment... making them a critical part...'\n" + "="*70
+
+        # Semantic matching reminder
+        if any(term in query_lower for term in ['credited', 'paid', 'deposited', 'fee', 'charge', 'rate', 'frequency', 'schedule']):
+            semantic_reminder = "\n\n" + "="*70 + "\n🔍 SEMANTIC MATCHING REMINDER 🔍\n" + "="*70 + "\nThe user's question may use different words than the context. Recognize semantic equivalents:\n- 'credited' = 'paid' = 'deposited' (all mean interest added to account)\n- 'fee' = 'charge' = 'cost'\n- 'rate' = 'interest rate'\n- 'frequency' = 'schedule' = 'how often' = 'when'\n\nIf the context uses 'paid' but user asks about 'credited', they mean the same thing. Use the information from context.\n" + "="*70
+
+        # Follow-up reminder (uses recent conversation history)
+        if conversation_history:
+            followup_indicators = ['after', 'how many', 'what is', 'when', 'how often', 'how much']
+            if any(indicator in query_lower for indicator in followup_indicators):
+                prev_topics: List[str] = []
+                for msg in conversation_history[-4:]:
+                    content = (msg.get("message", "") or "").lower()
+                    if any(term in content for term in ['account', 'card', 'loan', 'deposit', 'hpa', 'super']):
+                        prev_topics.append(content[:100])
+                if prev_topics:
+                    followup_reminder = "\n\n" + "="*70 + "\n📝 FOLLOW-UP QUESTION CONTEXT 📝\n" + "="*70 + f"\nThis appears to be a follow-up question. Previous conversation mentioned:\n{chr(10).join(prev_topics[:2])}\n\nTreat the current question as related to the same topic from previous conversation.\n" + "="*70
+
+        # Apply per-section caps
+        org_overview_reminder = self._cap_prompt_section("org_overview_reminder", org_overview_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        partial_info_reminder = self._cap_prompt_section("partial_info_reminder", partial_info_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        currency_reminder = self._cap_prompt_section("currency_reminder", currency_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        bank_name_reminder = self._cap_prompt_section("bank_name_reminder", bank_name_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        conciseness_reminder = self._cap_prompt_section("conciseness_reminder", conciseness_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        semantic_reminder = self._cap_prompt_section("semantic_reminder", semantic_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        followup_reminder = self._cap_prompt_section("followup_reminder", followup_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+        supplementary_card_reminder = self._cap_prompt_section("supplementary_card_reminder", supplementary_card_reminder, self.MAX_SINGLE_REMINDER_CHARS)
+
+        addons = (
+            org_overview_reminder
+            + partial_info_reminder
+            + currency_reminder
+            + bank_name_reminder
+            + conciseness_reminder
+            + semantic_reminder
+            + followup_reminder
+            + supplementary_card_reminder
+        )
+        return self._cap_prompt_section("prompt_addons", addons, self.MAX_TOTAL_PROMPT_ADDONS_CHARS)
+
     async def _get_disambiguation_state_any(self, state_key: str) -> Optional[Dict[str, Any]]:
         """Get disambiguation state from Redis if available, else local fallback."""
         self._local_disambiguation_cleanup()
-        state = await self.redis_cache.get_disambiguation_state(state_key)
-        if state:
-            return state
+        try:
+            state = await self.redis_cache.get_disambiguation_state(state_key)
+            if state:
+                return state
+        except Exception as e:
+            # Redis unavailable/timeout - fall back to local in-process state
+            logger.warning(f"[DISAMBIGUATION] Redis get failed for key='{state_key}', using local fallback: {e}")
         local = self._local_disambiguation_state.get(state_key)
         return local.get("state") if local else None
 
     async def _clear_disambiguation_state_any(self, state_key: str) -> None:
         """Clear disambiguation state in Redis (if any) and local fallback."""
         try:
-            await self.redis_cache.clear_disambiguation_state(state_key)
+            try:
+                await self.redis_cache.clear_disambiguation_state(state_key)
+            except Exception as e:
+                logger.warning(f"[DISAMBIGUATION] Redis clear failed for key='{state_key}', continuing with local cleanup: {e}")
         finally:
             self._local_disambiguation_state.pop(state_key, None)
     
@@ -179,7 +370,6 @@ class ChatOrchestrator:
         conversation_key: str,
         session_id: str,
         pending_disambiguation: Dict[str, Any],
-        is_streaming: bool
     ) -> Optional[Dict[str, Any]]:
         """
         Handle disambiguation state resolution.
@@ -189,11 +379,8 @@ class ChatOrchestrator:
             conversation_key: Stable conversation key
             session_id: Session ID for memory operations
             pending_disambiguation: Disambiguation state dict
-            is_streaming: True for streaming mode, False for sync mode
-        
         Returns:
-            For streaming: None (yields chunks via generator)
-            For sync: Dict with "response" and "session_id", or None if not in disambiguation
+            Dict with "response" (and optional "sources"), or None if not in disambiguation
         """
         product_line = pending_disambiguation.get("product_line")
         charge_type = pending_disambiguation.get("charge_type")
@@ -201,6 +388,11 @@ class ChatOrchestrator:
         disambiguation_type = pending_disambiguation.get("disambiguation_type")
         prompt_message = pending_disambiguation.get("prompt_message")
         extra = pending_disambiguation.get("extra") or {}
+        sources: List[str] = []
+        if product_line == "CREDIT_CARDS":
+            sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
+        elif product_line == "RETAIL_ASSETS":
+            sources = ["Retail Asset Charges Schedule"]
         
         logger.info(f"[DISAMBIGUATION] Found pending disambiguation for session {session_id}: product_line={product_line}, charge_type={charge_type}, type={disambiguation_type}")
         
@@ -238,20 +430,11 @@ class ChatOrchestrator:
                 
                 # Save to memory
                 await self._persist_turn(session_id, query, fee_context)
-                
-                if is_streaming:
-                    # For streaming, return a marker that indicates we should yield and exit
-                    return {"action": "yield_and_exit", "response": fee_context}
-                else:
-                    return {"response": fee_context, "session_id": session_id}
+                return {"response": fee_context, "sources": sources}
             else:
                 error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
                 await self._persist_turn(session_id, query, error_msg)
-                
-                if is_streaming:
-                    return {"action": "yield_and_exit", "response": error_msg}
-                else:
-                    return {"response": error_msg, "session_id": session_id}
+                return {"response": error_msg, "sources": sources}
         
         elif selected_option and product_line == "CREDIT_CARDS" and disambiguation_type == "CARD_PRODUCT":
             await self._clear_disambiguation_state_any(conversation_key)
@@ -266,10 +449,8 @@ class ChatOrchestrator:
             
             if not base_query or not chosen_product:
                 response_text = prompt_message or "Please specify the card product (reply with a number from the list)."
-                if is_streaming:
-                    return {"action": "yield_and_exit", "response": response_text}
-                else:
-                    return {"response": response_text, "session_id": session_id}
+                await self._persist_turn(session_id, query, response_text)
+                return {"response": response_text, "sources": sources}
             
             resolved_query = f"{base_query} {chosen_product}".strip()
             fee_context = await self._get_card_rates_context(
@@ -286,11 +467,7 @@ class ChatOrchestrator:
                 )
             
             await self._persist_turn(session_id, query, fee_context)
-            
-            if is_streaming:
-                return {"action": "yield_and_exit", "response": fee_context}
-            else:
-                return {"response": fee_context, "session_id": session_id}
+            return {"response": fee_context, "sources": sources}
         
         else:
             # Selection not resolved - re-prompt
@@ -336,11 +513,7 @@ class ChatOrchestrator:
                     disambiguation_msg = fee_client._format_retail_asset_disambiguation_response(result_dict, query)
             
             await self._persist_turn(session_id, query, disambiguation_msg)
-            
-            if is_streaming:
-                return {"action": "yield_and_exit", "response": disambiguation_msg}
-            else:
-                return {"response": disambiguation_msg, "session_id": session_id}
+            return {"response": disambiguation_msg, "sources": sources}
     
     async def close(self):
         """Close all async clients and resources"""
@@ -580,6 +753,30 @@ When responding:
         """
         query_lower = query.lower().strip()
         import re
+
+        # Guardrail: Staffing/manpower requirement questions are NOT phonebook lookups.
+        # Example: "How many staff are required for customer service and cash transactions from the Agent's side..."
+        staffing_intent_keywords = [
+            "required", "requirement", "requirements", "needed", "need", "minimum",
+            "manpower", "headcount", "personnel",
+        ]
+        staffing_count_keywords = [
+            "how many", "number of", "count of",
+        ]
+        outlet_context_keywords = [
+            "agent", "agent outlet", "outlet", "booth", "counter", "branch", "service point"
+        ]
+        ops_context_keywords = [
+            "customer service", "cash transaction", "cash transactions", "cash withdrawal", "cash deposit"
+        ]
+        if (
+            ("staff" in query_lower or any(k in query_lower for k in ["manpower", "headcount", "personnel"]))
+            and any(k in query_lower for k in staffing_count_keywords)
+            and any(k in query_lower for k in staffing_intent_keywords)
+            and (any(k in query_lower for k in outlet_context_keywords) or any(k in query_lower for k in ops_context_keywords))
+        ):
+            logger.info(f"[ROUTING] Staffing requirement query detected - NOT routing to phonebook: '{query}'")
+            return False
         
         # Pattern 0: "find" or "search" followed by employee ID pattern (e.g., "find cr_app3_test", "search abc123")
         # Employee IDs often contain underscores, letters, and numbers
@@ -761,6 +958,27 @@ When responding:
         """
         query_lower = query.lower().strip()
         
+        # Guardrail: Transaction-limit / allowed-count queries should NOT route to fee engine.
+        # Examples:
+        # - "maximum number of daily Cash Withdrawal transactions allowed for a Savings Account"
+        # - "how many cash transactions are allowed per day"
+        limit_intent_keywords = [
+            "maximum number", "max number", "how many", "number of",
+            "limit", "limits", "allowed", "permit", "per day", "daily", "in a day",
+        ]
+        transaction_words = ["transaction", "transactions", "cash withdrawal", "withdrawal", "deposit"]
+        account_words = ["savings account", "current account", "account"]
+        fee_intent_words = ["fee", "fees", "charge", "charges", "rate", "pricing", "price", "cost", "commission"]
+
+        if (
+            any(k in query_lower for k in limit_intent_keywords)
+            and any(w in query_lower for w in transaction_words)
+            and any(w in query_lower for w in account_words)
+            and not any(w in query_lower for w in fee_intent_words)
+        ):
+            logger.info(f"[ROUTING] Transaction-limit query detected - NOT routing to fee engine: '{query}'")
+            return False
+        
         # EXCLUDE retail asset/loan queries - these should NOT route to card fees
         retail_asset_keywords = [
             "fast cash", "fast loan", "education loan", "edu loan",
@@ -791,8 +1009,7 @@ When responding:
             
             # Transaction fees (card-specific)
             "cash advance fee", "cash withdrawal fee", "atm withdrawal fee", 
-            "withdrawal fee", "transaction fee", "cash withdrawal", "cash advance",
-            "atm withdrawal",
+            "withdrawal fee", "transaction fee",
             
             # Service fees (card-specific)
             "duplicate statement fee", "duplicate estatement", "certificate fee",
@@ -813,9 +1030,9 @@ When responding:
             "skylounge", "international lounge", "domestic lounge", "global lounge",
             "lounge free visit", "lounge fee", "priority pass",
             
-            # Supplementary card queries (including "how many free")
-            "supplementary", "supplementary card", "supplementary fee", "supplementary charge",
-            "how many free", "how many", "free supplementary", "free card",
+            # Supplementary card fee queries (avoid overly-broad "how many")
+            "supplementary fee", "supplementary charge", "supplementary annual fee",
+            "free supplementary", "supplementary card free",
             
             # Schedule/document references
             "fee schedule", "charges schedule", "card charges", "card fees",
@@ -828,9 +1045,23 @@ When responding:
         # Generic terms that require card context
         generic_terms = ["cost", "pricing", "price"]
         
-        # Check for specific fee keywords (always route)
+        # Check for specific card-fee phrases (always route)
         if any(kw in query_lower for kw in specific_fee_keywords):
-            return True
+            # But avoid routing generic "fee/charge" unless we have card context or schedule reference
+            has_card_context = any(ctx in query_lower for ctx in card_context_keywords)
+            has_schedule_ref = any(ref in query_lower for ref in ["fee schedule", "charges schedule", "card charges", "card fees"])
+            has_specific_phrase = any(
+                kw in query_lower
+                for kw in [
+                    "annual fee", "issuance fee", "replacement fee", "late payment fee",
+                    "overlimit fee", "cash withdrawal fee", "atm withdrawal fee", "cash advance fee",
+                    "sales voucher fee", "transaction alert fee", "lounge fee", "lounge free visit",
+                    "supplementary fee", "supplementary annual fee",
+                ]
+            )
+            if has_specific_phrase:
+                return True
+            return has_card_context or has_schedule_ref
         
         # Check for generic terms - require card context
         has_generic_term = any(term in query_lower for term in generic_terms)
@@ -1866,16 +2097,20 @@ When responding:
                         
                         # CRITICAL: Store state BEFORE returning (ensures state is available for next message)
                         # PHASE 2 FIX: Always use conversation_key for disambiguation state (stable across turns)
-                        stored = await self.redis_cache.store_disambiguation_state(
-                            session_id=state_key,
-                            product_line="RETAIL_ASSETS",
-                            charge_type=charge_type,
-                            as_of_date=as_of_date,
-                            options=options,
-                            disambiguation_type=disambiguation_type,
-                            prompt_message=prompt_message,
-                            extra=None,
-                        )
+                        try:
+                            stored = await self.redis_cache.store_disambiguation_state(
+                                session_id=state_key,
+                                product_line="RETAIL_ASSETS",
+                                charge_type=charge_type,
+                                as_of_date=as_of_date,
+                                options=options,
+                                disambiguation_type=disambiguation_type,
+                                prompt_message=prompt_message,
+                                extra=None,
+                            )
+                        except Exception as e:
+                            stored = False
+                            logger.warning(f"[DISAMBIGUATION] Redis store failed for conversation_key {state_key}; using local fallback: {e}")
                         if stored:
                             logger.info(f"[DISAMBIGUATION] Stored disambiguation state for conversation_key {state_key} with {len(options)} options (type={disambiguation_type})")
                         else:
@@ -1918,16 +2153,20 @@ When responding:
                 from datetime import date
                 state_key = conversation_key if conversation_key else session_id
                 if state_key:
-                    stored = await self.redis_cache.store_disambiguation_state(
-                        session_id=state_key,
-                        product_line="CREDIT_CARDS",
-                        charge_type=charge_type,
-                        as_of_date=str(date.today()),
-                        options=options,
-                        disambiguation_type="CARD_PRODUCT",
-                        prompt_message=prompt,
-                        extra={"base_query": query},
-                    )
+                    try:
+                        stored = await self.redis_cache.store_disambiguation_state(
+                            session_id=state_key,
+                            product_line="CREDIT_CARDS",
+                            charge_type=charge_type,
+                            as_of_date=str(date.today()),
+                            options=options,
+                            disambiguation_type="CARD_PRODUCT",
+                            prompt_message=prompt,
+                            extra={"base_query": query},
+                        )
+                    except Exception as e:
+                        stored = False
+                        logger.warning(f"[DISAMBIGUATION] Redis store failed for conversation_key {state_key}; using local fallback: {e}")
                     if not stored:
                         await self._store_disambiguation_state_fallback(
                             state_key=state_key,
@@ -1948,7 +2187,7 @@ When responding:
             # Handle retail asset charges (status = "FOUND")
             if fee_result and fee_result.get("status") == "FOUND" and "charges" in fee_result:
                 formatted = fee_client.format_fee_response(fee_result, query=query)
-                context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
+                context = f"{self.OFFICIAL_RETAIL_ASSET_HEADER}\n{formatted}\n\nThis information is from the Retail Asset Charges Schedule and is authoritative."
                 logger.info(f"[FEE_ENGINE] Retail asset charge found and formatted for query: '{query}'")
                 return context
             
@@ -2455,89 +2694,10 @@ When responding:
         if self._is_datetime_query(query):
             current_datetime = self._get_current_datetime()
             datetime_info = f"\n\nCurrent Date and Time: {current_datetime}"
-        
-        # Initialize reminder variables
-        org_overview_reminder = ""
-        partial_info_reminder = ""
-        currency_reminder = ""
-        bank_name_reminder = ""
-        conciseness_reminder = ""
-        semantic_reminder = ""
-        followup_reminder = ""
-        supplementary_card_reminder = ""
-        
-        # Add current query with context
+        # Add current query with context (+ prompt add-ons)
         if context:
-            # Check if this is a supplementary card query
-            query_lower = query.lower()
-            is_supplementary_query = "supplementary" in query_lower and ("fee" in query_lower or "annual" in query_lower)
-            
-            # Add supplementary card reminder if context contains fee-engine data
-            if is_supplementary_query and (self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context):
-                supplementary_card_reminder = "\n\n" + "="*70 + "\n💳 CRITICAL: SUPPLEMENTARY CARD FEES 💳\n" + "="*70 + "\n**MANDATORY**: Include BOTH: (1) First 2 cards FREE (BDT 0/year), (2) 3rd+ cards BDT 2,300/year.\n**FORBIDDEN**: Do NOT say only 'BDT 0' without mentioning 3rd+ card fee.\n**CORRECT**: 'First 2 supplementary cards are free (BDT 0/year). Starting from 3rd card, annual fee is BDT 2,300/year.'\n" + "="*70
-            
-            # Check if this is an organizational overview query
-            is_org_overview = self._is_organizational_overview_query(query)
-            
-            # Add organizational overview filtering reminder
-            if is_org_overview:
-                org_overview_reminder = "\n\n" + "="*70 + "\n🏦 ORGANIZATIONAL OVERVIEW QUERY - CRITICAL FILTERING RULES 🏦\n" + "="*70 + "\n**MANDATORY**: This is a GENERAL/CUSTOMER-FACING overview query about Eastern Bank PLC.\n\n**INCLUDE ONLY:**\n- Establishment year\n- Country of operation\n- Core banking services (accounts, loans, cards, etc.)\n- Major customer-facing platforms (e.g., EBLConnect)\n\n**EXCLUDE (DO NOT USE):**\n- Annual report details\n- Accounting, valuation, fair value discussions\n- Subsidiaries' financial treatments\n- Management/board-level analysis\n- Investor, audit, or regulatory document content\n\n**IF MIXED CONTENT IS RETRIEVED:**\n- Prefer customer-facing content\n- Discard investor/financial-statement-only information\n- Keep tone neutral, concise, and informational (NOT marketing, NOT investor-focused)\n\n**EXAMPLE CORRECT RESPONSE:**\n'Eastern Bank PLC. was established in [year] and operates in Bangladesh. It offers core banking services including savings accounts, current accounts, loans, credit cards, and digital banking platforms like EBLConnect.'\n\n**EXAMPLE WRONG RESPONSE:**\n'Eastern Bank PLC. reported total assets of BDT X in the annual report... [financial details]... The bank's subsidiaries are accounted for using... [accounting details]'\n" + "="*70
-            
-            # Add partial information handling reminder - CRITICAL
-            query_lower = query.lower()
-            # Check if query asks for specific detail (minimum balance, interest rate, fee, process, procedure, etc.)
-            specific_detail_indicators = ['minimum', 'balance', 'interest', 'rate', 'fee', 'charge', 'amount', 'requirement', 'eligibility', 'process', 'procedure', 'settlement', 'how to', 'steps', 'method']
-            if any(indicator in query_lower for indicator in specific_detail_indicators):
-                # Check if context mentions the product/account/service
-                product_indicators = ['super hpa', 'hpa account', 'account', 'card', 'loan', 'product', 'service', 'easycredit', 'easy credit', 'want2buy', 'want 2 buy']
-                if any(indicator in context.lower() for indicator in product_indicators):
-                    # Check if this is specifically about EasyCredit
-                    is_easycredit_query = 'easycredit' in query_lower or 'easy credit' in query_lower
-                    if is_easycredit_query:
-                        partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE - EASYCREDIT QUERY 🚨\n" + "="*70 + "\nThe context above contains information about EasyCredit (interest rate, issuance fee, etc.).\n\nYOU MUST:\n1. FIRST: Extract and provide ALL available EasyCredit information from the context:\n   - Interest rate (20% reducing balance method)\n   - Issuance fee (2.3% or Tk. 575, whichever is higher, inclusive of VAT)\n   - Any other EasyCredit details mentioned\n2. THEN: Note what specific information is missing (e.g., 'However, the specific early settlement process is not detailed in the available information')\n3. NEVER say 'the specifics are not detailed' or 'the specific details are not provided' WITHOUT first providing the available EasyCredit information\n\nEXAMPLE CORRECT RESPONSE:\n'EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). However, the specific early settlement process is not detailed in the available information. Please contact the bank directly for this specific detail.'\n\nEXAMPLE WRONG RESPONSE:\n'While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance...' ← FORBIDDEN - missing available EasyCredit info\n" + "="*70
-                    else:
-                        partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
-            
-            # Add currency preservation reminder if card rates context is present
-            if self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context:
-                currency_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL CURRENCY RULE 🚨\n" + "="*70 + "\nThe context above contains currency codes like 'BDT' and 'USD'. You MUST use the EXACT currency code from the context.\n\nEXAMPLES:\n- If context shows 'BDT 287.5', you MUST output 'BDT 287.5' (NOT ₹287.5)\n- If context shows 'BDT 1,725', you MUST output 'BDT 1,725' (NOT ₹1,725)\n- If context shows 'USD 57.5', you MUST output 'USD 57.5'\n\nNEVER replace BDT with ₹ or any other currency symbol. BDT = Bangladeshi Taka.\n\n**CONCISENESS RULE**: For monetary values in Bangladesh, use ONE format only (BDT + Lakhs) and state it ONCE. Do NOT repeat the amount in different formats or in explanation text.\n" + "="*70
-            
-            # Add bank name reminder if context mentions "Eastern Bank Limited"
-            if "Eastern Bank Limited" in context or "Eastern Bank Ltd" in context or "Eastern Bank PLC" in context:
-                bank_name_reminder = "\n\n" + "="*70 + "\n🏦 CRITICAL BANK NAME RULE 🏦\n" + "="*70 + "\n**MANDATORY**: The bank name is ALWAYS 'Eastern Bank PLC.' (with a period, NOT 'Eastern Bank Limited' or 'Eastern Bank Ltd.').\n\nIf the context mentions 'Eastern Bank Limited' or 'Eastern Bank Ltd.', you MUST replace it with 'Eastern Bank PLC.' in your response.\n\nAlways use 'Eastern Bank PLC.' (with period) or 'EBL' when referring to the bank.\n" + "="*70
-            
-            # Add conciseness reminder for monetary values and general conciseness
-            has_monetary_terms = any(term in context.lower() for term in ['bdt', 'lakh', 'lakhs', 'crore', 'taka', 'tk'])
-            # Also trigger for "tell me more" type queries
-            query_lower_for_conciseness = query.lower()
-            is_general_query = any(phrase in query_lower_for_conciseness for phrase in ['tell me more', 'tell me about', 'what is', 'explain', 'describe'])
-            
-            if has_monetary_terms or is_general_query:
-                conciseness_reminder = "\n\n" + "="*70 + "\n📝 CRITICAL CONCISENESS RULES - READ CAREFULLY 📝\n" + "="*70 + "\n**MANDATORY RULES - VIOLATIONS ARE FORBIDDEN:**\n\n1. **Product/Account Names**:\n   - Mention the name ONCE at the beginning (e.g., 'Special Notice Deposit (SND) accounts')\n   - Then use ONLY: 'it', 'this account', 'this product', 'the account', 'they' (for plural)\n   - FORBIDDEN: Repeating the full product name in subsequent sentences\n\n2. **FORBIDDEN FILLER PHRASES - NEVER USE THESE:**\n   - 'making them an excellent choice'\n   - 'demonstrate EBL's commitment'\n   - 'form an integral part'\n   - 'making them a critical part'\n   - 'In essence', 'As per'\n   - 'These accounts are a testament to'\n   - 'substantial popularity'\n   - 'considerable balances'\n   - 'wide range'\n   - 'diverse needs'\n   - 'commitment to providing'\n\n3. **FORBIDDEN MARKETING LANGUAGE - NEVER USE:**\n   - 'excellent choice', 'substantial', 'considerable', 'wide range', 'diverse', 'commitment', 'demonstrate', 'testament to'\n\n4. **Response Style**:\n   - Be direct: State what it IS and what it DOES\n   - Keep it to 2-4 sentences for 'tell me more' queries\n   - Focus on key features and facts, not marketing language\n   - Do NOT restate the same information in different sentences\n\n5. **Monetary Values (if applicable)**:\n   - Use ONE format: 'BDT X lakhs'\n   - State ONCE only\n\n**EXAMPLE CORRECT (2 sentences):**\n'Special Notice Deposit (SND) accounts are short-term deposit accounts for businesses requiring limited notice for withdrawals. They help manage liquidity while earning interest on short-term savings.'\n\n**EXAMPLE WRONG (repetitive, filler phrases, marketing language):**\n'Special Notice Deposit (SND) accounts are a type of savings account... These accounts have gained substantial popularity... SND accounts are part of EBL's wide range... These accounts demonstrate EBL's commitment... making them a critical part...'\n" + "="*70
-            
-            # Add semantic matching reminder for banking terms
-            query_lower = query.lower()
-            # Check if query contains terms that might have synonyms in context
-            if any(term in query_lower for term in ['credited', 'paid', 'deposited', 'fee', 'charge', 'rate', 'frequency', 'schedule']):
-                semantic_reminder = "\n\n" + "="*70 + "\n🔍 SEMANTIC MATCHING REMINDER 🔍\n" + "="*70 + "\nThe user's question may use different words than the context. Recognize semantic equivalents:\n- 'credited' = 'paid' = 'deposited' (all mean interest added to account)\n- 'fee' = 'charge' = 'cost'\n- 'rate' = 'interest rate'\n- 'frequency' = 'schedule' = 'how often' = 'when'\n\nIf the context uses 'paid' but user asks about 'credited', they mean the same thing. Use the information from context.\n" + "="*70
-            
-            # Add follow-up question reminder if conversation history exists
-            if conversation_history and len(conversation_history) > 0:
-                # Check if this looks like a follow-up question
-                followup_indicators = ['after', 'how many', 'what is', 'when', 'how often', 'how much']
-                if any(indicator in query_lower for indicator in followup_indicators):
-                    # Extract previous topic from conversation history
-                    prev_topics = []
-                    for msg in conversation_history[-4:]:  # Check last 4 messages
-                        content = msg.get("message", "").lower()
-                        # Look for account/product names
-                        if any(term in content for term in ['account', 'card', 'loan', 'deposit', 'hpa', 'super']):
-                            prev_topics.append(content[:100])  # First 100 chars
-                    
-                    if prev_topics:
-                        followup_reminder = "\n\n" + "="*70 + "\n📝 FOLLOW-UP QUESTION CONTEXT 📝\n" + "="*70 + f"\nThis appears to be a follow-up question. Previous conversation mentioned:\n{chr(10).join(prev_topics[:2])}\n\nTreat the current question as related to the same topic from previous conversation.\n" + "="*70
-            
-            user_message = f"Context from knowledge base:\n{context}\n\nUser query: {query}{datetime_info}{org_overview_reminder}{partial_info_reminder}{currency_reminder}{bank_name_reminder}{conciseness_reminder}{semantic_reminder}{followup_reminder}{supplementary_card_reminder}"
+            prompt_addons = self._build_prompt_addons(query, context, conversation_history)
+            user_message = f"Context from knowledge base:\n{context}\n\nUser query: {query}{datetime_info}{prompt_addons}"
         else:
             user_message = f"{query}{datetime_info}"
         
@@ -2624,13 +2784,18 @@ When responding:
                 query=query,
                 conversation_key=conversation_key,
                 session_id=effective_session_id,
-                pending_disambiguation=pending_disambiguation,
-                is_streaming=True
+                pending_disambiguation=pending_disambiguation
             )
             if result:
                 # Stream the response and exit
                 async for chunk in self._stream_text(result["response"]):
                     yield chunk
+                # If available, also send sources marker for frontend parsing
+                sources = result.get("sources") or []
+                if sources:
+                    marker = self._format_sources_marker(sources)
+                    if marker:
+                        yield marker
                 return
         
         # Check if user is already in lead collection flow
@@ -3256,11 +3421,10 @@ When responding:
         # Store sources for later retrieval (we'll send them at the end of stream)
         # For now, we'll append sources as a special marker that frontend can parse
         if sources:
-            # Send sources as a special JSON chunk at the end
-            import json
-            sources_json = json.dumps({"type": "sources", "sources": sources})
             logger.info(f"[SOURCES] Sending {len(sources)} sources: {sources[:3]}...")  # Log first 3 for debugging
-            yield f"\n\n__SOURCES__{sources_json}__SOURCES__"
+            marker = self._format_sources_marker(sources)
+            if marker:
+                yield marker
         else:
             logger.info(f"[SOURCES] No sources to send for query: '{query[:50]}...'")
         
@@ -3303,11 +3467,14 @@ When responding:
                 query=query,
                 conversation_key=conversation_key,
                 session_id=effective_session_id,
-                pending_disambiguation=pending_disambiguation,
-                is_streaming=False
+                pending_disambiguation=pending_disambiguation
             )
             if result:
-                return result
+                return {
+                    "response": result["response"],
+                    "session_id": effective_session_id,
+                    "sources": result.get("sources", []),
+                }
         
         # Get conversation history
         db = get_db()
@@ -3374,33 +3541,15 @@ When responding:
                 fee_context = (
                     "=" * 70 + "\n"
                     f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
-                    "Source: Fee Engine (Skybanking Fees Schedule)\n"
+                    f"{self.FEE_ENGINE_SOURCE_SKYBANKING}\n"
                     "=" * 70 + "\n\n"
                     "The specific information about this Skybanking fee is not available in the current schedule. "
                     "Please verify the service details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                 )
-            
-            # Build messages with fee context only
-            combined_context = fee_context
-            logger.info(f"[FEE_ENGINE] Using EXCLUSIVE fee engine context: {len(fee_context)} chars (LightRAG/KB explicitly skipped)")
-            
-            # Build messages with fee context only
-            messages = self._build_messages(query, combined_context, conversation_history)
 
-            # Generate response from OpenAI with fee data only
-            response_text = ""
-            try:
-                max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 2000)
-                response = await self.openai_client.chat.completions.create(
-                    model=settings.OPENAI_MODEL,
-                    messages=messages,
-                    temperature=settings.OPENAI_TEMPERATURE,
-                    max_tokens=max_response_tokens
-                )
-                response_text = response.choices[0].message.content or "I apologize, but I couldn't generate a response."
-            except Exception as e:
-                logger.error(f"[FEE_ENGINE] Error generating response: {e}")
-                response_text = "I apologize, but I encountered an error while processing your fee inquiry. Please try again."
+            # Anti-hallucination hard guard (SYNC):
+            # Return the fee engine output directly (NO OpenAI call, NO paraphrasing).
+            response_text = fee_context
             
             # Save to memory
             await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
