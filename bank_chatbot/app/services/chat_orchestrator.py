@@ -978,6 +978,14 @@ When responding:
         ):
             logger.info(f"[ROUTING] Transaction-limit query detected - NOT routing to fee engine: '{query}'")
             return False
+
+        # Guardrail: Payroll banking "Category X" questions often refer to internal product tables/policies,
+        # and can collide with card-fee keywords (e.g., "debit card issuance fee").
+        # Route these to LightRAG instead of Fee Engine.
+        if ("payroll" in query_lower and "category" in query_lower) or "payroll banking" in query_lower:
+            if any(k in query_lower for k in ["issuance fee", "debit card issuance", "debit card", "coverage", "eligibility", "criteria"]):
+                logger.info(f"[ROUTING] Payroll banking query detected - NOT routing to card fee engine: '{query}'")
+                return False
         
         # EXCLUDE retail asset/loan queries - these should NOT route to card fees
         retail_asset_keywords = [
@@ -1079,6 +1087,13 @@ When responding:
         Returns True if query contains retail asset keywords with fee/charge context.
         """
         query_lower = query.lower().strip()
+
+        # Guardrail: process/procedure/how-to questions are not fee queries.
+        # Example: "EasyCredit Early Settlement process"
+        has_process_intent = any(k in query_lower for k in ["process", "procedure", "how to", "steps", "method"])
+        has_fee_intent = any(k in query_lower for k in ["fee", "fees", "charge", "charges", "cost", "pricing", "price"])
+        if has_process_intent and not has_fee_intent:
+            return False
         
         # FIX #5: Retail-asset-exclusive fee terms (these fees only exist for retail assets)
         # Check these FIRST - if present and NOT a card query, route to RETAIL_ASSETS
@@ -1509,6 +1524,9 @@ When responding:
             'recurring transfer', 'automatic payment', 'automatic transfer', 'auto debit',
             'auto credit', 'scheduled payment', 'scheduled transfer', 'recurring debit',
             'recurring credit', 'auto payment', 'auto transfer',
+
+            # Installment products / card-linked loan features
+            'easycredit', 'easy credit', 'want2buy', 'want 2 buy',
             
             # Branch/Center Locations
             'priority center', 'priority centre', 'priority centers', 'priority centres',
@@ -1522,6 +1540,9 @@ When responding:
             'product feature', 'product benefit', 'product eligibility', 'product requirement',
             'interest rate', 'exchange rate', 'service charge', 'fee structure',
             'conversion', 'upgrade', 'downgrade', 'limit', 'limit increase', 'limit decrease',
+
+            # Specific products (for eligibility queries without "card" keyword)
+            'islamic priority',
             
             # Company Information & History
             'milestone', 'milestones', 'history', 'about ebl', 'ebl history', 'ebl background',
@@ -1760,6 +1781,78 @@ When responding:
         default_kb = self.lightrag_client.knowledge_base or "ebl_website"
         logger.info(f"[ROUTING] Query using default knowledge base: '{default_kb}'")
         return default_kb
+
+    async def diagnose_routing(
+        self,
+        query: str,
+        session_id: Optional[str] = None,
+        knowledge_base: Optional[str] = None,
+        client_ip: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Return a structured routing decision for debugging/regression tests.
+
+        This method is designed to be:
+        - Safe (no OpenAI calls)
+        - Explainable (returns matched booleans + final target)
+        """
+        query = (query or "").strip()
+        conversation_key = self._get_conversation_key(session_id, client_ip)
+        effective_session_id = session_id if session_id else conversation_key
+
+        pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
+
+        # Signals
+        is_location_query = self._is_location_query(query)
+        is_retail_asset_fee_query = self._is_retail_asset_fee_query(query)
+        is_skybanking_fee_query = self._is_skybanking_fee_query(query)
+        is_fee_schedule_query = self._is_fee_schedule_query(query)
+
+        is_small_talk = self._is_small_talk(query)
+        is_contact_query = self._is_contact_info_query(query)
+        is_phonebook_query = self._is_phonebook_query(query)
+        is_employee_query = self._is_employee_query(query)
+
+        # If knowledge_base not explicitly provided, match runtime behavior
+        chosen_kb = knowledge_base or self._get_knowledge_base(query)
+
+        # Final decision (mirrors orchestrator precedence)
+        if pending_disambiguation:
+            target = "DISAMBIGUATION"
+        elif is_location_query:
+            target = "LOCATION_SERVICE"
+        elif is_retail_asset_fee_query:
+            target = "FEE_ENGINE_RETAIL_ASSETS"
+        elif is_skybanking_fee_query:
+            target = "FEE_ENGINE_SKYBANKING"
+        elif is_fee_schedule_query:
+            target = "FEE_ENGINE_CARDS"
+        elif (is_phonebook_query or is_contact_query or is_employee_query) and not is_small_talk:
+            target = "PHONEBOOK"
+        elif is_small_talk:
+            target = "OPENAI_SMALL_TALK"
+        else:
+            target = "LIGHTRAG"
+
+        return {
+            "query": query,
+            "session_id": session_id,
+            "effective_session_id": effective_session_id,
+            "conversation_key": conversation_key,
+            "pending_disambiguation": bool(pending_disambiguation),
+            "target": target,
+            "knowledge_base": chosen_kb,
+            "signals": {
+                "is_location_query": is_location_query,
+                "is_retail_asset_fee_query": is_retail_asset_fee_query,
+                "is_skybanking_fee_query": is_skybanking_fee_query,
+                "is_fee_schedule_query": is_fee_schedule_query,
+                "is_small_talk": is_small_talk,
+                "is_contact_query": is_contact_query,
+                "is_phonebook_query": is_phonebook_query,
+                "is_employee_query": is_employee_query,
+            },
+        }
     
     def _get_current_datetime(self) -> str:
         """Get current date and time in a formatted string"""
@@ -2415,41 +2508,19 @@ When responding:
         sources = []
         seen_sources = set()  # To avoid duplicates
         excluded_count = 0  # Track how many chunks were excluded
-        
-        # PRIORITY 1: If we have a full response (only_need_context=False), use it directly
-        # This is the most complete and formatted answer from LightRAG
-        if "response" in lightrag_response and lightrag_response.get("response"):
-            response_text = lightrag_response["response"]
-            # If response is a complete answer (not just a prompt template), use it
-            # BUT: If filtering financial docs, check if response mentions financial content
-            if response_text and not response_text.strip().startswith("---Role---"):
-                # For organizational overview queries, skip response if it's clearly financial
-                if filter_financial_docs:
-                    response_lower = response_text.lower()
-                    # Check if response is heavily financial-focused
-                    financial_indicators = ['annual report', 'financial statement', 'balance sheet', 
-                                          'income statement', 'cash flow', 'audit', 'subsidiary',
-                                          'fair value', 'valuation', 'board of directors report']
-                    if any(indicator in response_lower for indicator in financial_indicators):
-                        logger.info(f"[FILTER] Excluding response text (contains financial content)")
-                        # Don't add response, fall through to chunks
-                    else:
-                        context_parts.append("Source Data:")
-                        context_parts.append(response_text)
-                else:
-                    context_parts.append("Source Data:")
-                    context_parts.append(response_text)
-                # Still include entities/relationships/chunks if available for additional context
-            else:
-                # Response is a prompt template, fall through to extract structured data
-                pass
-        
-        # PRIORITY 2: Extract structured data (entities, relationships, chunks)
-        # This is used when only_need_context=True or when response is not available
+        payload = lightrag_response.get("data") if isinstance(lightrag_response.get("data"), dict) else lightrag_response
+
+        # IMPORTANT ANTI-HALLUCINATION POLICY:
+        # Do NOT use LightRAG's own generated "response" text as context.
+        # LightRAG's response is produced by its LLM and may hallucinate numbers/rates.
+        # We only pass grounded evidence (entities/relationships/chunks) to OpenAI.
+        #
+        # Extract structured data (entities, relationships, chunks)
+        # This is used for all queries to ensure responses are grounded in retrieved text.
         
         # Extract entities from knowledge graph
-        if "entities" in lightrag_response:
-            entities = lightrag_response.get("entities", [])
+        if "entities" in payload:
+            entities = payload.get("entities", [])
             if entities:
                 if not context_parts:  # Only add header if we don't have response text
                     context_parts.append("Entities Data From Knowledge Graph(KG):")
@@ -2457,14 +2528,14 @@ When responding:
                     context_parts.append("\n\nEntities Data From Knowledge Graph(KG):")
                 for entity in entities[:5]:  # Limit to top 5
                     if isinstance(entity, dict):
-                        name = entity.get("name", "")
+                        name = entity.get("name", entity.get("entity_name", ""))
                         desc = entity.get("description", "")
                         if name or desc:
                             context_parts.append(f"- {name}: {desc}")
         
         # Extract relationships
-        if "relationships" in lightrag_response:
-            relationships = lightrag_response.get("relationships", [])
+        if "relationships" in payload:
+            relationships = payload.get("relationships", [])
             if relationships:
                 if not context_parts:
                     context_parts.append("Relationships Data From Knowledge Graph(KG):")
@@ -2472,15 +2543,15 @@ When responding:
                     context_parts.append("\n\nRelationships Data From Knowledge Graph(KG):")
                 for rel in relationships[:5]:  # Limit to top 5
                     if isinstance(rel, dict):
-                        source = rel.get("source", "")
-                        relation = rel.get("relation", "")
-                        target = rel.get("target", "")
+                        source = rel.get("source", rel.get("entity_a", ""))
+                        relation = rel.get("relation", rel.get("relationship", ""))
+                        target = rel.get("target", rel.get("entity_b", ""))
                         if source and relation and target:
                             context_parts.append(f"- {source} → {relation} → {target}")
         
         # Extract document chunks and their sources
-        if "chunks" in lightrag_response:
-            chunks = lightrag_response.get("chunks", [])
+        if "chunks" in payload:
+            chunks = payload.get("chunks", [])
             if chunks:
                 if not context_parts:
                     context_parts.append("Original Texts From Document Chunks(DC):")
@@ -2544,10 +2615,110 @@ When responding:
         
         # Final fallback: use response text even if it looks like a prompt
         if not context_parts and "response" in lightrag_response:
+            # Keep as absolute last resort to avoid empty context, but label clearly.
+            # (This should be rare because we request chunks from LightRAG.)
+            context_parts.append("Source Data (unverified):")
             context_parts.append(lightrag_response["response"])
         
         context_str = "\n".join(context_parts) if context_parts else ""
         return context_str, sources
+
+    def _extract_query_anchors(self, query: str) -> list[str]:
+        """
+        Extract anchor tokens from user query for chunk filtering.
+        Goal: keep chunks that actually mention the named product/entity, reducing
+        irrelevant context that can mislead the LLM.
+        """
+        q = (query or "").strip()
+        if not q:
+            return []
+        ql = q.lower()
+        import re
+
+        # Tokenize into alphanumerics only
+        tokens = re.findall(r"[a-z0-9]+", ql)
+        if not tokens:
+            return []
+
+        stop = {
+            "what", "is", "are", "tell", "me", "about", "please", "explain", "define",
+            "the", "a", "an", "of", "for", "to", "in", "on", "and", "or", "with",
+            "ebl", "eastern", "bank", "plc",
+        }
+
+        anchors: list[str] = []
+
+        # If query includes "EBL X", anchor on X (often the product name)
+        if "ebl" in tokens:
+            try:
+                i = tokens.index("ebl")
+                if i + 1 < len(tokens):
+                    nxt = tokens[i + 1]
+                    if nxt and nxt not in stop:
+                        anchors.append(nxt)
+            except Exception:
+                pass
+
+        # Add any longer tokens (likely product names) excluding stop words
+        for t in tokens:
+            if len(t) >= 4 and t not in stop:
+                anchors.append(t)
+
+        # De-duplicate while preserving order
+        seen = set()
+        uniq: list[str] = []
+        for a in anchors:
+            if a not in seen:
+                uniq.append(a)
+                seen.add(a)
+        return uniq[:8]
+
+    def _filter_lightrag_chunks_for_query(self, lightrag_response: Dict[str, Any], query: str) -> Dict[str, Any]:
+        """
+        Filter LightRAG chunks to those mentioning query anchors.
+        This reduces irrelevant chunks (e.g., unrelated savings/deposit text) that can
+        cause wrong product-type answers.
+        """
+        try:
+            payload = lightrag_response.get("data") if isinstance(lightrag_response.get("data"), dict) else lightrag_response
+            chunks = payload.get("chunks")
+            if not isinstance(chunks, list) or not chunks:
+                return lightrag_response
+
+            anchors = self._extract_query_anchors(query)
+            if not anchors:
+                return lightrag_response
+
+            def _chunk_text(c: Any) -> str:
+                if isinstance(c, dict):
+                    return (c.get("text") or c.get("content") or "")
+                if isinstance(c, str):
+                    return c
+                return ""
+
+            kept = []
+            for c in chunks:
+                txt = _chunk_text(c)
+                tl = (txt or "").lower()
+                if not tl:
+                    continue
+                if any(a in tl for a in anchors):
+                    kept.append(c)
+
+            # If filtering became too aggressive, keep original list
+            if len(kept) >= 2:
+                filtered = dict(lightrag_response)
+                if payload is lightrag_response:
+                    filtered["chunks"] = kept
+                else:
+                    data_copy = dict(payload)
+                    data_copy["chunks"] = kept
+                    filtered["data"] = data_copy
+                return filtered
+
+            return lightrag_response
+        except Exception:
+            return lightrag_response
     
     def _improve_query_for_lightrag(self, query: str, is_card_rates_query: bool = False) -> str:
         """
@@ -2573,6 +2744,11 @@ When responding:
         synonym_terms = ['credited', 'paid', 'deposited', 'fee', 'charge', 'rate', 'frequency', 'schedule']
         if any(term in query_lower for term in synonym_terms):
             logger.info(f"[QUERY_SYNONYM] Query contains synonym terms: '{query[:80]}' - LightRAG semantic search should handle this")
+
+        # Improve Islamic Priority retrieval by adding the full card name
+        if "islamic priority" in query_lower and "visa signature debit card" not in query_lower:
+            improved_query = f"{query} EBL Islamic Priority Visa Signature Debit Card"
+            logger.info("[QUERY_ENHANCE] Added full card name for Islamic Priority query")
         
         # Priority center queries - NOTE: These should be routed to location service, not LightRAG
         # This improvement is only for queries that somehow reach LightRAG (shouldn't happen)
@@ -2621,7 +2797,13 @@ When responding:
         if improved_query != query:
             logger.info(f"[ROUTING] Improved query: '{query[:100]}' → '{improved_query[:100]}'")
         
-        cache_key = get_cache_key(improved_query, kb)
+        # IMPORTANT: Include query parameters in the cache key string.
+        # Otherwise, changing only_need_context / rerank settings can reuse stale cached responses.
+        cache_key_query = (
+            f"{improved_query} || endpoint=query_data || mode=mix || top_k=8 || chunk_top_k=10 || "
+            f"include_references=1 || only_need_context=1 || enable_rerank=0"
+        )
+        cache_key = get_cache_key(cache_key_query, kb)
         
         # Check cache first
         cached = await self.redis_cache.get(cache_key)
@@ -2635,20 +2817,27 @@ When responding:
         # Query LightRAG
         try:
             logger.info(f"Querying LightRAG for: {improved_query[:50]}... (knowledge_base: {kb}, filter_financial={filter_financial_docs})")
-            response = await self.lightrag_client.query(
+            response = await self.lightrag_client.query_data(
                 query=improved_query,
                 knowledge_base=kb,
                 mode="mix",  # Use 'mix' mode (works better than 'hybrid')
                 top_k=8,  # KG Top K: 8 (conservative increase from 5 for better coverage)
                 chunk_top_k=10,  # Chunk Top K: 10 (conservative increase from 5 for better recall)
                 include_references=True,
-                only_need_context=False,  # Get full response, not just context
+                # CRITICAL: Do not let LightRAG's internal LLM generate an answer.
+                # We only want grounded chunks/graph data, and we'll generate the final answer via OpenAI.
+                only_need_context=True,
+                # Avoid confusing server-side warning when no rerank model is configured.
+                enable_rerank=False,
                 # Removed max_entity_tokens, max_relation_tokens, max_total_tokens, enable_rerank
                 # These parameters were causing the query to miss relevant information
                 # LightRAG will use its internal defaults which work better
             )
             
-            # Cache the response (using improved query for cache key)
+            # Filter chunks to reduce irrelevant context bleed-through
+            response = self._filter_lightrag_chunks_for_query(response, improved_query)
+
+            # Cache the response (using parameter-aware cache key)
             await self.redis_cache.set(cache_key, response)
             
             context, sources = self._format_lightrag_context(response, filter_financial_docs=filter_financial_docs)

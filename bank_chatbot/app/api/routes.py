@@ -45,6 +45,15 @@ class ChatResponse(BaseModel):
     sources: Optional[List[str]] = Field(default=[], description="Knowledge base sources used")
 
 
+class RouteDebugResponse(BaseModel):
+    """Routing debug response model"""
+    query: str
+    target: str
+    knowledge_base: str
+    pending_disambiguation: bool
+    signals: dict
+
+
 # Health Check Routes
 @health_router.get("/health")
 async def health_check():
@@ -545,4 +554,29 @@ async def debug_lightrag():
             "status": "error",
             "error": str(e)
         }
+
+
+@debug_router.get("/debug/route", response_model=RouteDebugResponse)
+async def debug_route(
+    query: str,
+    session_id: Optional[str] = None,
+    knowledge_base: Optional[str] = None,
+    http_request: FastAPIRequest = None,
+):
+    """
+    Debug endpoint to show routing decision for a query.
+    No OpenAI calls are made; safe for troubleshooting and regression tests.
+    """
+    try:
+        client_ip = get_client_ip(http_request) if http_request else "unknown"
+        decision = await orchestrator.diagnose_routing(
+            query=query,
+            session_id=session_id,
+            knowledge_base=knowledge_base,
+            client_ip=client_ip,
+        )
+        return decision
+    except Exception as e:
+        logger.error(f"Route debug error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
