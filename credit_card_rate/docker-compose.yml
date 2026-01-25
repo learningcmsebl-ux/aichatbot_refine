@@ -51,6 +51,8 @@ services:
       - ./fee_engine/fee_engine_service.py:/app/fee_engine_service.py
       # Mount static files (HTML, JS, CSS) for automatic updates
       - ./fee_engine/admin_panel/static:/app/admin_panel/static
+      # Mount location_service so admin panel sees latest location models
+      - ./location_service:/app/location_service
     environment:
       # PostgreSQL Configuration
       POSTGRES_HOST: host.docker.internal

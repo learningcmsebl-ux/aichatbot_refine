@@ -3,11 +3,12 @@ SQLAlchemy models for location service
 Normalized database schema for locations
 """
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text, Index
+from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text, Index, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from geoalchemy2 import Geography
 import uuid
 
 Base = declarative_base()
@@ -55,6 +56,11 @@ class Address(Base):
     
     address_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     street_address = Column(Text, nullable=False)
+    area = Column(String(100), nullable=True, index=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    # For spatial queries (PostGIS). Stored as geography for accurate meters-based distance.
+    geom = Column(Geography(geometry_type="POINT", srid=4326), nullable=True)
     zip_code = Column(String(20), nullable=True)
     city_id = Column(UUID(as_uuid=True), ForeignKey("cities.city_id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -125,4 +131,21 @@ class PriorityCenter(Base):
     
     # Relationships
     city = relationship("City", back_populates="priority_centers")
+
+
+class PoiLandmark(Base):
+    """Curated POI/landmarks for offline nearby queries"""
+    __tablename__ = "poi_landmarks"
+
+    poi_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(200), nullable=False, index=True)
+    aliases = Column(ARRAY(String(200)), nullable=True)
+    area = Column(String(100), nullable=True, index=True)
+    city = Column(String(100), nullable=True, index=True)
+    region = Column(String(100), nullable=True, index=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    geom = Column(Geography(geometry_type="POINT", srid=4326), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

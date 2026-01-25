@@ -237,12 +237,28 @@ class FeeEngineClient:
         
         # Skybanking charge type mappings
         skybanking_charge_type_map = {
-            "account certificate fee": "ACCOUNT_CERTIFICATE",
-            "certificate fee": "ACCOUNT_CERTIFICATE",
-            "fund transfer fee": "FUND_TRANSFER",
-            "transfer fee": "FUND_TRANSFER",
-            "transaction fee": "TRANSACTION_FEE",
-            "skybanking fee": "SKYBANKING_FEE",
+            # Exact DB charge_type matches
+            "add money fee": "Add Money Fee",
+            "add money": "Add Money Fee",
+            "annual service fee": "Annual Service Fee",
+            "bill payment": "Bill Payment",
+            "certificate fee": "Certificate Fee",
+            "balance certificate fee": "Certificate Fee",
+            "balance certificate": "Certificate Fee",
+            "fund transfer": "Fund Transfer",
+            "fund transfer fee": "Fund Transfer",
+            "government payment": "Government Payment",
+            "service charge": "Service Charge",
+            "duplicate pin charge": "Service Charge",
+            "duplicate pin": "Service Charge",
+            "statement / certificate fee": "Service Charge",
+            "statement certificate fee": "Service Charge",
+            "statement fee": "Service Charge",
+            # Backward-compat / generic
+            "account certificate fee": "Certificate Fee",
+            "transfer fee": "Fund Transfer",
+            "transaction fee": "Service Charge",
+            "skybanking fee": "Service Charge",
         }
 
         # Retail asset charge type mappings
@@ -505,6 +521,44 @@ class FeeEngineClient:
                 return "ISSUANCE_ANNUAL_PRIMARY"
         
         return None
+
+    def _extract_skybanking_product_name(self, query: str) -> Optional[str]:
+        """
+        Map query to Skybanking product_name for disambiguation.
+        """
+        query_lower = query.lower()
+        product_name_map = {
+            "account certificate": "Account Certificate",
+            "balance certificate": "Balance Certificate",
+            "dps certificate": "DPS Certificate",
+            "loan outstanding certificate": "Loan Outstanding Certificate",
+            "outstanding certificate": "Loan Outstanding Certificate",
+            "loan tax certificate": "Loan Tax Certificate",
+            "tax certificate": "Loan Tax Certificate",
+            "noc against loan": "NOC Against Loan",
+            "noc certificate": "NOC Against Loan",
+            "npsb fund transfer": "NPSB Fund Transfer",
+            "npsb transfer": "NPSB Fund Transfer",
+            "npsb": "NPSB Fund Transfer",
+            "rtgs fund transfer": "RTGS Fund Transfer",
+            "rtgs transfer": "RTGS Fund Transfer",
+            "rtgs": "RTGS Fund Transfer",
+            "binimoy fund transfer": "Binimoy Fund Transfer (Bank to Bank)",
+            "binimoy transfer": "Binimoy Fund Transfer (Bank to Bank)",
+            "binimoy": "Binimoy Fund Transfer (Bank to Bank)",
+            "binomoy fund transfer": "Binimoy Fund Transfer (Bank to Bank)",
+            "binomoy transfer": "Binimoy Fund Transfer (Bank to Bank)",
+            "binomoy": "Binimoy Fund Transfer (Bank to Bank)",
+            "duplicate pin charge": "Duplicate PIN Charge",
+            "duplicate pin": "Duplicate PIN Charge",
+            "statement / certificate fee": "Statement / Certificate Fee",
+            "statement certificate fee": "Statement / Certificate Fee",
+            "statement fee": "Statement / Certificate Fee",
+        }
+        for keyword, product_name in product_name_map.items():
+            if keyword in query_lower:
+                return product_name
+        return None
     
     async def calculate_fee(
         self,
@@ -538,6 +592,10 @@ class FeeEngineClient:
             return None
         
         logger.info(f"[FEE_ENGINE] Mapped query to charge_type: '{charge_type}' for query: '{query}'")
+
+        # Skybanking uses a dedicated endpoint and table (not card fees)
+        if product_line == "SKYBANKING":
+            return await self._query_skybanking_fees(query, charge_type)
         
         # Extract amount from query if not provided (for percentage-based fees like ATM withdrawal)
         if amount is None and charge_type in ["CASH_WITHDRAWAL_EBL_ATM", "CASH_WITHDRAWAL_OTHER_ATM"]:
@@ -721,6 +779,38 @@ class FeeEngineClient:
         # If all variations failed, return None
         logger.warning(f"[FEE_ENGINE] All product variations failed for query: '{query}'")
         return None
+
+    async def _query_skybanking_fees(self, query: str, charge_type: str) -> Optional[Dict[str, Any]]:
+        """
+        Query Skybanking fee table via fee-engine skybanking endpoint.
+        """
+        product_name = self._extract_skybanking_product_name(query)
+        request_data = {
+            "as_of_date": date.today().isoformat(),
+            "charge_type": charge_type,
+            "product": "Skybanking",
+            "network": None,
+            "product_name": product_name,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                url = f"{self.base_url}/skybanking-fees/query"
+                if product_name:
+                    logger.info(f"[FEE_ENGINE] Skybanking product_name detected: '{product_name}' for query: '{query}'")
+                logger.info(f"[FEE_ENGINE] Calling {url} (skybanking): {request_data}")
+                resp = await client.post(url, json=request_data)
+                if resp.status_code == 200:
+                    result = resp.json()
+                    logger.info(f"[FEE_ENGINE] Skybanking fee query result: {result}")
+                    return result
+                logger.warning(f"[FEE_ENGINE] Skybanking non-200: {resp.status_code} - {resp.text}")
+                return None
+        except httpx.TimeoutException:
+            logger.warning("[FEE_ENGINE] Timeout calling skybanking fee endpoint")
+            return None
+        except Exception as e:
+            logger.error(f"[FEE_ENGINE] Error calling skybanking fee endpoint: {e}")
+            return None
     
     def format_fee_response(self, fee_result: Dict[str, Any], query: Optional[str] = None) -> str:
         """
@@ -933,6 +1023,47 @@ class FeeEngineClient:
         else:
             return f"Fee calculation status: {status}"
     
+    def _format_skybanking_fee_response(self, fee_result: Dict[str, Any], query: Optional[str] = None) -> str:
+        """
+        Format Skybanking fee response (deterministic, prefer answer_text).
+        """
+        fees = fee_result.get("fees") or []
+        if not fees:
+            return "No Skybanking fee information found for the specified criteria."
+
+        # Prefer authoritative answer_text if present
+        answer_text = (fees[0].get("answer_text") or "").strip()
+        if answer_text:
+            return answer_text
+
+        # Fallback to formatted fee line
+        fee = fees[0]
+        charge_type = fee.get("charge_type", "Skybanking fee")
+        product_name = (fee.get("product_name") or "").strip()
+        fee_amount = fee.get("fee_amount")
+        fee_unit = fee.get("fee_unit")
+        fee_basis = fee.get("fee_basis")
+
+        label = charge_type
+        if product_name:
+            if "fee" in product_name.lower():
+                label = product_name
+            else:
+                label = f"{product_name} Fee"
+
+        if fee_amount is None:
+            return f"{label}: fee information is available in the Skybanking schedule, but amount is not specified."
+
+        if fee_unit == "PERCENT":
+            value = f"{fee_amount}%"
+        elif fee_unit == "BDT":
+            value = f"BDT {fee_amount}"
+        else:
+            value = f"{fee_amount} {fee_unit or ''}".strip()
+
+        basis_text = f" ({fee_basis})" if fee_basis else ""
+        return f"{label}: {value}{basis_text}."
+
     async def _query_retail_asset_charges(
         self,
         query: str,
@@ -964,7 +1095,7 @@ class FeeEngineClient:
             else:
                 logger.warning(f"[FEE_ENGINE] Could not map query to charge_type: '{query}'")
                 return None
-        
+
         # Extract loan product from query (optional - if not found, we'll query by charge_type only)
         if loan_product is None:
             loan_product = self._map_query_to_loan_product(query)

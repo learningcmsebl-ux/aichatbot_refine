@@ -29,9 +29,14 @@ class LocationClient:
         """
         query_lower = query.lower()
         
-        # Check for head office (check first as it's more specific)
-        if any(kw in query_lower for kw in ['head office', 'headoffice', 'headquarter', 'headquarters', 'corporate office', 'main office']):
-            return "head_office"
+        has_head_office = any(
+            kw in query_lower
+            for kw in ['head office', 'headoffice', 'headquarter', 'headquarters', 'corporate office', 'main office']
+        )
+
+        # If user asks for ATM at head office, prefer ATM results.
+        if has_head_office and any(kw in query_lower for kw in ['atm', 'atms', 'automated teller machine', 'cash machine']):
+            return "atm"
         
         # Check for priority center
         if any(kw in query_lower for kw in ['priority center', 'priority centre', 'priority banking center', 'priority banking centre']):
@@ -49,6 +54,10 @@ class LocationClient:
         if any(kw in query_lower for kw in ['rtdm', 'retail transaction deposit machine', 'deposit machine']):
             return "rtdm"
         
+        # Check for head office (after ATM/CRM/RTDM to allow machine-specific queries)
+        if has_head_office:
+            return "head_office"
+
         # Check for branch (most common, check last)
         if any(kw in query_lower for kw in ['branch', 'branches', 'bank branch', 'ebl branch']):
             return "branch"
@@ -58,12 +67,13 @@ class LocationClient:
     def _extract_location_filters(self, query: str) -> Dict[str, Optional[str]]:
         """
         Extract location filters (city, region) from natural language query.
-        Returns: {city, region, search}
+        Returns: {city, region, area, search}
         """
         query_lower = query.lower()
         filters = {
             "city": None,
             "region": None,
+            "area": None,
             "search": None
         }
         
@@ -94,10 +104,13 @@ class LocationClient:
         # Extract search term (remove location keywords to get the actual search term)
         search_terms = []
         # Common stop words and location keywords to exclude
-        stop_words = ['branch', 'branches', 'atm', 'atms', 'crm', 'rtdm', 'location', 'address', 
-                     'where', 'find', 'nearest', 'near', 'in', 'at', 'head office', 'priority center',
-                     'tell', 'me', 'the', 'of', 'is', 'are', 'what', 'can', 'i', 'locate', 'show',
-                     'a', 'an', 'and', 'or', 'but', 'for', 'with', 'from', 'to', 'on', 'by']
+        stop_words = [
+            'branch', 'branches', 'atm', 'atms', 'crm', 'rtdm', 'location', 'locations', 'address',
+            'where', 'find', 'nearest', 'near', 'nearby', 'around', 'area', 'in', 'at', 'head office', 'priority center',
+            'tell', 'me', 'the', 'of', 'is', 'are', 'what', 'can', 'i', 'locate', 'show', 'give', 'provide',
+            'a', 'an', 'and', 'or', 'but', 'for', 'with', 'from', 'to', 'on', 'by',
+            'city', 'district', 'division', 'region', 'located'
+        ]
         
         words = query.split()
         for word in words:
@@ -116,9 +129,80 @@ class LocationClient:
                 search_terms.append(word_clean)
         
         if search_terms:
-            filters["search"] = ' '.join(search_terms)
+            # Remove generic geo labels if they slipped through
+            search_terms = [
+                term for term in search_terms
+                if term.lower() not in {"city", "district", "division", "region", "area"}
+            ]
+
+            # Prefer known area tokens if present to avoid over-specific search strings.
+            preferred_areas = {
+                'gulshan', 'banani', 'baridhara', 'dhanmondi', 'uttara', 'motijheel',
+                'mirpur', 'tejgaon', 'basundhara', 'badda', 'malibagh', 'mohakhali',
+                'paltan', 'farmgate', 'elephant road', 'new market', 'mouchak'
+            }
+            preferred_area_term = None
+            for term in search_terms:
+                if term.lower() in preferred_areas:
+                    preferred_area_term = term.title()
+                    break
+
+            if preferred_area_term:
+                # Send as deterministic "area" filter to the microservice.
+                filters["area"] = preferred_area_term
+
+                # If the query is purely "Gulshan area"/"ATMs in Gulshan", avoid adding a
+                # redundant full-text search that can reduce recall.
+                if len(search_terms) == 1:
+                    filters["search"] = None
+                else:
+                    filters["search"] = ' '.join(search_terms)
+            else:
+                # If the search term is just the city/region already captured, avoid over-filtering
+                if filters["city"] and len(search_terms) == 1 and search_terms[0].lower() == filters["city"].lower():
+                    filters["search"] = None
+                elif filters["region"] and len(search_terms) == 1 and search_terms[0].lower() == filters["region"].lower():
+                    filters["search"] = None
+                else:
+                    filters["search"] = ' '.join(search_terms)
         
         return filters
+
+    def _extract_near_phrase(self, query: str) -> Optional[str]:
+        """
+        Extract a landmark/POI phrase from queries like:
+        - "atm near jamjam tower uttara"
+        - "nearest atm to jamjam tower"
+        - "atms around jamjam tower uttara"
+
+        Returns the free-text landmark phrase, or None.
+        """
+        q = (query or "").strip()
+        if not q:
+            return None
+
+        q_lower = q.lower()
+        if not any(k in q_lower for k in [" near ", " nearby", "nearest", " around "]):
+            return None
+
+        # Prefer explicit "near/around" markers
+        m = re.search(r"\b(?:near|nearby|around)\b\s+(?P<place>.+)$", q, flags=re.IGNORECASE)
+        if not m:
+            m = re.search(r"\bnearest\b\s+(?:to\s+)?(?P<place>.+)$", q, flags=re.IGNORECASE)
+        if not m:
+            return None
+
+        place = (m.group("place") or "").strip()
+        # Remove trailing question marks, etc.
+        place = place.strip(" .,!?:;")
+        # Drop leading filler words
+        place = re.sub(r"^(the|a|an)\s+", "", place, flags=re.IGNORECASE).strip()
+
+        # If the extracted phrase is too short, ignore.
+        if len(place) < 3:
+            return None
+
+        return place
     
     async def get_locations(
         self,
@@ -126,6 +210,9 @@ class LocationClient:
         location_type: Optional[str] = None,
         city: Optional[str] = None,
         region: Optional[str] = None,
+        area: Optional[str] = None,
+        near: Optional[str] = None,
+        radius_km: Optional[float] = None,
         search: Optional[str] = None,
         limit: int = 20
     ) -> Optional[Dict[str, Any]]:
@@ -152,6 +239,12 @@ class LocationClient:
         # as they interfere with getting all results
         query_lower = (query or "").lower()
         is_count_query = any(term in query_lower for term in ["how many", "number of", "count", "total"])
+
+        # Detect nearby queries (offline curated POIs)
+        if near is None:
+            near = self._extract_near_phrase(query)
+        if radius_km is None and near:
+            radius_km = 3.0
         
         if not city and not region and not search:
             if not is_count_query:
@@ -159,14 +252,20 @@ class LocationClient:
                 filters = self._extract_location_filters(query)
                 city = filters.get("city")
                 region = filters.get("region")
+                area = filters.get("area")
                 search = filters.get("search")
             else:
                 # For count queries, don't add search parameter - just get all by type
                 filters = self._extract_location_filters(query)
                 city = filters.get("city")
                 region = filters.get("region")
+                area = filters.get("area")
                 # Explicitly set search to None for count queries
                 search = None
+
+        # If we routed to ATM for head office, ensure search includes head office
+        if location_type == "atm" and "head office" in query_lower and not search:
+            search = "Head Office"
         
         # Build query parameters
         params = {
@@ -179,6 +278,12 @@ class LocationClient:
             params["city"] = city
         if region:
             params["region"] = region
+        if area:
+            params["area"] = area
+        if near:
+            params["near"] = near
+        if radius_km:
+            params["radius_km"] = radius_km
         if search:
             params["search"] = search
         
@@ -205,7 +310,7 @@ class LocationClient:
     
     def format_location_response(self, location_result: Dict[str, Any], query: Optional[str] = None) -> str:
         """
-        Format location query result into readable text for LLM context.
+        Format location query result into readable text for user display.
         
         Args:
             location_result: Location query result from location service
@@ -218,6 +323,12 @@ class LocationClient:
         locations = location_result.get("locations", [])
         
         if total == 0:
+            query_lower = (query or "").lower()
+            if any(term in query_lower for term in [" near ", "nearby", "nearest", " around "]):
+                return (
+                    "No nearby locations found for that place. Nearby search requires latitude/longitude "
+                    "for ATM/branch addresses. Please add coordinates in the admin panel, then try again."
+                )
             return "No locations found matching your query. Please try different search terms or filters."
         
         # Check if query is asking for count/number
@@ -231,6 +342,10 @@ class LocationClient:
             if loc_type not in by_type:
                 by_type[loc_type] = []
             by_type[loc_type].append(loc)
+
+        # If the response only contains a single location type, we can use the API's
+        # `total` for accurate "and X more" messaging (because pagination may be used).
+        single_type = len(by_type) == 1
         
         # Build formatted response
         response_parts = []
@@ -250,13 +365,18 @@ class LocationClient:
         
         for loc_type, locs in by_type.items():
             type_name = loc_type.replace("_", " ").title()
-            response_parts.append(f"\n{type_name}s ({len(locs)}):\n")
+            shown = min(10, len(locs))
+            if single_type:
+                response_parts.append(f"\n{type_name}s (showing {shown} of {total}):\n")
+            else:
+                response_parts.append(f"\n{type_name}s (showing {shown}):\n")
             response_parts.append("-" * 70 + "\n")
             
             for loc in locs[:10]:  # Limit to 10 per type for readability
                 name = loc.get("name", "Unknown")
                 address = loc.get("address", {})
                 street = address.get("street", "")
+                area = address.get("area", "")
                 city = address.get("city", "")
                 region = address.get("region", "")
                 zip_code = address.get("zip_code", "")
@@ -264,6 +384,8 @@ class LocationClient:
                 response_parts.append(f"• {name}\n")
                 if street:
                     response_parts.append(f"  Address: {street}\n")
+                if area:
+                    response_parts.append(f"  Area: {area}\n")
                 if city:
                     response_parts.append(f"  City: {city}\n")
                 if region:
@@ -279,7 +401,9 @@ class LocationClient:
                 
                 response_parts.append("\n")
             
-            if len(locs) > 10:
+            if single_type and total > shown:
+                response_parts.append(f"... and {total - shown} more {type_name.lower()}(s)\n")
+            elif len(locs) > 10:
                 response_parts.append(f"... and {len(locs) - 10} more {type_name.lower()}(s)\n")
         
         response_parts.append("=" * 70)

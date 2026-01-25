@@ -35,6 +35,29 @@ services:
     networks:
       - chatbot-network
 
+  location_service:
+    build:
+      context: ../location_service
+      dockerfile: Dockerfile
+    container_name: bank-chatbot-location-service
+    ports:
+      - "8004:8004"
+    environment:
+      POSTGRES_HOST: host.docker.internal
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-bank_chatbot}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8004/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   chatbot:
     build:
       context: .
@@ -84,7 +107,7 @@ services:
       FEE_ENGINE_URL: ${FEE_ENGINE_URL:-http://host.docker.internal:8003}
       
       # Location Service
-      LOCATION_SERVICE_URL: ${LOCATION_SERVICE_URL:-http://host.docker.internal:8004}
+      LOCATION_SERVICE_URL: ${LOCATION_SERVICE_URL:-http://location_service:8004}
       
       # Chat Settings
       MAX_CONVERSATION_HISTORY: ${MAX_CONVERSATION_HISTORY:-10}

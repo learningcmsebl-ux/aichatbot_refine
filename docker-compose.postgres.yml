@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    build:
+      context: ./postgres_postgis
+      dockerfile: Dockerfile
     container_name: chatbot_postgres
     environment:
       POSTGRES_USER: chatbot_user

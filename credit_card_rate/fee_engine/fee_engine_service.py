@@ -10,7 +10,7 @@ from typing import Optional, List, Literal, Dict, Any
 from datetime import date, datetime
 from decimal import Decimal
 import os
-from sqlalchemy import create_engine, Column, String, Date, Integer, DECIMAL, Text, DateTime, Boolean, or_, and_, case
+from sqlalchemy import create_engine, Column, String, Date, Integer, DECIMAL, Text, DateTime, Boolean, or_, and_, case, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import UUID
@@ -52,6 +52,9 @@ DATABASE_URL = get_database_url()
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Best-effort schema guard (Skybanking verbatim `answer_text` support).
+_SKYBANKING_SCHEMA_READY = False
 
 # ENUMs
 class CardCategory(str):
@@ -210,6 +213,8 @@ class SkybankingFeeMaster(Base):
     fee_basis = Column(String(50), nullable=False)
     is_conditional = Column(Boolean, nullable=False, default=False)
     condition_description = Column(Text, nullable=True)
+    # Anti-hallucination: verbatim output (optional manual override)
+    answer_text = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="ACTIVE")
     remarks = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -266,6 +271,7 @@ class SkybankingFeeRequest(BaseModel):
     charge_type: Optional[str] = Field(None, description="Charge type")
     product: Optional[str] = Field(None, description="Product (e.g., Skybanking)")
     network: Optional[str] = Field(None, description="Network (e.g., VISA)")
+    product_name: Optional[str] = Field(None, description="Product name (e.g., Balance Certificate)")
 
 class SkybankingFeeResponse(BaseModel):
     status: Literal["FOUND", "NO_RULE_FOUND", "REQUIRES_NOTE_RESOLUTION"]
@@ -312,6 +318,16 @@ def get_db():
 
 def get_db_session():
     """Get database session (non-generator version)"""
+    global _SKYBANKING_SCHEMA_READY
+    if not _SKYBANKING_SCHEMA_READY:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE skybanking_fee_master ADD COLUMN IF NOT EXISTS answer_text TEXT"))
+        except Exception as e:
+            # Don't block the service if schema migration fails.
+            logger.warning(f"[SCHEMA] Could not ensure skybanking_fee_master.answer_text column: {e}")
+        finally:
+            _SKYBANKING_SCHEMA_READY = True
     return SessionLocal()
 
 @app.get("/health")
@@ -1189,6 +1205,10 @@ async def query_skybanking_fees(request: SkybankingFeeRequest):
         # Filter by network if provided
         if request.network:
             query = query.filter(SkybankingFeeMaster.network == request.network)
+
+        # Filter by product_name if provided (exact match)
+        if request.product_name:
+            query = query.filter(SkybankingFeeMaster.product_name == request.product_name)
         
         # Order by effective_from (newest first)
         fees = query.order_by(
@@ -1216,6 +1236,7 @@ async def query_skybanking_fees(request: SkybankingFeeRequest):
                 "fee_basis": fee.fee_basis,
                 "is_conditional": fee.is_conditional,
                 "condition_description": fee.condition_description,
+                "answer_text": getattr(fee, "answer_text", None),
                 "remarks": fee.remarks,
                 "effective_from": str(fee.effective_from),
                 "effective_to": str(fee.effective_to) if fee.effective_to else None

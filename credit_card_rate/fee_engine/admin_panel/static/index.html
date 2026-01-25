@@ -42,6 +42,7 @@
                 <button class="tab-btn" onclick="switchTab('branches')">Branches</button>
                 <button class="tab-btn" onclick="switchTab('machines')">ATM/CRM/RTDM</button>
                 <button class="tab-btn" onclick="switchTab('priority-centers')">Priority Centers</button>
+                <button class="tab-btn" onclick="switchTab('pois')">POIs/Landmarks</button>
             </div>
 
             <!-- Card Fees Tab -->
@@ -291,6 +292,7 @@
                                 <th>Branch Code</th>
                                 <th>Branch Name</th>
                                 <th>Address</th>
+                                <th>Area</th>
                                 <th>City</th>
                                 <th>Region</th>
                                 <th>Status</th>
@@ -299,7 +301,7 @@
                         </thead>
                         <tbody id="branchesTableBody">
                             <tr>
-                                <td colspan="7" class="loading">Loading...</td>
+                                <td colspan="8" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -367,6 +369,7 @@
                                 <th>Machine Type</th>
                                 <th>Count</th>
                                 <th>Address</th>
+                                <th>Area</th>
                                 <th>City</th>
                                 <th>Region</th>
                                 <th>Actions</th>
@@ -374,7 +377,7 @@
                         </thead>
                         <tbody id="machinesTableBody">
                             <tr>
-                                <td colspan="6" class="loading">Loading...</td>
+                                <td colspan="7" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -447,6 +450,70 @@
                     <button id="priorityPrevPage" class="btn btn-secondary" disabled>Previous</button>
                     <span id="priorityPageInfo">Page 1</span>
                     <button id="priorityNextPage" class="btn btn-secondary">Next</button>
+                </div>
+            </div>
+            </div>
+
+            <!-- POIs/Landmarks Tab -->
+            <div id="pois-tab" class="tab-content">
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2>Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="poiFilterSearch" placeholder="Search POIs...">
+                    </div>
+                    <div class="filter-group">
+                        <label>Area:</label>
+                        <input type="text" id="poiFilterArea" placeholder="e.g., Uttara, Gulshan">
+                    </div>
+                    <div class="filter-group">
+                        <label>City:</label>
+                        <input type="text" id="poiFilterCity" placeholder="e.g., Dhaka">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button id="poiApplyFilters" class="btn btn-primary">Apply Filters</button>
+                    <button id="poiClearFilters" class="btn btn-secondary">Clear</button>
+                    <button id="addNewPoi" class="btn btn-success">+ Add New POI</button>
+                </div>
+            </div>
+
+            <!-- POIs Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2>POIs / Landmarks</h2>
+                    <div class="table-info">
+                        <span id="poiTotalCount">Total: 0</span>
+                        <span id="poiShowingCount">Showing: 0</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="poisTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Aliases</th>
+                                <th>Area</th>
+                                <th>City</th>
+                                <th>Region</th>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poisTableBody">
+                            <tr>
+                                <td colspan="8" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="poiPrevPage" class="btn btn-secondary" disabled>Previous</button>
+                    <span id="poiPageInfo">Page 1</span>
+                    <button id="poiNextPage" class="btn btn-secondary">Next</button>
                 </div>
             </div>
             </div>
@@ -694,6 +761,18 @@
                     <input type="text" id="editBranchStreet" required>
                 </div>
                 <div class="form-group">
+                    <label for="editBranchArea">Area:</label>
+                    <input type="text" id="editBranchArea" placeholder="e.g., Gulshan, Banani, Uttara">
+                </div>
+                <div class="form-group">
+                    <label for="editBranchLatitude">Latitude:</label>
+                    <input type="number" id="editBranchLatitude" step="any" placeholder="e.g., 23.8103">
+                </div>
+                <div class="form-group">
+                    <label for="editBranchLongitude">Longitude:</label>
+                    <input type="number" id="editBranchLongitude" step="any" placeholder="e.g., 90.4125">
+                </div>
+                <div class="form-group">
                     <label for="editBranchCity">City:</label>
                     <select id="editBranchCity" required></select>
                 </div>
@@ -749,6 +828,18 @@
                     <input type="text" id="editMachineStreet" required>
                 </div>
                 <div class="form-group">
+                    <label for="editMachineArea">Area:</label>
+                    <input type="text" id="editMachineArea" placeholder="e.g., Gulshan, Banani, Uttara">
+                </div>
+                <div class="form-group">
+                    <label for="editMachineLatitude">Latitude:</label>
+                    <input type="number" id="editMachineLatitude" step="any" placeholder="e.g., 23.8103">
+                </div>
+                <div class="form-group">
+                    <label for="editMachineLongitude">Longitude:</label>
+                    <input type="number" id="editMachineLongitude" step="any" placeholder="e.g., 90.4125">
+                </div>
+                <div class="form-group">
                     <label for="editMachineCity">City:</label>
                     <select id="editMachineCity" required></select>
                 </div>
@@ -796,6 +887,49 @@
         </div>
     </div>
 
+    <!-- Edit POI Modal -->
+    <div id="editPoiModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2 id="poiModalTitle">Edit POI</h2>
+            <form id="editPoiForm">
+                <input type="hidden" id="editPoiId">
+                <div class="form-group">
+                    <label for="editPoiName">Name:</label>
+                    <input type="text" id="editPoiName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editPoiAliases">Aliases (comma-separated):</label>
+                    <input type="text" id="editPoiAliases" placeholder="e.g., Jam Jam Tower, JamJam Tower">
+                </div>
+                <div class="form-group">
+                    <label for="editPoiArea">Area:</label>
+                    <input type="text" id="editPoiArea" placeholder="e.g., Uttara">
+                </div>
+                <div class="form-group">
+                    <label for="editPoiCity">City:</label>
+                    <input type="text" id="editPoiCity" placeholder="e.g., Dhaka">
+                </div>
+                <div class="form-group">
+                    <label for="editPoiRegion">Region:</label>
+                    <input type="text" id="editPoiRegion" placeholder="e.g., Dhaka">
+                </div>
+                <div class="form-group">
+                    <label for="editPoiLatitude">Latitude:</label>
+                    <input type="number" id="editPoiLatitude" step="any" placeholder="e.g., 23.8750">
+                </div>
+                <div class="form-group">
+                    <label for="editPoiLongitude">Longitude:</label>
+                    <input type="number" id="editPoiLongitude" step="any" placeholder="e.g., 90.3980">
+                </div>
+                <div id="editPoiError" class="error-message"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditPoiModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Edit Retail Asset Charge Modal -->
     <div id="editRetailModal" class="modal" style="display: none;">
         <div class="modal-content modal-large">
@@ -808,7 +942,9 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="editRetailLoanProduct">Loan Product *</label>
-                        <input type="text" id="editRetailLoanProduct" required>
+                        <select id="editRetailLoanProduct" required>
+                            <option value="">Select</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="editRetailLoanProductName">Loan Product Name *</label>
@@ -816,7 +952,9 @@
                     </div>
                     <div class="form-group">
                         <label for="editRetailChargeType">Charge Type *</label>
-                        <input type="text" id="editRetailChargeType" required>
+                        <select id="editRetailChargeType" required>
+                            <option value="">Select</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="editRetailChargeContext">Charge Context * (Documentation Only)</label>
@@ -959,8 +1097,9 @@
         </div>
     </div>
 
-    <script src="/static/script.js"></script>
-    <script src="/static/grid.js"></script>
+    <!-- Cache-bust static assets to avoid stale JS after updates -->
+    <script src="/static/script.js?v=20260119"></script>
+    <script src="/static/grid.js?v=20260119"></script>
 </body>
 </html>
 

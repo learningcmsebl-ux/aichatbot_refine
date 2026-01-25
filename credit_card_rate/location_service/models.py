@@ -55,6 +55,7 @@ class Address(Base):
     
     address_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     street_address = Column(Text, nullable=False)
+    area = Column(String(100), nullable=True, index=True)
     zip_code = Column(String(20), nullable=True)
     city_id = Column(UUID(as_uuid=True), ForeignKey("cities.city_id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -32,6 +32,11 @@ let priorityTotalLocations = 0;
 let priorityCurrentFilters = {};
 let locationFiltersData = null;
 
+// POIs/Landmarks state
+let poiCurrentPage = 0;
+let poiTotal = 0;
+let poiCurrentFilters = {};
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     checkAuth();
@@ -82,6 +87,7 @@ function testAuth() {
             loadBranches();
             loadMachines();
             loadPriorityCenters();
+            loadPois();
         } else {
             showLogin();
         }
@@ -153,6 +159,7 @@ function setupEventListeners() {
     const editMachineForm = document.getElementById('editMachineForm');
     const editPriorityForm = document.getElementById('editPriorityForm');
     const editRetailForm = document.getElementById('editRetailForm');
+    const editPoiForm = document.getElementById('editPoiForm');
     if (editBranchForm) {
         editBranchForm.addEventListener('submit', handleSaveBranch);
     }
@@ -164,6 +171,9 @@ function setupEventListeners() {
     }
     if (editRetailForm) {
         editRetailForm.addEventListener('submit', handleSaveRetailCharge);
+    }
+    if (editPoiForm) {
+        editPoiForm.addEventListener('submit', handleSavePoi);
     }
     
     // Retail Asset Charges filters
@@ -212,6 +222,14 @@ function setupEventListeners() {
     document.getElementById('machineClearFilters').addEventListener('click', clearMachineFilters);
     document.getElementById('priorityApplyFilters').addEventListener('click', applyPriorityFilters);
     document.getElementById('priorityClearFilters').addEventListener('click', clearPriorityFilters);
+
+    // POI filters + actions
+    const poiApply = document.getElementById('poiApplyFilters');
+    const poiClear = document.getElementById('poiClearFilters');
+    const addNewPoiBtn = document.getElementById('addNewPoi');
+    if (poiApply) poiApply.addEventListener('click', applyPoiFilters);
+    if (poiClear) poiClear.addEventListener('click', clearPoiFilters);
+    if (addNewPoiBtn) addNewPoiBtn.addEventListener('click', showAddPoiModal);
     
     // Location pagination
     document.getElementById('branchPrevPage').addEventListener('click', () => {
@@ -252,6 +270,26 @@ function setupEventListeners() {
             loadPriorityCenters();
         }
     });
+
+    // POI pagination
+    const poiPrev = document.getElementById('poiPrevPage');
+    const poiNext = document.getElementById('poiNextPage');
+    if (poiPrev) {
+        poiPrev.addEventListener('click', () => {
+            if (poiCurrentPage > 0) {
+                poiCurrentPage--;
+                loadPois();
+            }
+        });
+    }
+    if (poiNext) {
+        poiNext.addEventListener('click', () => {
+            if ((poiCurrentPage + 1) * pageSize < poiTotal) {
+                poiCurrentPage++;
+                loadPois();
+            }
+        });
+    }
     
     // Retail pagination
     document.getElementById('retailPrevPage').addEventListener('click', () => {
@@ -302,6 +340,10 @@ function switchTab(tabName) {
         document.getElementById('priority-centers-tab').classList.add('active');
         document.querySelector('.tab-btn[onclick="switchTab(\'priority-centers\')"]').classList.add('active');
         loadPriorityCenters();
+    } else if (tabName === 'pois') {
+        document.getElementById('pois-tab').classList.add('active');
+        document.querySelector('.tab-btn[onclick="switchTab(\'pois\')"]').classList.add('active');
+        loadPois();
     }
 }
 
@@ -602,27 +644,63 @@ async function handleSave(e) {
     };
     
     try {
-        if (feeId) {
-            // Update existing
-            await apiCall(`/api/rules/${feeId}`, {
-                method: 'PUT',
-                body: JSON.stringify(formData)
-            });
-            showSuccess('Rule updated successfully!');
+        // Skybanking fees use a dedicated API and a different schema.
+        // The Skybanking tab reuses this modal, so we must route saves to /api/skybanking-fees.
+        if (formData.product_line === 'SKYBANKING') {
+            const networkVal = (formData.card_network || '').trim();
+            const skyPayload = {
+                effective_from: formData.effective_from || null,
+                effective_to: formData.effective_to || null,
+                charge_type: formData.charge_type || null,
+                // Treat "ANY" as unset for Skybanking network.
+                network: (!networkVal || networkVal.toUpperCase() === 'ANY') ? null : networkVal,
+                product: formData.card_product || null,
+                product_name: formData.full_card_name || formData.card_product || null,
+                fee_amount: (Number.isFinite(formData.fee_value) ? formData.fee_value : null),
+                fee_unit: formData.fee_unit || null,
+                fee_basis: formData.fee_basis || null,
+                is_conditional: formData.condition_type && formData.condition_type !== 'NONE',
+                answer_text: formData.answer_text || null,
+                status: formData.status || null,
+                remarks: formData.remarks || null
+            };
+
+            if (feeId) {
+                await apiCall(`/api/skybanking-fees/${feeId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(skyPayload)
+                });
+                showSuccess('Skybanking fee updated successfully!');
+            } else {
+                await apiCall('/api/skybanking-fees', {
+                    method: 'POST',
+                    body: JSON.stringify(skyPayload)
+                });
+                showSuccess('Skybanking fee created successfully!');
+            }
         } else {
-            // Create new
-            await apiCall('/api/rules', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-            showSuccess('Rule created successfully!');
+            if (feeId) {
+                // Update existing card-fee rule
+                await apiCall(`/api/rules/${feeId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(formData)
+                });
+                showSuccess('Rule updated successfully!');
+            } else {
+                // Create new card-fee rule
+                await apiCall('/api/rules', {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+                showSuccess('Rule created successfully!');
+            }
         }
         
         closeEditModal();
-        loadRules();
-        // Reload skybanking fees if product line is SKYBANKING
         if (formData.product_line === 'SKYBANKING') {
             loadSkybankingFees();
+        } else {
+            loadRules();
         }
     } catch (error) {
         errorDiv.textContent = 'Error: ' + error.message;
@@ -708,6 +786,8 @@ async function loadRetailAssetFilters() {
         
         populateSelect('retailFilterLoanProduct', retailFiltersData.loan_products);
         populateSelect('retailFilterChargeType', retailFiltersData.charge_types);
+        populateSelect('editRetailLoanProduct', retailFiltersData.loan_products);
+        populateSelect('editRetailChargeType', retailFiltersData.charge_types);
     } catch (error) {
         console.error('Error loading retail asset filters:', error);
     }
@@ -872,17 +952,99 @@ async function editRetailCharge(chargeId) {
     try {
         const charge = await apiCall(`/api/retail-asset-charges/${chargeId}`);
         populateRetailEditForm(charge);
+        const editRetailForm = document.getElementById('editRetailForm');
+        if (editRetailForm) {
+            editRetailForm.dataset.mode = 'edit';
+        }
+        const modal = document.getElementById('editRetailModal');
+        const title = modal ? modal.querySelector('.modal-header h2') : null;
+        if (title) title.textContent = 'Edit Retail Asset Charge';
         document.getElementById('editRetailModal').style.display = 'block';
     } catch (error) {
         showError('Failed to load charge: ' + error.message);
     }
 }
 
+function resetRetailEditForm() {
+    const fields = [
+        'editRetailChargeId',
+        'editRetailLoanProduct',
+        'editRetailLoanProductName',
+        'editRetailChargeType',
+        'editRetailChargeContext',
+        'editRetailChargeDescription',
+        'editRetailFeeText',
+        'editRetailAnswerText',
+        'editRetailParseStatus',
+        'editRetailFeeValue',
+        'editRetailFeeRateValue',
+        'editRetailFeeRateUnit',
+        'editRetailFeeAmountValue',
+        'editRetailFeeAmountCurrency',
+        'editRetailFeePeriod',
+        'editRetailFeeAppliesTo',
+        'editRetailFeeUnit',
+        'editRetailFeeBasis',
+        'editRetailStatus',
+        'editRetailPriority',
+        'editRetailRemarks',
+        'editRetailEffectiveFrom',
+        'editRetailEffectiveTo'
+    ];
+    fields.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.tagName === 'SELECT') {
+            el.selectedIndex = 0;
+        } else {
+            el.value = '';
+        }
+    });
+
+    // Safe defaults for required selects
+    const feeUnitEl = document.getElementById('editRetailFeeUnit');
+    if (feeUnitEl) feeUnitEl.value = 'BDT';
+    const feeBasisEl = document.getElementById('editRetailFeeBasis');
+    if (feeBasisEl) feeBasisEl.value = 'PER_AMOUNT';
+    const statusEl = document.getElementById('editRetailStatus');
+    if (statusEl) statusEl.value = 'ACTIVE';
+    const parseStatusEl = document.getElementById('editRetailParseStatus');
+    if (parseStatusEl) parseStatusEl.value = 'UNPARSED';
+    const priorityEl = document.getElementById('editRetailPriority');
+    if (priorityEl) priorityEl.value = 100;
+
+    const errorDiv = document.getElementById('editRetailError');
+    if (errorDiv) {
+        errorDiv.textContent = '';
+        errorDiv.classList.remove('show');
+    }
+}
+
 function populateRetailEditForm(charge) {
     document.getElementById('editRetailChargeId').value = charge.charge_id;
-    document.getElementById('editRetailLoanProduct').value = charge.loan_product || '';
+    const loanProductEl = document.getElementById('editRetailLoanProduct');
+    if (loanProductEl) {
+        const loanProductValue = charge.loan_product || '';
+        if (loanProductValue && !Array.from(loanProductEl.options).some(opt => opt.value === loanProductValue)) {
+            const opt = document.createElement('option');
+            opt.value = loanProductValue;
+            opt.textContent = loanProductValue;
+            loanProductEl.appendChild(opt);
+        }
+        loanProductEl.value = loanProductValue;
+    }
     document.getElementById('editRetailLoanProductName').value = charge.loan_product_name || '';
-    document.getElementById('editRetailChargeType').value = charge.charge_type || '';
+    const chargeTypeEl = document.getElementById('editRetailChargeType');
+    if (chargeTypeEl) {
+        const chargeTypeValue = charge.charge_type || '';
+        if (chargeTypeValue && !Array.from(chargeTypeEl.options).some(opt => opt.value === chargeTypeValue)) {
+            const opt = document.createElement('option');
+            opt.value = chargeTypeValue;
+            opt.textContent = chargeTypeValue;
+            chargeTypeEl.appendChild(opt);
+        }
+        chargeTypeEl.value = chargeTypeValue;
+    }
     document.getElementById('editRetailChargeContext').value = charge.charge_context || 'GENERAL';
     document.getElementById('editRetailChargeDescription').value = charge.charge_description || '';
     const feeTextEl = document.getElementById('editRetailFeeText');
@@ -944,6 +1106,8 @@ async function handleSaveRetailCharge(e) {
     errorDiv.classList.remove('show');
     
     const chargeId = document.getElementById('editRetailChargeId').value;
+    const editRetailForm = document.getElementById('editRetailForm');
+    const mode = editRetailForm ? editRetailForm.dataset.mode : null;
     const formData = {
         loan_product: document.getElementById('editRetailLoanProduct').value || null,
         loan_product_name: document.getElementById('editRetailLoanProductName').value || null,
@@ -970,11 +1134,19 @@ async function handleSaveRetailCharge(e) {
     };
     
     try {
-        await apiCall(`/api/retail-asset-charges/${chargeId}`, {
-            method: 'PUT',
-            body: JSON.stringify(formData)
-        });
-        showSuccess('Retail asset charge updated successfully!');
+        if (!chargeId || mode === 'create') {
+            await apiCall('/api/retail-asset-charges', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            showSuccess('Retail asset charge created successfully!');
+        } else {
+            await apiCall(`/api/retail-asset-charges/${chargeId}`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+            showSuccess('Retail asset charge updated successfully!');
+        }
         closeEditRetailModal();
         loadRetailAssetCharges();
     } catch (error) {
@@ -1000,7 +1172,17 @@ async function deleteRetailCharge(chargeId) {
 }
 
 function showAddRetailModal() {
-    alert('Add new retail asset charge functionality coming soon!');
+    resetRetailEditForm();
+    const editRetailForm = document.getElementById('editRetailForm');
+    if (editRetailForm) {
+        editRetailForm.dataset.mode = 'create';
+    }
+    document.getElementById('editRetailChargeId').value = '';
+
+    const modal = document.getElementById('editRetailModal');
+    const title = modal ? modal.querySelector('.modal-header h2') : null;
+    if (title) title.textContent = 'Add Retail Asset Charge';
+    if (modal) modal.style.display = 'block';
 }
 
 // Skybanking Fees Functions
@@ -1150,6 +1332,7 @@ async function editSkybankingFee(feeId) {
             free_entitlement_count: null,
             condition_type: fee.is_conditional ? 'CONDITIONAL' : 'NONE',
             note_reference: null,
+            answer_text: fee.answer_text || null,
             priority: 100,
             status: fee.status,
             product_line: 'SKYBANKING',
@@ -1308,7 +1491,7 @@ async function loadBranches() {
         tbody.innerHTML = '';
         
         if (data.locations.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="no-data">No branches found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="no-data">No branches found</td></tr>';
         } else {
             data.locations.forEach(loc => {
                 const row = document.createElement('tr');
@@ -1316,6 +1499,7 @@ async function loadBranches() {
                     <td>${loc.code || ''}</td>
                     <td>${loc.name}</td>
                     <td>${loc.address.street}</td>
+                    <td>${loc.address.area || ''}</td>
                     <td>${loc.address.city}</td>
                     <td>${loc.address.region}</td>
                     <td>${loc.status || ''}</td>
@@ -1332,7 +1516,7 @@ async function loadBranches() {
     } catch (error) {
         console.error('Error loading branches:', error);
         const tbody = document.getElementById('branchesTableBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="error">Error loading branches</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="error">Error loading branches</td></tr>';
     }
 }
 
@@ -1396,7 +1580,7 @@ async function loadMachines() {
         tbody.innerHTML = '';
         
         if (data.locations.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="no-data">No machines found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="no-data">No machines found</td></tr>';
         } else {
             data.locations.forEach(loc => {
                 const row = document.createElement('tr');
@@ -1404,6 +1588,7 @@ async function loadMachines() {
                     <td>${loc.machine_type || loc.type.toUpperCase()}</td>
                     <td>${loc.machine_count || 1}</td>
                     <td>${loc.address.street}</td>
+                    <td>${loc.address.area || ''}</td>
                     <td>${loc.address.city}</td>
                     <td>${loc.address.region}</td>
                     <td class="actions-cell">
@@ -1419,7 +1604,7 @@ async function loadMachines() {
     } catch (error) {
         console.error('Error loading machines:', error);
         const tbody = document.getElementById('machinesTableBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="error">Error loading machines</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="error">Error loading machines</td></tr>';
     }
 }
 
@@ -1468,6 +1653,61 @@ async function loadPriorityCenters() {
         console.error('Error loading priority centers:', error);
         const tbody = document.getElementById('priorityCentersTableBody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="error">Error loading priority centers</td></tr>';
+    }
+}
+
+// ===== POIs / LANDMARKS =====
+async function loadPois() {
+    try {
+        const params = new URLSearchParams({
+            limit: pageSize,
+            offset: poiCurrentPage * pageSize
+        });
+        if (poiCurrentFilters.search) params.append('search', poiCurrentFilters.search);
+        if (poiCurrentFilters.area) params.append('area', poiCurrentFilters.area);
+        if (poiCurrentFilters.city) params.append('city', poiCurrentFilters.city);
+
+        const data = await apiCall(`/api/poi-landmarks?${params.toString()}`);
+        poiTotal = data.total || 0;
+        document.getElementById('poiTotalCount').textContent = `Total: ${poiTotal}`;
+        document.getElementById('poiShowingCount').textContent = `Showing: ${(data.items || []).length}`;
+        document.getElementById('poiPageInfo').textContent = `Page ${poiCurrentPage + 1}`;
+
+        const tbody = document.getElementById('poisTableBody');
+        tbody.innerHTML = '';
+
+        const items = data.items || [];
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="no-data">No POIs found</td></tr>';
+        } else {
+            items.forEach(poi => {
+                const aliases = Array.isArray(poi.aliases) ? poi.aliases.join(', ') : (poi.aliases || '');
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${poi.name || ''}</td>
+                    <td>${aliases}</td>
+                    <td>${poi.area || ''}</td>
+                    <td>${poi.city || ''}</td>
+                    <td>${poi.region || ''}</td>
+                    <td>${poi.latitude ?? ''}</td>
+                    <td>${poi.longitude ?? ''}</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-primary btn-small" onclick="editPoi('${poi.id}')">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deletePoi('${poi.id}')">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        const prevBtn = document.getElementById('poiPrevPage');
+        const nextBtn = document.getElementById('poiNextPage');
+        if (prevBtn) prevBtn.disabled = poiCurrentPage === 0;
+        if (nextBtn) nextBtn.disabled = (poiCurrentPage + 1) * pageSize >= poiTotal;
+    } catch (error) {
+        console.error('Error loading POIs:', error);
+        const tbody = document.getElementById('poisTableBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="error">Error loading POIs</td></tr>';
     }
 }
 
@@ -1543,6 +1783,31 @@ function clearPriorityFilters() {
     loadPriorityCenters();
 }
 
+// POI Filters
+function applyPoiFilters() {
+    poiCurrentFilters = {};
+    const search = document.getElementById('poiFilterSearch')?.value;
+    const area = document.getElementById('poiFilterArea')?.value;
+    const city = document.getElementById('poiFilterCity')?.value;
+    if (search) poiCurrentFilters.search = search;
+    if (area) poiCurrentFilters.area = area;
+    if (city) poiCurrentFilters.city = city;
+    poiCurrentPage = 0;
+    loadPois();
+}
+
+function clearPoiFilters() {
+    const s = document.getElementById('poiFilterSearch');
+    const a = document.getElementById('poiFilterArea');
+    const c = document.getElementById('poiFilterCity');
+    if (s) s.value = '';
+    if (a) a.value = '';
+    if (c) c.value = '';
+    poiCurrentFilters = {};
+    poiCurrentPage = 0;
+    loadPois();
+}
+
 // Edit Branch Functions
 async function editBranch(branchId) {
     try {
@@ -1559,6 +1824,9 @@ function populateBranchEditForm(branch) {
     document.getElementById('editBranchCode').value = branch.code || '';
     document.getElementById('editBranchName').value = branch.name || '';
     document.getElementById('editBranchStreet').value = branch.address.street || '';
+    document.getElementById('editBranchArea').value = branch.address.area || '';
+    document.getElementById('editBranchLatitude').value = branch.address.latitude ?? '';
+    document.getElementById('editBranchLongitude').value = branch.address.longitude ?? '';
     document.getElementById('editBranchZipCode').value = branch.address.zip_code || '';
     document.getElementById('editBranchStatus').value = branch.status || 'ACTIVE';
     document.getElementById('editBranchIsHeadOffice').checked = branch.is_head_office || false;
@@ -1604,10 +1872,15 @@ async function handleSaveBranch(e) {
     errorDiv.classList.remove('show');
     
     const branchId = document.getElementById('editBranchId').value;
+    const latRaw = document.getElementById('editBranchLatitude')?.value;
+    const lonRaw = document.getElementById('editBranchLongitude')?.value;
     const formData = {
         branch_code: document.getElementById('editBranchCode').value || null,
         branch_name: document.getElementById('editBranchName').value || null,
         street_address: document.getElementById('editBranchStreet').value || null,
+        area: document.getElementById('editBranchArea').value || null,
+        latitude: latRaw ? parseFloat(latRaw) : null,
+        longitude: lonRaw ? parseFloat(lonRaw) : null,
         city: document.getElementById('editBranchCity').value || null,
         region: document.getElementById('editBranchRegion').value || null,
         zip_code: document.getElementById('editBranchZipCode').value || null,
@@ -1645,6 +1918,9 @@ function populateMachineEditForm(machine) {
     document.getElementById('editMachineType').value = (machine.machine_type || machine.type || 'ATM').toUpperCase();
     document.getElementById('editMachineCount').value = machine.machine_count || 1;
     document.getElementById('editMachineStreet').value = machine.address.street || '';
+    document.getElementById('editMachineArea').value = machine.address.area || '';
+    document.getElementById('editMachineLatitude').value = machine.address.latitude ?? '';
+    document.getElementById('editMachineLongitude').value = machine.address.longitude ?? '';
     document.getElementById('editMachineZipCode').value = machine.address.zip_code || '';
     
     // Populate city and region dropdowns if not already populated
@@ -1688,10 +1964,15 @@ async function handleSaveMachine(e) {
     errorDiv.classList.remove('show');
     
     const machineId = document.getElementById('editMachineId').value;
+    const latRaw = document.getElementById('editMachineLatitude')?.value;
+    const lonRaw = document.getElementById('editMachineLongitude')?.value;
     const formData = {
         machine_type: document.getElementById('editMachineType').value || null,
         machine_count: parseInt(document.getElementById('editMachineCount').value) || null,
         street_address: document.getElementById('editMachineStreet').value || null,
+        area: document.getElementById('editMachineArea').value || null,
+        latitude: latRaw ? parseFloat(latRaw) : null,
+        longitude: lonRaw ? parseFloat(lonRaw) : null,
         city: document.getElementById('editMachineCity').value || null,
         region: document.getElementById('editMachineRegion').value || null,
         zip_code: document.getElementById('editMachineZipCode').value || null
@@ -1784,6 +2065,107 @@ async function handleSavePriority(e) {
     } catch (error) {
         errorDiv.textContent = 'Error: ' + error.message;
         errorDiv.classList.add('show');
+    }
+}
+
+// ===== POI EDIT/CREATE =====
+function showAddPoiModal() {
+    document.getElementById('poiModalTitle').textContent = 'Add POI';
+    document.getElementById('editPoiId').value = '';
+    document.getElementById('editPoiName').value = '';
+    document.getElementById('editPoiAliases').value = '';
+    document.getElementById('editPoiArea').value = '';
+    document.getElementById('editPoiCity').value = '';
+    document.getElementById('editPoiRegion').value = '';
+    document.getElementById('editPoiLatitude').value = '';
+    document.getElementById('editPoiLongitude').value = '';
+    document.getElementById('editPoiError').textContent = '';
+    document.getElementById('editPoiError').classList.remove('show');
+    document.getElementById('editPoiModal').style.display = 'block';
+}
+
+async function editPoi(poiId) {
+    try {
+        const poi = await apiCall(`/api/poi-landmarks/${poiId}`);
+        document.getElementById('poiModalTitle').textContent = 'Edit POI';
+        document.getElementById('editPoiId').value = poi.id;
+        document.getElementById('editPoiName').value = poi.name || '';
+        document.getElementById('editPoiAliases').value = (poi.aliases || []).join(', ');
+        document.getElementById('editPoiArea').value = poi.area || '';
+        document.getElementById('editPoiCity').value = poi.city || '';
+        document.getElementById('editPoiRegion').value = poi.region || '';
+        document.getElementById('editPoiLatitude').value = poi.latitude ?? '';
+        document.getElementById('editPoiLongitude').value = poi.longitude ?? '';
+        document.getElementById('editPoiError').textContent = '';
+        document.getElementById('editPoiError').classList.remove('show');
+        document.getElementById('editPoiModal').style.display = 'block';
+    } catch (error) {
+        showError('Failed to load POI: ' + error.message);
+    }
+}
+
+function closeEditPoiModal() {
+    document.getElementById('editPoiModal').style.display = 'none';
+    document.getElementById('editPoiError').textContent = '';
+    document.getElementById('editPoiError').classList.remove('show');
+}
+
+async function handleSavePoi(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('editPoiError');
+    errorDiv.textContent = '';
+    errorDiv.classList.remove('show');
+
+    const poiId = document.getElementById('editPoiId').value;
+    const aliasesRaw = document.getElementById('editPoiAliases').value || '';
+    const aliases = aliasesRaw
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+    const latRaw = document.getElementById('editPoiLatitude').value;
+    const lonRaw = document.getElementById('editPoiLongitude').value;
+
+    const payload = {
+        name: document.getElementById('editPoiName').value || null,
+        aliases,
+        area: document.getElementById('editPoiArea').value || null,
+        city: document.getElementById('editPoiCity').value || null,
+        region: document.getElementById('editPoiRegion').value || null,
+        latitude: latRaw ? parseFloat(latRaw) : null,
+        longitude: lonRaw ? parseFloat(lonRaw) : null
+    };
+
+    try {
+        if (poiId) {
+            await apiCall(`/api/poi-landmarks/${poiId}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+            });
+            showSuccess('POI updated successfully!');
+        } else {
+            await apiCall(`/api/poi-landmarks`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            showSuccess('POI created successfully!');
+        }
+        closeEditPoiModal();
+        loadPois();
+    } catch (error) {
+        errorDiv.textContent = 'Error: ' + error.message;
+        errorDiv.classList.add('show');
+    }
+}
+
+async function deletePoi(poiId) {
+    if (!confirm('Delete this POI?')) return;
+    try {
+        await apiCall(`/api/poi-landmarks/${poiId}`, { method: 'DELETE' });
+        showSuccess('POI deleted.');
+        loadPois();
+    } catch (error) {
+        showError('Failed to delete POI: ' + error.message);
     }
 }
 

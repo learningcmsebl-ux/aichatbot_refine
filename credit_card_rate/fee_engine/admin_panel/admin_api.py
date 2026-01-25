@@ -16,7 +16,7 @@ from decimal import Decimal
 import os
 import secrets
 import hashlib
-from sqlalchemy import create_engine, Column, String, Date, Integer, DECIMAL, Text, DateTime, Boolean, or_, and_
+from sqlalchemy import create_engine, Column, String, Date, Integer, DECIMAL, Text, DateTime, Boolean, or_, and_, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import UUID
@@ -480,6 +480,8 @@ async def update_rule(fee_id: str, rule_data: FeeRuleUpdate, db: Session = Depen
         db.commit()
         db.refresh(rule)
         return fee_rule_to_dict(rule)
+    except HTTPException:
+        raise
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid fee ID format")
     except Exception as e:
@@ -698,6 +700,44 @@ class RetailAssetChargeCreate(BaseModel):
             raise ValueError(f"Invalid fee_basis '{basis}'. Allowed values: {allowed}")
         return basis
 
+
+def _get_loan_product_enum_values(db: Session) -> list[str]:
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT enumlabel
+                FROM pg_enum e
+                JOIN pg_type t ON t.oid = e.enumtypid
+                WHERE t.typname = 'loan_product_enum'
+                ORDER BY e.enumsortorder
+                """
+            )
+        ).fetchall()
+        return [row[0] for row in rows] if rows else []
+    except Exception as exc:
+        logger.warning(f"[ADMIN_API] Failed to load loan_product_enum values: {exc}")
+        return []
+
+
+def _get_retail_charge_type_enum_values(db: Session) -> list[str]:
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT enumlabel
+                FROM pg_enum e
+                JOIN pg_type t ON t.oid = e.enumtypid
+                WHERE t.typname = 'retail_charge_type_enum'
+                ORDER BY e.enumsortorder
+                """
+            )
+        ).fetchall()
+        return [row[0] for row in rows] if rows else []
+    except Exception as exc:
+        logger.warning(f"[ADMIN_API] Failed to load retail_charge_type_enum values: {exc}")
+        return []
+
 def retail_asset_charge_to_dict(charge: RetailAssetChargeMaster) -> dict:
     """Convert RetailAssetChargeMaster (v2) to dict"""
     return {
@@ -838,6 +878,29 @@ async def get_retail_asset_charge(charge_id: str, db: Session = Depends(get_db))
 async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: Session = Depends(get_db)):
     """Create a new retail asset charge (v2 table)"""
     try:
+        allowed_loan_products = _get_loan_product_enum_values(db)
+        if allowed_loan_products and charge_data.loan_product not in allowed_loan_products:
+            allowed_preview = ", ".join(allowed_loan_products[:25])
+            more = f" (+{len(allowed_loan_products) - 25} more)" if len(allowed_loan_products) > 25 else ""
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Invalid loan_product. Please choose a valid loan product from the list. "
+                    f"Allowed examples: {allowed_preview}{more}"
+                ),
+            )
+        allowed_charge_types = _get_retail_charge_type_enum_values(db)
+        if allowed_charge_types and charge_data.charge_type not in allowed_charge_types:
+            allowed_preview = ", ".join(allowed_charge_types[:25])
+            more = f" (+{len(allowed_charge_types) - 25} more)" if len(allowed_charge_types) > 25 else ""
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Invalid charge_type. Please choose a valid charge type from the list. "
+                    f"Allowed examples: {allowed_preview}{more}"
+                ),
+            )
+
         # Defensive normalization: even if a client sends an invalid legacy value,
         # map/validate before hitting Postgres enum constraints.
         if getattr(charge_data, "fee_basis", None):
@@ -902,12 +965,12 @@ async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: S
             max_fee_currency=max_fee_currency or "BDT",  # V2 field name
             condition_type=charge_data.condition_type,
             condition_description=charge_data.condition_description,
-            category_a_fee_value=charge_data.category_a_fee_value,
-            category_a_fee_unit=charge_data.category_a_fee_unit,
-            category_b_fee_value=charge_data.category_b_fee_value,
-            category_b_fee_unit=charge_data.category_b_fee_unit,
-            category_c_fee_value=charge_data.category_c_fee_value,
-            category_c_fee_unit=charge_data.category_c_fee_unit,
+            category_a_fee_value=getattr(charge_data, "category_a_fee_value", None),
+            category_a_fee_unit=getattr(charge_data, "category_a_fee_unit", None),
+            category_b_fee_value=getattr(charge_data, "category_b_fee_value", None),
+            category_b_fee_unit=getattr(charge_data, "category_b_fee_unit", None),
+            category_c_fee_value=getattr(charge_data, "category_c_fee_value", None),
+            category_c_fee_unit=getattr(charge_data, "category_c_fee_unit", None),
             original_charge_text=charge_data.original_charge_text,
             fee_text=getattr(charge_data, "fee_text", None),
             fee_rate_value=getattr(charge_data, "fee_rate_value", None),
@@ -946,6 +1009,31 @@ async def update_retail_asset_charge(charge_id: str, charge_data: RetailAssetCha
         # Update only provided fields
         # Map v1 field names to v2 field names for backward compatibility
         update_data = charge_data.dict(exclude_unset=True)
+
+        if "loan_product" in update_data and update_data["loan_product"] is not None:
+            allowed_loan_products = _get_loan_product_enum_values(db)
+            if allowed_loan_products and update_data["loan_product"] not in allowed_loan_products:
+                allowed_preview = ", ".join(allowed_loan_products[:25])
+                more = f" (+{len(allowed_loan_products) - 25} more)" if len(allowed_loan_products) > 25 else ""
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Invalid loan_product. Please choose a valid loan product from the list. "
+                        f"Allowed examples: {allowed_preview}{more}"
+                    ),
+                )
+        if "charge_type" in update_data and update_data["charge_type"] is not None:
+            allowed_charge_types = _get_retail_charge_type_enum_values(db)
+            if allowed_charge_types and update_data["charge_type"] not in allowed_charge_types:
+                allowed_preview = ", ".join(allowed_charge_types[:25])
+                more = f" (+{len(allowed_charge_types) - 25} more)" if len(allowed_charge_types) > 25 else ""
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Invalid charge_type. Please choose a valid charge type from the list. "
+                        f"Allowed examples: {allowed_preview}{more}"
+                    ),
+                )
 
         # Defensive normalization: Postgres fee_basis_enum is strict.
         # The UI previously allowed PER_REQUEST, which is not valid for retail assets.
@@ -1123,13 +1211,21 @@ async def export_retail_asset_charges_csv(
 async def get_retail_asset_filters(db: Session = Depends(get_db)):
     """Get available filter options for retail asset charges"""
     try:
-        # Get unique values for filters
-        loan_products = db.query(RetailAssetChargeMaster.loan_product).distinct().all()
-        charge_types = db.query(RetailAssetChargeMaster.charge_type).distinct().all()
-        
+        # Prefer enum values so new options are available even before any rows exist.
+        loan_products_enum = _get_loan_product_enum_values(db)
+        charge_types_enum = _get_retail_charge_type_enum_values(db)
+
+        # Fallback to distinct values if enum lookup fails (e.g., DB permissions).
+        if not loan_products_enum:
+            loan_products = db.query(RetailAssetChargeMaster.loan_product).distinct().all()
+            loan_products_enum = [lp[0] for lp in loan_products if lp[0]]
+        if not charge_types_enum:
+            charge_types = db.query(RetailAssetChargeMaster.charge_type).distinct().all()
+            charge_types_enum = [ct[0] for ct in charge_types if ct[0]]
+
         return {
-            "loan_products": sorted([lp[0] for lp in loan_products if lp[0]]),
-            "charge_types": sorted([ct[0] for ct in charge_types if ct[0]]),
+            "loan_products": sorted(loan_products_enum),
+            "charge_types": sorted(charge_types_enum),
         }
     except Exception as e:
         logger.error(f"Error getting filters: {e}", exc_info=True)
@@ -1194,6 +1290,11 @@ async def get_branch(
         branch = db.query(Branch).filter(Branch.branch_id == branch_id).first()
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")
+
+        coords = db.execute(
+            text("SELECT latitude, longitude FROM addresses WHERE address_id = :address_id"),
+            {"address_id": branch.address_id},
+        ).fetchone()
         
         return {
             "id": str(branch.branch_id),
@@ -1201,6 +1302,9 @@ async def get_branch(
             "name": branch.branch_name,
             "address": {
                 "street": branch.address.street_address,
+                "area": getattr(branch.address, "area", None),
+                "latitude": coords[0] if coords else None,
+                "longitude": coords[1] if coords else None,
                 "city": branch.address.city.city_name,
                 "region": branch.address.city.region.region_name,
                 "zip_code": branch.address.zip_code
@@ -1233,6 +1337,11 @@ async def get_machine(
         machine = db.query(Machine).filter(Machine.machine_id == machine_uuid).first()
         if not machine:
             raise HTTPException(status_code=404, detail="Machine not found")
+
+        coords = db.execute(
+            text("SELECT latitude, longitude FROM addresses WHERE address_id = :address_id"),
+            {"address_id": machine.address_id},
+        ).fetchone()
         
         return {
             "id": str(machine.machine_id),
@@ -1240,6 +1349,9 @@ async def get_machine(
             "machine_count": machine.machine_count,
             "address": {
                 "street": machine.address.street_address,
+                "area": getattr(machine.address, "area", None),
+                "latitude": coords[0] if coords else None,
+                "longitude": coords[1] if coords else None,
                 "city": machine.address.city.city_name,
                 "region": machine.address.city.region.region_name,
                 "zip_code": machine.address.zip_code
@@ -1285,6 +1397,7 @@ async def get_locations(
     type: Optional[str] = Query(None, description="Location type: branch, atm, crm, rtdm, priority_center, head_office"),
     city: Optional[str] = Query(None),
     region: Optional[str] = Query(None),
+    area: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -1306,6 +1419,8 @@ async def get_locations(
                 query = query.filter(City.city_name.ilike(f"%{city}%"))
             if region:
                 query = query.filter(Region.region_name.ilike(f"%{region}%"))
+            if area:
+                query = query.filter(Address.area.ilike(f"%{area}%"))
             if search:
                 query = query.filter(
                     or_(
@@ -1324,6 +1439,7 @@ async def get_locations(
                     "code": branch.branch_code,
                     "address": {
                         "street": branch.address.street_address,
+                        "area": getattr(branch.address, "area", None),
                         "city": branch.address.city.city_name,
                         "region": branch.address.city.region.region_name,
                         "zip_code": branch.address.zip_code
@@ -1342,6 +1458,8 @@ async def get_locations(
                 query = query.filter(City.city_name.ilike(f"%{city}%"))
             if region:
                 query = query.filter(Region.region_name.ilike(f"%{region}%"))
+            if area:
+                query = query.filter(Address.area.ilike(f"%{area}%"))
             if search:
                 query = query.filter(
                     or_(
@@ -1360,6 +1478,7 @@ async def get_locations(
                     "code": ho.branch_code,
                     "address": {
                         "street": ho.address.street_address,
+                        "area": getattr(ho.address, "area", None),
                         "city": ho.address.city.city_name,
                         "region": ho.address.city.region.region_name,
                         "zip_code": ho.address.zip_code
@@ -1386,6 +1505,8 @@ async def get_locations(
                 query = query.filter(City.city_name.ilike(f"%{city}%"))
             if region:
                 query = query.filter(Region.region_name.ilike(f"%{region}%"))
+            if area:
+                query = query.filter(Address.area.ilike(f"%{area}%"))
             if search:
                 query = query.filter(Address.street_address.ilike(f"%{search}%"))
             machine_count = query.count()
@@ -1399,6 +1520,7 @@ async def get_locations(
                     "code": None,
                     "address": {
                         "street": machine.address.street_address,
+                        "area": getattr(machine.address, "area", None),
                         "city": machine.address.city.city_name,
                         "region": machine.address.city.region.region_name,
                         "zip_code": machine.address.zip_code
@@ -1507,6 +1629,9 @@ class BranchUpdate(BaseModel):
     branch_code: Optional[str] = None
     branch_name: Optional[str] = None
     street_address: Optional[str] = None
+    area: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     city: Optional[str] = None
     region: Optional[str] = None
     zip_code: Optional[str] = None
@@ -1517,6 +1642,9 @@ class MachineUpdate(BaseModel):
     machine_type: Optional[str] = None
     machine_count: Optional[int] = None
     street_address: Optional[str] = None
+    area: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     city: Optional[str] = None
     region: Optional[str] = None
     zip_code: Optional[str] = None
@@ -1525,6 +1653,26 @@ class PriorityCenterUpdate(BaseModel):
     center_name: Optional[str] = None
     city: Optional[str] = None
     region: Optional[str] = None
+
+
+class PoiLandmarkCreate(BaseModel):
+    name: str
+    aliases: Optional[List[str]] = None
+    area: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class PoiLandmarkUpdate(BaseModel):
+    name: Optional[str] = None
+    aliases: Optional[List[str]] = None
+    area: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 # Update branch
 @app.put("/api/locations/branches/{branch_id}", dependencies=[Depends(verify_admin)])
@@ -1578,6 +1726,9 @@ async def update_branch(
         # Find or create address
         street_address = branch_data.street_address or branch.address.street_address
         zip_code = branch_data.zip_code
+        area_value = branch_data.area
+        lat_value = branch_data.latitude
+        lon_value = branch_data.longitude
         
         address = db.query(Address).filter(
             Address.street_address == street_address,
@@ -1588,7 +1739,8 @@ async def update_branch(
             address = Address(
                 street_address=street_address,
                 city_id=city.city_id,
-                zip_code=zip_code
+                zip_code=zip_code,
+                area=area_value
             )
             db.add(address)
             db.flush()
@@ -1596,6 +1748,22 @@ async def update_branch(
             # Update address if needed
             if zip_code:
                 address.zip_code = zip_code
+            if area_value is not None:
+                address.area = area_value
+
+        # Update coordinates + geom if provided (both lat & lon required)
+        if lat_value is not None or lon_value is not None:
+            if lat_value is None or lon_value is None:
+                raise HTTPException(status_code=400, detail="Both latitude and longitude are required")
+            db.execute(
+                text(
+                    "UPDATE addresses "
+                    "SET latitude=:lat, longitude=:lon, "
+                    "geom=ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography "
+                    "WHERE address_id=:address_id"
+                ),
+                {"lat": float(lat_value), "lon": float(lon_value), "address_id": address.address_id},
+            )
         
         # Update branch
         if branch_data.branch_code:
@@ -1679,6 +1847,9 @@ async def update_machine(
         # Find or create address
         street_address = machine_data.street_address or machine.address.street_address
         zip_code = machine_data.zip_code
+        area_value = machine_data.area
+        lat_value = machine_data.latitude
+        lon_value = machine_data.longitude
         
         address = db.query(Address).filter(
             Address.street_address == street_address,
@@ -1689,13 +1860,30 @@ async def update_machine(
             address = Address(
                 street_address=street_address,
                 city_id=city.city_id,
-                zip_code=zip_code
+                zip_code=zip_code,
+                area=area_value
             )
             db.add(address)
             db.flush()
         else:
             if zip_code:
                 address.zip_code = zip_code
+            if area_value is not None:
+                address.area = area_value
+
+        # Update coordinates + geom if provided (both lat & lon required)
+        if lat_value is not None or lon_value is not None:
+            if lat_value is None or lon_value is None:
+                raise HTTPException(status_code=400, detail="Both latitude and longitude are required")
+            db.execute(
+                text(
+                    "UPDATE addresses "
+                    "SET latitude=:lat, longitude=:lon, "
+                    "geom=ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography "
+                    "WHERE address_id=:address_id"
+                ),
+                {"lat": float(lat_value), "lon": float(lon_value), "address_id": address.address_id},
+            )
         
         # Update machine
         if machine_data.machine_type:
@@ -1785,6 +1973,182 @@ async def update_priority_center(
         logger.error(f"Error updating priority center: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error updating priority center: {str(e)}")
 
+
+# ===== POI / LANDMARKS API =====
+@app.get("/api/poi-landmarks", dependencies=[Depends(verify_admin)])
+async def list_poi_landmarks(
+    search: Optional[str] = Query(None),
+    area: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_location_db),
+):
+    """List curated POIs/landmarks (offline nearby resolution)"""
+    if not LOCATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Location service not available")
+
+    where = []
+    params: dict = {}
+    if search:
+        where.append("(name ILIKE :search OR array_to_string(aliases, ' ') ILIKE :search)")
+        params["search"] = f"%{search}%"
+    if area:
+        where.append("area ILIKE :area")
+        params["area"] = f"%{area}%"
+    if city:
+        where.append("city ILIKE :city")
+        params["city"] = f"%{city}%"
+
+    where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+
+    total = db.execute(text(f"SELECT COUNT(*) FROM poi_landmarks{where_sql}"), params).scalar() or 0
+    rows = db.execute(
+        text(
+            f"SELECT poi_id, name, aliases, area, city, region, latitude, longitude "
+            f"FROM poi_landmarks{where_sql} ORDER BY name ASC LIMIT :limit OFFSET :offset"
+        ),
+        {**params, "limit": limit, "offset": offset},
+    ).fetchall()
+
+    items = [
+        {
+            "id": str(r[0]),
+            "name": r[1],
+            "aliases": r[2] or [],
+            "area": r[3],
+            "city": r[4],
+            "region": r[5],
+            "latitude": r[6],
+            "longitude": r[7],
+        }
+        for r in rows
+    ]
+    return {"total": int(total), "items": items}
+
+
+@app.get("/api/poi-landmarks/{poi_id}", dependencies=[Depends(verify_admin)])
+async def get_poi_landmark(poi_id: str, db: Session = Depends(get_location_db)):
+    """Get a single POI by ID"""
+    row = db.execute(
+        text("SELECT poi_id, name, aliases, area, city, region, latitude, longitude FROM poi_landmarks WHERE poi_id = :id"),
+        {"id": poi_id},
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="POI not found")
+    return {
+        "id": str(row[0]),
+        "name": row[1],
+        "aliases": row[2] or [],
+        "area": row[3],
+        "city": row[4],
+        "region": row[5],
+        "latitude": row[6],
+        "longitude": row[7],
+    }
+
+
+@app.post("/api/poi-landmarks", dependencies=[Depends(verify_admin)])
+async def create_poi_landmark(payload: PoiLandmarkCreate, db: Session = Depends(get_location_db)):
+    """Create a POI/landmark"""
+    try:
+        geom_sql = "NULL"
+        if payload.latitude is not None and payload.longitude is not None:
+            geom_sql = "ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography"
+        row = db.execute(
+            text(
+                "INSERT INTO poi_landmarks (name, aliases, area, city, region, latitude, longitude, geom) "
+                f"VALUES (:name, :aliases, :area, :city, :region, :lat, :lon, {geom_sql}) "
+                "RETURNING poi_id"
+            ),
+            {
+                "name": payload.name,
+                "aliases": payload.aliases,
+                "area": payload.area,
+                "city": payload.city,
+                "region": payload.region,
+                "lat": payload.latitude,
+                "lon": payload.longitude,
+            },
+        ).fetchone()
+        db.commit()
+        return {"id": str(row[0]), "message": "POI created successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating POI: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating POI: {str(e)}")
+
+
+@app.put("/api/poi-landmarks/{poi_id}", dependencies=[Depends(verify_admin)])
+async def update_poi_landmark(poi_id: str, payload: PoiLandmarkUpdate, db: Session = Depends(get_location_db)):
+    """Update a POI/landmark"""
+    try:
+        row = db.execute(
+            text("SELECT poi_id FROM poi_landmarks WHERE poi_id = :id"),
+            {"id": poi_id},
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="POI not found")
+
+        # Update scalar fields
+        db.execute(
+            text(
+                "UPDATE poi_landmarks SET "
+                "name = COALESCE(:name, name), "
+                "aliases = COALESCE(:aliases, aliases), "
+                "area = COALESCE(:area, area), "
+                "city = COALESCE(:city, city), "
+                "region = COALESCE(:region, region), "
+                "latitude = COALESCE(:lat, latitude), "
+                "longitude = COALESCE(:lon, longitude) "
+                "WHERE poi_id = :id"
+            ),
+            {
+                "id": poi_id,
+                "name": payload.name,
+                "aliases": payload.aliases,
+                "area": payload.area,
+                "city": payload.city,
+                "region": payload.region,
+                "lat": payload.latitude,
+                "lon": payload.longitude,
+            },
+        )
+
+        # If lat/lon provided, also set geom
+        if payload.latitude is not None or payload.longitude is not None:
+            if payload.latitude is None or payload.longitude is None:
+                raise HTTPException(status_code=400, detail="Both latitude and longitude are required")
+            db.execute(
+                text(
+                    "UPDATE poi_landmarks SET geom=ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography "
+                    "WHERE poi_id = :id"
+                ),
+                {"id": poi_id, "lat": float(payload.latitude), "lon": float(payload.longitude)},
+            )
+
+        db.commit()
+        return {"id": poi_id, "message": "POI updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating POI: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error updating POI: {str(e)}")
+
+
+@app.delete("/api/poi-landmarks/{poi_id}", dependencies=[Depends(verify_admin)])
+async def delete_poi_landmark(poi_id: str, db: Session = Depends(get_location_db)):
+    """Delete a POI/landmark"""
+    try:
+        db.execute(text("DELETE FROM poi_landmarks WHERE poi_id = :id"), {"id": poi_id})
+        db.commit()
+        return {"id": poi_id, "message": "POI deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting POI: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting POI: {str(e)}")
+
 # ===== SKYBANKING FEES API =====
 
 # Pydantic models for Skybanking fees
@@ -1801,6 +2165,7 @@ class SkybankingFeeResponse(BaseModel):
     fee_basis: str
     is_conditional: bool
     condition_description: Optional[str]
+    answer_text: Optional[str] = None
     status: str
     remarks: Optional[str]
     created_at: datetime
@@ -1818,6 +2183,7 @@ class SkybankingFeeCreate(BaseModel):
     fee_basis: str
     is_conditional: bool = False
     condition_description: Optional[str] = None
+    answer_text: Optional[str] = None
     status: str = "ACTIVE"
     remarks: Optional[str] = None
 
@@ -1833,8 +2199,21 @@ class SkybankingFeeUpdate(BaseModel):
     fee_basis: Optional[str] = None
     is_conditional: Optional[bool] = None
     condition_description: Optional[str] = None
+    answer_text: Optional[str] = None
     status: Optional[str] = None
     remarks: Optional[str] = None
+
+
+def _ensure_skybanking_answer_text_column(db: Session) -> None:
+    """
+    Best-effort schema guard: Skybanking now supports `answer_text` for verbatim output.
+    Add the column if it's missing (safe to run multiple times).
+    """
+    try:
+        db.execute(text("ALTER TABLE skybanking_fee_master ADD COLUMN IF NOT EXISTS answer_text TEXT"))
+    except Exception as e:
+        # Don't fail the request on a DDL guard; log and continue.
+        logger.warning(f"Could not ensure skybanking_fee_master.answer_text column: {e}")
 
 # Get all Skybanking fees
 @app.get("/api/skybanking-fees", dependencies=[Depends(verify_admin)])
@@ -1848,6 +2227,7 @@ async def get_skybanking_fees(
 ):
     """Get all Skybanking fees with pagination and filters"""
     try:
+        _ensure_skybanking_answer_text_column(db)
         query = db.query(SkybankingFeeMaster)
         
         # Apply filters
@@ -1886,6 +2266,7 @@ async def get_skybanking_fees(
                     "fee_basis": fee.fee_basis,
                     "is_conditional": fee.is_conditional,
                     "condition_description": fee.condition_description,
+                    "answer_text": getattr(fee, "answer_text", None),
                     "status": fee.status,
                     "remarks": fee.remarks,
                     "created_at": fee.created_at.isoformat() if fee.created_at else None,
@@ -1906,6 +2287,7 @@ async def get_skybanking_fee(
 ):
     """Get a single Skybanking fee by ID"""
     try:
+        _ensure_skybanking_answer_text_column(db)
         from uuid import UUID as UUIDType
         try:
             fee_uuid = UUIDType(fee_id)
@@ -1928,6 +2310,7 @@ async def get_skybanking_fee(
             "fee_basis": fee.fee_basis,
             "is_conditional": fee.is_conditional,
             "condition_description": fee.condition_description,
+            "answer_text": getattr(fee, "answer_text", None),
             "status": fee.status,
             "remarks": fee.remarks,
             "created_at": fee.created_at.isoformat() if fee.created_at else None,
@@ -1947,6 +2330,7 @@ async def create_skybanking_fee(
 ):
     """Create a new Skybanking fee"""
     try:
+        _ensure_skybanking_answer_text_column(db)
         new_fee = SkybankingFeeMaster(
             effective_from=fee_data.effective_from,
             effective_to=fee_data.effective_to,
@@ -1959,6 +2343,7 @@ async def create_skybanking_fee(
             fee_basis=fee_data.fee_basis,
             is_conditional=fee_data.is_conditional,
             condition_description=fee_data.condition_description,
+            answer_text=getattr(fee_data, "answer_text", None),
             status=fee_data.status,
             remarks=fee_data.remarks
         )
@@ -1984,6 +2369,7 @@ async def update_skybanking_fee(
 ):
     """Update a Skybanking fee"""
     try:
+        _ensure_skybanking_answer_text_column(db)
         from uuid import UUID as UUIDType
         try:
             fee_uuid = UUIDType(fee_id)
@@ -2016,6 +2402,8 @@ async def update_skybanking_fee(
             fee.is_conditional = fee_data.is_conditional
         if fee_data.condition_description is not None:
             fee.condition_description = fee_data.condition_description
+        if getattr(fee_data, "answer_text", None) is not None:
+            fee.answer_text = fee_data.answer_text
         if fee_data.status is not None:
             fee.status = fee_data.status
         if fee_data.remarks is not None:
@@ -2073,6 +2461,7 @@ async def export_skybanking_fees_csv(
 ):
     """Export Skybanking fees to CSV"""
     try:
+        _ensure_skybanking_answer_text_column(db)
         query = db.query(SkybankingFeeMaster)
         
         # Apply filters
@@ -2349,6 +2738,7 @@ async def export_priority_centers_csv(
 async def get_skybanking_filters(db: Session = Depends(get_db)):
     """Get filter options for Skybanking fees"""
     try:
+        _ensure_skybanking_answer_text_column(db)
         # Get unique charge types
         charge_types = db.query(SkybankingFeeMaster.charge_type).distinct().all()
         charge_types = sorted([ct[0] for ct in charge_types if ct[0]])

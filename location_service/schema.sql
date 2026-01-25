@@ -31,6 +31,10 @@ CREATE INDEX idx_city_region_composite ON cities(city_name, region_id);
 CREATE TABLE IF NOT EXISTS addresses (
     address_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     street_address TEXT NOT NULL,
+    area VARCHAR(100),
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    geom geography(Point, 4326),
     zip_code VARCHAR(20),
     city_id UUID NOT NULL REFERENCES cities(city_id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -38,6 +42,8 @@ CREATE TABLE IF NOT EXISTS addresses (
 );
 
 CREATE INDEX idx_addresses_city ON addresses(city_id);
+CREATE INDEX idx_addresses_area ON addresses(area);
+CREATE INDEX idx_addresses_geom_gist ON addresses USING GIST (geom);
 
 -- Branches table
 CREATE TABLE IF NOT EXISTS branches (
@@ -111,3 +117,26 @@ CREATE TRIGGER update_machines_updated_at BEFORE UPDATE ON machines
 CREATE TRIGGER update_priority_centers_updated_at BEFORE UPDATE ON priority_centers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Curated POI/landmarks (offline nearby search)
+CREATE TABLE IF NOT EXISTS poi_landmarks (
+    poi_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(200) NOT NULL,
+    aliases TEXT[],
+    area VARCHAR(100),
+    city VARCHAR(100),
+    region VARCHAR(100),
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    geom geography(Point, 4326),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_poi_landmarks_name ON poi_landmarks(name);
+CREATE INDEX idx_poi_landmarks_area ON poi_landmarks(area);
+CREATE INDEX idx_poi_landmarks_city ON poi_landmarks(city);
+CREATE INDEX idx_poi_landmarks_region ON poi_landmarks(region);
+CREATE INDEX idx_poi_landmarks_geom_gist ON poi_landmarks USING GIST (geom);
+
+CREATE TRIGGER update_poi_landmarks_updated_at BEFORE UPDATE ON poi_landmarks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

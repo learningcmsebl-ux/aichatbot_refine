@@ -36,6 +36,7 @@ except ImportError:
         pass  # No-op if analytics not available
 from app.services.lightrag_client import LightRAGClient
 from app.services.location_client import LocationClient
+from app.services.routing_engine import RoutingEngine
 
 # Import phonebook (PostgreSQL)
 try:
@@ -102,6 +103,7 @@ class ChatOrchestrator:
         self.location_client = LocationClient()
         self.system_message = self._get_system_message()
         self.lead_flows: Dict[str, LeadFlowState] = {}  # session_id -> LeadFlowState
+        self.routing_engine = RoutingEngine(self, phonebook_db_available=PHONEBOOK_DB_AVAILABLE)
         # Fallback disambiguation store (used when Redis is unavailable).
         # Key: conversation_key/session_id, Value: {"state": <dict>, "expires_at": <unix_ts>}
         self._local_disambiguation_state: Dict[str, Dict[str, Any]] = {}
@@ -661,15 +663,21 @@ When responding:
             return False
         
         # Small talk patterns
-        small_talk_patterns = [
-            "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+        # IMPORTANT: Avoid substring false-positives (e.g., "childs" contains "hi").
+        # Use word-boundaries for single-word intents, and substring for multi-word phrases.
+        small_talk_phrases = [
+            "good morning", "good afternoon", "good evening",
             "how are you", "how's it going", "what's up",
-            "thanks", "thank you", "appreciate it",
-            "bye", "goodbye", "see you", "farewell",
-            "what are you", "who are you", "what can you do"
+            "thank you", "appreciate it",
+            "see you",
+            "what are you", "who are you", "what can you do",
         ]
-        
-        return any(pattern in query_lower for pattern in small_talk_patterns)
+        if any(phrase in query_lower for phrase in small_talk_phrases):
+            return True
+
+        import re
+        small_talk_words = ["hi", "hello", "hey", "thanks", "bye", "goodbye", "farewell"]
+        return any(re.search(rf"\\b{re.escape(w)}\\b", query_lower) for w in small_talk_words)
     
     def _is_datetime_query(self, query: str) -> bool:
         """Detect if query is asking about date or time"""
@@ -957,6 +965,16 @@ When responding:
         EXCLUDES: Retail asset charges (fast cash, loans, etc.) - these are handled separately.
         """
         query_lower = query.lower().strip()
+
+        # Guardrail: Skybanking fee queries should NOT route to card fee engine.
+        skybanking_keywords = [
+            "skybanking", "sky banking", "ebl skybanking",
+            "digital banking", "mobile banking", "online banking",
+            "skybanking app", "ebl app", "mobile app"
+        ]
+        if any(kw in query_lower for kw in skybanking_keywords):
+            logger.info(f"[ROUTING] Skybanking context detected - NOT routing to card fee engine: '{query}'")
+            return False
         
         # Guardrail: Transaction-limit / allowed-count queries should NOT route to fee engine.
         # Examples:
@@ -1174,6 +1192,33 @@ When responding:
             return True
         
         return False
+
+    def _is_generic_skybanking_fee_query(self, query: str) -> bool:
+        """
+        Detect overly-generic Skybanking fee queries that need clarification.
+        Example: "skybanking fees"
+        """
+        query_lower = query.lower().strip()
+
+        skybanking_keywords = [
+            "skybanking", "sky banking", "ebl skybanking",
+            "digital banking", "mobile banking", "online banking",
+            "skybanking app", "ebl app", "mobile app"
+        ]
+        fee_keywords = ["fee", "fees", "charge", "charges", "cost", "pricing", "price"]
+
+        if not (any(kw in query_lower for kw in skybanking_keywords) and any(kw in query_lower for kw in fee_keywords)):
+            return False
+
+        specific_fee_terms = [
+            "add money", "fund transfer", "npsb", "binimoy", "binomoy", "rtgs",
+            "statement", "certificate", "account certificate", "balance certificate",
+            "dps certificate", "loan outstanding certificate", "loan tax certificate",
+            "noc", "duplicate pin", "bill payment", "government payment", "annual service",
+            "service charge",
+        ]
+
+        return not any(term in query_lower for term in specific_fee_terms)
     
     def _is_card_rates_query(self, query: str) -> bool:
         """
@@ -1189,6 +1234,32 @@ When responding:
         Returns True if query contains location-related keywords.
         """
         query_lower = query.lower()
+
+        # Guardrail: machine-capability questions should go to KB, not location service.
+        # If the query mentions ATM/CRM/RTDM but has no explicit location intent,
+        # route to RAG/KB (e.g., "Can I pay card bill in EBL RTDM?").
+        machine_location_terms = ["atm", "atms", "crm", "rtdm"]
+        location_cues = ["location", "address", "where", "near", "nearest", "around", "located"]
+        import re
+        has_in_location_phrase = bool(
+            re.search(r"\b(in)\s+(?!ebl\b|skybanking\b|app\b|mobile\b|online\b)[a-z][a-z0-9\s\-]{2,}\b", query_lower)
+        )
+        # Treat as location only if we see explicit location cues or known city/area tokens.
+        known_city_tokens = [
+            "dhaka", "chittagong", "sylhet", "khulna", "rajshahi", "barisal", "rangpur",
+            "narayanganj", "gazipur", "mymensingh", "comilla", "jessore", "bogra",
+            "cox's bazar", "coxs bazar", "feni", "noakhali", "tangail", "faridpur", "kishoreganj",
+        ]
+        known_area_tokens = [
+            "gulshan", "banani", "baridhara", "dhanmondi", "uttara", "motijheel",
+            "mirpur", "tejgaon", "basundhara", "badda", "malibagh", "mohakhali",
+            "paltan", "farmgate", "elephant road", "new market", "mouchak",
+        ]
+        has_geo_token = any(tok in query_lower for tok in known_city_tokens + known_area_tokens)
+        if any(k in query_lower for k in machine_location_terms):
+            if not any(k in query_lower for k in location_cues) and not has_geo_token and not has_in_location_phrase:
+                logger.info(f"[ROUTING] Machine capability query (no location cues); skipping location service: '{query}'")
+                return False
         
         # Location keywords - check for explicit location-related terms
         location_keywords = [
@@ -1268,7 +1339,9 @@ When responding:
             Formatted location information string
         """
         try:
-            location_result = await self.location_client.get_locations(query, limit=20)
+            # Use a higher limit so "area" queries can return the full set (or close to it),
+            # enabling accurate "and X more" messaging.
+            location_result = await self.location_client.get_locations(query, limit=200)
             
             if location_result:
                 formatted = self.location_client.format_location_response(location_result, query)
@@ -1553,6 +1626,89 @@ When responding:
         
         # Check for banking product patterns
         return any(keyword in query_lower for keyword in banking_product_keywords)
+
+    def _is_broad_loan_product_line_query(self, query: str) -> bool:
+        """
+        Detect broad "loan products / loan product line" queries where the user is asking for
+        the list of available loan product lines (not details like rate/eligibility/fees).
+
+        This is used to avoid returning a generic bank overview and instead respond with a
+        product-line list + a clarifying question.
+        """
+        q = (query or "").lower().strip()
+        if not q or "loan" not in q:
+            return False
+
+        # Broad-intent phrases
+        broad_markers = [
+            "loan product",
+            "loan products",
+            "loan product line",
+            "loan product lines",
+            "types of loan",
+            "type of loan",
+            "loan options",
+            "loan offering",
+            "loan offerings",
+            "what loans",
+            "available loans",
+            "loan facilities",
+            "loan facility",
+        ]
+        if not any(m in q for m in broad_markers):
+            # Also treat short "ebl loan" style prompts as broad if they lack detail markers.
+            # Examples: "EBL loan", "EBL loan product", "tell me about EBL loan"
+            if not (("ebl" in q or "eastern bank" in q) and "loan" in q and len(q.split()) <= 6):
+                return False
+
+        # If user is asking for details, do NOT treat as broad product-line request.
+        detail_markers = [
+            "interest", "rate", "apr", "profit rate",
+            "eligibility", "eligible", "requirements", "requirement", "documents", "document",
+            "fee", "fees", "charge", "charges", "processing", "processing fee",
+            "tenor", "tenure", "term", "duration", "installment", "emi", "repayment",
+            "collateral", "security", "mortgage", "down payment",
+            "limit", "maximum", "minimum", "amount",
+            "apply", "application", "how to apply", "apply for",
+        ]
+        if any(m in q for m in detail_markers):
+            return False
+
+        # If user already named a specific loan type/product, they likely want details.
+        specific_loan_markers = [
+            "home loan", "housing loan", "mortgage",
+            "personal loan", "executive loan",
+            "auto loan", "car loan", "vehicle loan",
+            "education loan",
+            "business loan", "sme", "sme loan", "startup",
+            "women", "women's", "woman entrepreneur",
+            "fast cash", "fast loan",
+            "assure loan",
+            "agri", "agriculture", "krishi",
+        ]
+        if any(m in q for m in specific_loan_markers):
+            return False
+
+        return True
+
+    def _build_loan_product_line_list_response(self) -> str:
+        """
+        Deterministic product-line list response for broad loan-product queries.
+        Keep it high-level and ask the user which product they want details for next.
+        """
+        lines = [
+            "Here are Eastern Bank PLC.'s loan product lines (at a glance):",
+            "",
+            "- Home Loan (property purchase/construction/renovation)",
+            "- Auto/Car Loan",
+            "- Personal/Executive Loan (unsecured consumer loan)",
+            "- Education Loan",
+            "- Business/SME financing (working capital/term loan types)",
+            "- Secured borrowing against deposits/securities (e.g., Fast Loan / Fast Cash facilities)",
+            "",
+            "Which one do you want details on? (e.g., eligibility, required documents, rate/fees, repayment/tenor, or how to apply)",
+        ]
+        return "\n".join(lines)
     
     def _detect_lead_intent(self, query: str) -> Optional[LeadType]:
         """Detect if user wants to apply for credit card or loan"""
@@ -1796,62 +1952,22 @@ When responding:
         - Safe (no OpenAI calls)
         - Explainable (returns matched booleans + final target)
         """
-        query = (query or "").strip()
-        conversation_key = self._get_conversation_key(session_id, client_ip)
-        effective_session_id = session_id if session_id else conversation_key
-
-        pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
-
-        # Signals
-        is_location_query = self._is_location_query(query)
-        is_retail_asset_fee_query = self._is_retail_asset_fee_query(query)
-        is_skybanking_fee_query = self._is_skybanking_fee_query(query)
-        is_fee_schedule_query = self._is_fee_schedule_query(query)
-
-        is_small_talk = self._is_small_talk(query)
-        is_contact_query = self._is_contact_info_query(query)
-        is_phonebook_query = self._is_phonebook_query(query)
-        is_employee_query = self._is_employee_query(query)
-
-        # If knowledge_base not explicitly provided, match runtime behavior
-        chosen_kb = knowledge_base or self._get_knowledge_base(query)
-
-        # Final decision (mirrors orchestrator precedence)
-        if pending_disambiguation:
-            target = "DISAMBIGUATION"
-        elif is_location_query:
-            target = "LOCATION_SERVICE"
-        elif is_retail_asset_fee_query:
-            target = "FEE_ENGINE_RETAIL_ASSETS"
-        elif is_skybanking_fee_query:
-            target = "FEE_ENGINE_SKYBANKING"
-        elif is_fee_schedule_query:
-            target = "FEE_ENGINE_CARDS"
-        elif (is_phonebook_query or is_contact_query or is_employee_query) and not is_small_talk:
-            target = "PHONEBOOK"
-        elif is_small_talk:
-            target = "OPENAI_SMALL_TALK"
-        else:
-            target = "LIGHTRAG"
+        decision = await self.routing_engine.decide(
+            query=query,
+            session_id=session_id,
+            knowledge_base=knowledge_base,
+            client_ip=client_ip,
+        )
 
         return {
-            "query": query,
+            "query": decision.query,
             "session_id": session_id,
-            "effective_session_id": effective_session_id,
-            "conversation_key": conversation_key,
-            "pending_disambiguation": bool(pending_disambiguation),
-            "target": target,
-            "knowledge_base": chosen_kb,
-            "signals": {
-                "is_location_query": is_location_query,
-                "is_retail_asset_fee_query": is_retail_asset_fee_query,
-                "is_skybanking_fee_query": is_skybanking_fee_query,
-                "is_fee_schedule_query": is_fee_schedule_query,
-                "is_small_talk": is_small_talk,
-                "is_contact_query": is_contact_query,
-                "is_phonebook_query": is_phonebook_query,
-                "is_employee_query": is_employee_query,
-            },
+            "effective_session_id": decision.effective_session_id,
+            "conversation_key": decision.conversation_key,
+            "pending_disambiguation": decision.pending_disambiguation,
+            "target": decision.target,
+            "knowledge_base": decision.knowledge_base,
+            "signals": decision.signals,
         }
     
     def _get_current_datetime(self) -> str:
@@ -1998,6 +2114,8 @@ When responding:
             card_product_name = option.get("card_product_name", "").lower()
             charge_context = option.get("charge_context", "").lower()
             charge_description = option.get("charge_description", "").lower()
+            label = option.get("label", "").lower()
+            keywords = option.get("keywords") or []
             # NOTE: answer_text is NOT used for keyword matching (contains common words like "fee", "bdt", "per")
             
             # Check if query contains loan product keywords
@@ -2028,6 +2146,15 @@ When responding:
                 for word in charge_description.split():
                     if len(word) >= MIN_TOKEN_LENGTH and word not in STOPWORDS:
                         keywords_to_check.append(word)
+            if label:
+                keywords_to_check.append(label)
+                for word in label.split():
+                    if len(word) >= MIN_TOKEN_LENGTH and word not in STOPWORDS:
+                        keywords_to_check.append(word)
+            for kw in keywords:
+                kw_lower = str(kw).lower().strip()
+                if kw_lower and kw_lower not in STOPWORDS:
+                    keywords_to_check.append(kw_lower)
             # REMOVED: answer_text.split() - answer_text contains common words that cause false matches
             
             # Check for common loan product keyword mappings
@@ -2064,6 +2191,142 @@ When responding:
         
         logger.info(f"[DISAMBIGUATION] Could not resolve selection from query: '{query}'")
         return None
+
+    def _has_process_intent(self, query: str) -> bool:
+        query_lower = (query or "").lower()
+        return any(k in query_lower for k in ["process", "procedure", "how to", "steps", "method"])
+
+    def _should_prompt_routing_disambiguation(self, query: str, decision: Any) -> bool:
+        if decision.is_small_talk:
+            return False
+
+        is_fee = decision.is_fee_schedule_query or decision.is_retail_asset_fee_query or decision.is_skybanking_fee_query
+        is_contact = decision.is_contact_query or decision.is_employee_query or decision.is_phonebook_query
+        is_location = decision.is_location_query
+        has_process = self._has_process_intent(query)
+
+        # Ask only when signals conflict
+        if has_process and (is_fee or is_contact or is_location):
+            return True
+        if is_contact and (is_fee or is_location):
+            return True
+        if is_fee and is_location:
+            return True
+        return False
+
+    def _build_routing_disambiguation_prompt(self) -> str:
+        lines = [
+            "Your question could refer to multiple things. Please choose one:",
+            "1. Fees/charges (cards, loans, or Skybanking)",
+            "2. Steps/process/how to do it",
+            "3. Branch/ATM/location",
+            "4. Employee contact info (phone/email/extension)",
+            "",
+            "Reply with a number (1-4).",
+        ]
+        return "\n".join(lines)
+
+    def _build_routing_disambiguation_options(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "label": "Fees/charges",
+                "route_target": "FEE_ENGINE",
+                "keywords": ["fee", "fees", "charge", "charges", "pricing", "cost", "commission"],
+            },
+            {
+                "label": "Steps/process/how to do it",
+                "route_target": "LIGHTRAG",
+                "keywords": ["process", "procedure", "how to", "steps", "method", "policy", "rules"],
+            },
+            {
+                "label": "Branch/ATM/location",
+                "route_target": "LOCATION_SERVICE",
+                "keywords": ["branch", "atm", "location", "address", "near me", "where is"],
+            },
+            {
+                "label": "Employee contact info (phone/email/extension)",
+                "route_target": "PHONEBOOK",
+                "keywords": ["contact", "phone", "number", "email", "extension", "employee", "staff", "manager"],
+            },
+        ]
+
+    def _build_fee_type_disambiguation_prompt(self, fee_candidates: List[str]) -> str:
+        lines = ["Which fees/charges do you mean?"]
+        options = self._build_fee_type_disambiguation_options(fee_candidates)
+        for i, opt in enumerate(options, start=1):
+            lines.append(f"{i}. {opt.get('label')}")
+        lines.append("")
+        lines.append(f"Reply with a number (1-{len(options)}).")
+        return "\n".join(lines)
+
+    def _build_fee_type_disambiguation_options(self, fee_candidates: List[str]) -> List[Dict[str, Any]]:
+        order = [
+            ("FEE_ENGINE_CARDS", "Card fees/charges", ["card", "credit", "debit", "visa", "mastercard", "supplementary", "lounge", "atm"]),
+            ("FEE_ENGINE_RETAIL_ASSETS", "Loan/retail asset fees", ["loan", "fast cash", "fast loan", "home loan", "car loan", "personal loan", "education loan", "executive loan", "retail asset", "overdraft", "emi"]),
+            ("FEE_ENGINE_SKYBANKING", "Skybanking fees/charges", ["skybanking", "sky banking", "mobile banking", "digital banking", "ebl app", "online banking"]),
+        ]
+        options = []
+        for target, label, keywords in order:
+            if target in fee_candidates:
+                options.append({"label": label, "route_target": target, "keywords": keywords})
+        return options
+
+    async def _handle_routing_disambiguation(
+        self,
+        *,
+        query: str,
+        conversation_key: str,
+        pending_disambiguation: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Resolve routing disambiguation and return either a prompt response
+        or a resolved target to continue routing.
+        """
+        disambiguation_type = pending_disambiguation.get("disambiguation_type")
+        options = pending_disambiguation.get("options", [])
+        prompt_message = pending_disambiguation.get("prompt_message") or "Please reply with a valid option."
+        extra = pending_disambiguation.get("extra") or {}
+        base_query = (extra.get("base_query") or query).strip()
+
+        selected_option = self._resolve_selection(query, options)
+        if not selected_option:
+            return {"response": prompt_message}
+
+        target = selected_option.get("route_target")
+        if disambiguation_type == "ROUTING":
+            if target == "FEE_ENGINE":
+                fee_candidates = extra.get("fee_candidates") or [
+                    "FEE_ENGINE_CARDS",
+                    "FEE_ENGINE_RETAIL_ASSETS",
+                    "FEE_ENGINE_SKYBANKING",
+                ]
+                if len(fee_candidates) == 1:
+                    await self._clear_disambiguation_state_any(conversation_key)
+                    return {"resolved_target": fee_candidates[0], "resolved_query": base_query}
+
+                fee_options = self._build_fee_type_disambiguation_options(fee_candidates)
+                fee_prompt = self._build_fee_type_disambiguation_prompt(fee_candidates)
+                state = {
+                    "product_line": "ROUTING",
+                    "charge_type": "ROUTING_FEE_TYPE",
+                    "disambiguation_type": "ROUTING_FEE_TYPE",
+                    "options": fee_options,
+                    "prompt_message": fee_prompt,
+                    "extra": {"base_query": base_query},
+                }
+                await self._set_disambiguation_state_any(conversation_key, state)
+                return {"response": fee_prompt}
+
+            await self._clear_disambiguation_state_any(conversation_key)
+            return {"resolved_target": target, "resolved_query": base_query}
+
+        if disambiguation_type == "ROUTING_FEE_TYPE":
+            if target in {"FEE_ENGINE_CARDS", "FEE_ENGINE_RETAIL_ASSETS", "FEE_ENGINE_SKYBANKING"}:
+                await self._clear_disambiguation_state_any(conversation_key)
+                return {"resolved_target": target, "resolved_query": base_query}
+            return {"response": prompt_message}
+
+        return {"response": prompt_message}
     
     async def _get_card_rates_context(self, query: str, session_id: Optional[str] = None, conversation_key: Optional[str] = None) -> str:
         """
@@ -2337,6 +2600,17 @@ When responding:
                     # Format the retail asset NO_RULE_FOUND response using format_fee_response
                     formatted = fee_client.format_fee_response(fee_result, query=query)
                     context = f"OFFICIAL RETAIL ASSET CHARGES INFORMATION\n{formatted if formatted else 'The requested retail asset charge information is not found in the Retail Asset Charges Schedule.'}\n\nPlease verify the loan product details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                    return context
+                if product_line == "SKYBANKING":
+                    formatted = fee_client.format_fee_response(fee_result, query=query)
+                    if not formatted:
+                        formatted = "The requested fee information is not found in the Skybanking Fees Schedule."
+                    context = (
+                        f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
+                        f"{self.FEE_ENGINE_SOURCE_SKYBANKING}\n\n"
+                        f"{formatted}\n\n"
+                        "Please verify the Skybanking service details and try again, or contact Eastern Bank PLC. directly for this specific detail."
+                    )
                     return context
                 
                 # Return deterministic not-found message for card charges instead of empty string
@@ -2671,7 +2945,103 @@ When responding:
             if a not in seen:
                 uniq.append(a)
                 seen.add(a)
+
+        # MetLife product aliasing: users often ask with informal names that don't appear in docs.
+        # Ensure we keep MetLife-specific shorthand in anchors so chunk filtering doesn't drop it.
+        # Example query: "Metlife My Childs Education Program" → docs may use "MCEPP".
+        is_term_question = any(t in tokens for t in ["tenure", "term"]) or ("coverage" in tokens and "period" in tokens)
+
+        if "metlife" in tokens and ("child" in tokens or "childs" in tokens) and "education" in tokens:
+            if "mcepp" not in uniq:
+                uniq.append("mcepp")
+            if "my" in tokens and "child" in tokens and "education" in tokens:
+                # common normalized phrase fragments
+                for extra in ("education", "child", "metlife"):
+                    if extra not in uniq:
+                        uniq.append(extra)
+
+        # For term/tenure questions, include likely section headers used in documents so
+        # anchor filtering keeps "Coverage Period: X years" chunks even if they don't mention "MetLife".
+        if is_term_question:
+            for extra in ("coverage", "period", "policy", "plan", "premium", "payment", "years"):
+                if extra not in uniq:
+                    uniq.append(extra)
         return uniq[:8]
+
+    def _is_term_intent_query(self, query: str) -> bool:
+        ql = (query or "").lower()
+        return any(k in ql for k in ["tenure", "plan term", "policy term", "term", "coverage period"])
+
+    def _is_metlife_child_education_query(self, query: str) -> bool:
+        ql = (query or "").lower()
+        return "metlife" in ql and ("child" in ql or "childs" in ql) and "education" in ql
+
+    def _extract_mcepp_plan_term_answer(self, query: str, context: str) -> Optional[str]:
+        """
+        Deterministic extractor to prevent hallucination on MetLife tenure/term questions.
+        Looks for an explicit plan term range and returns it as the answer.
+        """
+        if not context:
+            return None
+        if not (self._is_term_intent_query(query) and self._is_metlife_child_education_query(query)):
+            return None
+
+        import re
+        ctx = context
+        ctx_lower = ctx.lower()
+
+        # Find plan term ranges like:
+        # - "Plan Term: 12 to 20 years"
+        # - "Plan terms range from 12 to 20 years"
+        term_patterns = [
+            r"plan\s+term\s*:\s*(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*years",
+            r"plan\s+terms?\s+range\s+from\s*(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*years",
+        ]
+
+        candidates = []
+        for pat in term_patterns:
+            for m in re.finditer(pat, ctx_lower, flags=re.IGNORECASE):
+                start, end = m.start(), m.end()
+                # Prefer matches that are close to MCEPP/My Child in context to avoid mixing products.
+                window = ctx_lower[max(0, start - 800): min(len(ctx_lower), end + 800)]
+                score = 0
+                if "mcepp" in window:
+                    score += 2
+                if "my child" in window or "education protection" in window:
+                    score += 2
+                if "rules and limits" in window:
+                    score += 1
+                candidates.append((score, m.group(1), m.group(2), start))
+
+        if not candidates:
+            return None
+
+        # Pick best-scoring match; tiebreaker earliest occurrence
+        candidates.sort(key=lambda x: (-x[0], x[3]))
+        _, lo, hi, _pos = candidates[0]
+
+        # Optional constraint: age + term cannot exceed 27 years
+        constraint_27 = None
+        m27 = re.search(r"cannot\s+exceed\s+27\s+years", ctx_lower)
+        if m27:
+            constraint_27 = "The insured child’s age plus the plan term cannot exceed 27 years."
+
+        # Premium paying term info (optional)
+        ppt = None
+        mppt = re.search(r"premium\s+pay(?:ing|ment)\s+term\s*:\s*([^\n]+)", ctx, flags=re.IGNORECASE)
+        if mppt:
+            # Keep it short; many docs say "2 years less than the Coverage Period."
+            line = mppt.group(0).strip()
+            if len(line) > 180:
+                line = line[:180] + "..."
+            ppt = line
+
+        answer_lines = [f"The plan term (tenure) is {lo} to {hi} years."]
+        if constraint_27:
+            answer_lines.append(constraint_27)
+        if ppt:
+            answer_lines.append(ppt)
+        return " ".join(answer_lines)
 
     def _filter_lightrag_chunks_for_query(self, lightrag_response: Dict[str, Any], query: str) -> Dict[str, Any]:
         """
@@ -2749,6 +3119,17 @@ When responding:
         if "islamic priority" in query_lower and "visa signature debit card" not in query_lower:
             improved_query = f"{query} EBL Islamic Priority Visa Signature Debit Card"
             logger.info("[QUERY_ENHANCE] Added full card name for Islamic Priority query")
+
+        # MetLife My Child's Education Protection (MCEPP) - improve retrieval for tenure/term questions.
+        # Users may ask "My Childs Education Program" but docs may use MCEPP/Protection wording.
+        if "metlife" in query_lower and ("child" in query_lower or "childs" in query_lower) and "education" in query_lower:
+            metlife_keywords = (
+                "MCEPP MetLife My Child's Education Protection "
+                "plan term policy term tenure coverage period premium payment term "
+                "\"MetLife Product Details\" \"MetLife Product Details.pdf\""
+            )
+            improved_query = f"{improved_query} {metlife_keywords}"
+            logger.info("[QUERY_ENHANCE] Expanded MetLife child education query with MCEPP keywords")
         
         # Priority center queries - NOTE: These should be routed to location service, not LightRAG
         # This improvement is only for queries that somehow reach LightRAG (shouldn't happen)
@@ -2796,12 +3177,24 @@ When responding:
         improved_query = self._improve_query_for_lightrag(query)
         if improved_query != query:
             logger.info(f"[ROUTING] Improved query: '{query[:100]}' → '{improved_query[:100]}'")
+
+        # Dynamic retrieval depth for term/tenure questions (MetLife/MCEPP and similar).
+        ql = (query or "").lower()
+        is_term_question = any(k in ql for k in ["tenure", "term", "policy term", "plan term", "coverage period"])
+        is_metlife_query = "metlife" in ql or "mcepp" in ql
+        top_k = 8
+        chunk_top_k = 10
+        if is_term_question and is_metlife_query:
+            # Pull deeper chunks; term is often in a different section than benefits.
+            top_k = 20
+            chunk_top_k = 30
+            logger.info("[LIGHTRAG] Using deeper retrieval for MetLife term/tenure query")
         
         # IMPORTANT: Include query parameters in the cache key string.
         # Otherwise, changing only_need_context / rerank settings can reuse stale cached responses.
         cache_key_query = (
-            f"{improved_query} || endpoint=query_data || mode=mix || top_k=8 || chunk_top_k=10 || "
-            f"include_references=1 || only_need_context=1 || enable_rerank=0"
+            f"{improved_query} || endpoint=query_data || mode=mix || top_k={top_k} || chunk_top_k={chunk_top_k} || "
+            f"include_references=1 || only_need_context=1 || enable_rerank=0 || anchor_filter=v2"
         )
         cache_key = get_cache_key(cache_key_query, kb)
         
@@ -2821,8 +3214,8 @@ When responding:
                 query=improved_query,
                 knowledge_base=kb,
                 mode="mix",  # Use 'mix' mode (works better than 'hybrid')
-                top_k=8,  # KG Top K: 8 (conservative increase from 5 for better coverage)
-                chunk_top_k=10,  # Chunk Top K: 10 (conservative increase from 5 for better recall)
+                top_k=top_k,
+                chunk_top_k=chunk_top_k,
                 include_references=True,
                 # CRITICAL: Do not let LightRAG's internal LLM generate an answer.
                 # We only want grounded chunks/graph data, and we'll generate the final answer via OpenAI.
@@ -2964,28 +3357,45 @@ When responding:
         # Normalize session_id for the remainder of this request.
         # Many downstream calls assume a non-null session_id for state, headers, and persistence.
         session_id = effective_session_id
+        forced_target: Optional[str] = None
         
         # ===== CRITICAL: Check for pending disambiguation state (BEFORE other processing) =====
         # This MUST happen before any other routing to ensure disambiguation state is always checked first
         pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
         if pending_disambiguation:
-            result = await self._handle_disambiguation_resolution(
-                query=query,
-                conversation_key=conversation_key,
-                session_id=effective_session_id,
-                pending_disambiguation=pending_disambiguation
-            )
-            if result:
-                # Stream the response and exit
-                async for chunk in self._stream_text(result["response"]):
-                    yield chunk
-                # If available, also send sources marker for frontend parsing
-                sources = result.get("sources") or []
-                if sources:
-                    marker = self._format_sources_marker(sources)
-                    if marker:
-                        yield marker
-                return
+            disambiguation_type = pending_disambiguation.get("disambiguation_type")
+            if disambiguation_type in {"ROUTING", "ROUTING_FEE_TYPE"}:
+                routing_result = await self._handle_routing_disambiguation(
+                    query=query,
+                    conversation_key=conversation_key,
+                    pending_disambiguation=pending_disambiguation,
+                )
+                if routing_result.get("response"):
+                    response_text = routing_result["response"]
+                    await self._persist_turn(session_id, query, response_text)
+                    async for chunk in self._stream_text(response_text):
+                        yield chunk
+                    return
+                forced_target = routing_result.get("resolved_target")
+                query = routing_result.get("resolved_query", query)
+            else:
+                result = await self._handle_disambiguation_resolution(
+                    query=query,
+                    conversation_key=conversation_key,
+                    session_id=effective_session_id,
+                    pending_disambiguation=pending_disambiguation
+                )
+                if result:
+                    # Stream the response and exit
+                    async for chunk in self._stream_text(result["response"]):
+                        yield chunk
+                    # If available, also send sources marker for frontend parsing
+                    sources = result.get("sources") or []
+                    if sources:
+                        marker = self._format_sources_marker(sources)
+                        if marker:
+                            yield marker
+                    return
         
         # Check if user is already in lead collection flow
         # DISABLED: Lead generation is disabled via ENABLE_LEAD_GENERATION setting
@@ -3046,12 +3456,66 @@ When responding:
         # ===== ROUTING DECISION LOGGING =====
         logger.info(f"[ROUTING] ===== Processing Query (STREAMING): '{query}' =====")
         logger.info(f"[ROUTING] CODE VERSION: Corporate customer routing fix v2.0 - includes 'in the case of' pattern")
-        
+
+        decision = await self.routing_engine.decide(
+            query=query,
+            session_id=effective_session_id,
+            knowledge_base=knowledge_base,
+            client_ip=client_ip,
+        )
+
+        # ===== BROAD LOAN PRODUCT LINE QUERIES (DETERMINISTIC SHORT-CIRCUIT) =====
+        # If the user is asking for the loan product lineup (not details), respond with
+        # a product-line list and a follow-up question. This avoids generic bank-overview answers.
+        if not forced_target and self._is_broad_loan_product_line_query(query):
+            response_text = self._build_loan_product_line_list_response()
+            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            async for chunk in self._stream_text(response_text):
+                yield chunk
+            return
+
+        # ===== ROUTING DISAMBIGUATION (PHONEBOOK vs FEES vs LOCATION vs PROCESS) =====
+        if not forced_target and self._should_prompt_routing_disambiguation(query, decision):
+            fee_candidates = []
+            if decision.is_fee_schedule_query:
+                fee_candidates.append("FEE_ENGINE_CARDS")
+            if decision.is_retail_asset_fee_query:
+                fee_candidates.append("FEE_ENGINE_RETAIL_ASSETS")
+            if decision.is_skybanking_fee_query:
+                fee_candidates.append("FEE_ENGINE_SKYBANKING")
+
+            prompt_message = self._build_routing_disambiguation_prompt()
+            options = self._build_routing_disambiguation_options()
+            state = {
+                "product_line": "ROUTING",
+                "charge_type": "ROUTING",
+                "disambiguation_type": "ROUTING",
+                "options": options,
+                "prompt_message": prompt_message,
+                "extra": {"base_query": query, "fee_candidates": fee_candidates},
+            }
+            await self._set_disambiguation_state_any(conversation_key, state)
+            await self._persist_turn(session_id, query, prompt_message)
+            async for chunk in self._stream_text(prompt_message):
+                yield chunk
+            return
+
+        if forced_target:
+            route_location = forced_target == "LOCATION_SERVICE"
+            route_retail_fee = forced_target == "FEE_ENGINE_RETAIL_ASSETS"
+            route_sky_fee = forced_target == "FEE_ENGINE_SKYBANKING"
+            route_card_fee = forced_target == "FEE_ENGINE_CARDS"
+        else:
+            route_location = decision.is_location_query
+            route_retail_fee = decision.is_retail_asset_fee_query
+            route_sky_fee = decision.is_skybanking_fee_query
+            route_card_fee = decision.is_fee_schedule_query
+
         # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGHEST PRIORITY) =====
         # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
         # This MUST be checked BEFORE fee schedule queries to avoid misrouting priority center queries
-        is_location_query = self._is_location_query(query)
-        if is_location_query:
+
+        if route_location:
             logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
             location_context = await self._get_location_context(query)
             sources = ["EBL Location Database (Normalized)"]
@@ -3060,41 +3524,20 @@ When responding:
             combined_context = location_context
             logger.info(f"[LOCATION_SERVICE] Using EXCLUSIVE location service context: {len(location_context)} chars (LightRAG/KB explicitly skipped)")
             
-            # Build messages with location context only
-            messages = self._build_messages(query, combined_context, conversation_history)
-            
-            # Stream response from OpenAI with location data only
-            full_response = ""
-            try:
-                max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 2000)
-                stream = await self.openai_client.chat.completions.create(
-                    model=settings.OPENAI_MODEL,
-                    messages=messages,
-                    temperature=settings.OPENAI_TEMPERATURE,
-                    max_tokens=max_response_tokens,
-                    stream=True
-                )
-                
-                async for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        full_response += content
-                        yield content
-            except Exception as e:
-                logger.error(f"[LOCATION_SERVICE] Error generating response: {e}")
-                error_msg = "I apologize, but I encountered an error while processing your location inquiry. Please try again."
-                yield error_msg
-                full_response = error_msg
+            # Anti-hallucination hard guard:
+            # Return the location service output directly (NO OpenAI call, NO paraphrasing).
+            full_response = combined_context
+            async for chunk in self._stream_text(full_response):
+                yield chunk
             
             # Save to memory
-            await self._persist_turn(session_id, query, full_response)
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
             
             return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
         # ===== CRITICAL: RETAIL ASSET FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for retail asset fee queries BEFORE card fee queries
-        is_retail_asset_fee_query = self._is_retail_asset_fee_query(query)
-        if is_retail_asset_fee_query:
+        if route_retail_fee:
             logger.info(f"[FEE_ENGINE] ✓✓✓ RETAIL ASSET FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
             sources = ["Retail Asset Charges Schedule"]
@@ -3120,8 +3563,21 @@ When responding:
         
         # ===== CRITICAL: SKYBANKING FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for Skybanking fee queries BEFORE card fee queries
-        is_skybanking_fee_query = self._is_skybanking_fee_query(query)
-        if is_skybanking_fee_query:
+        if route_sky_fee:
+            if self._is_generic_skybanking_fee_query(query):
+                clarification = (
+                    f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
+                    + "=" * 70
+                    + "\nPlease specify which Skybanking fee you need. For example:\n"
+                    + "- Skybanking  Add money fee\n"
+                    + "- Skybanking  Fund transfer fee (NPSB / Binimoy / RTGS)\n"
+                    + "- Skybanking  Statement / Certificate fee\n"
+                    + "- Skybanking  Duplicate PIN charge\n"
+                )
+                async for chunk in self._stream_text(clarification):
+                    yield chunk
+                await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip)
+                return
             logger.info(f"[FEE_ENGINE] ✓✓✓ SKYBANKING FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=session_id)  # Pass session_id for disambiguation state storage
             sources = ["Skybanking Fees Schedule"]
@@ -3151,8 +3607,7 @@ When responding:
         # MANDATORY: Fee queries MUST route to Fee Engine ONLY (authoritative source)
         # NO LightRAG fallback, NO knowledge base lookup, NO LLM guessing
         # This check happens AFTER location queries, retail asset queries, and Skybanking queries to avoid misrouting
-        is_fee_schedule_query = self._is_fee_schedule_query(query)
-        if is_fee_schedule_query:
+        if route_card_fee:
             logger.info(f"[FEE_ENGINE] ✓✓✓ FEE SCHEDULE QUERY DETECTED (HIGHEST PRIORITY): '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE (NO LightRAG, NO KB)")
             fee_context = await self._get_card_rates_context(query, session_id=session_id)
             sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
@@ -3188,28 +3643,59 @@ When responding:
         
         # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
         # These should ALWAYS go to phonebook, never LightRAG
-        is_small_talk = self._is_small_talk(query)
-        is_contact_query = self._is_contact_info_query(query)
-        is_phonebook_query = self._is_phonebook_query(query)
-        is_employee_query = self._is_employee_query(query)
+        is_small_talk = False if forced_target else decision.is_small_talk
+        is_contact_query = decision.is_contact_query
+        is_phonebook_query = decision.is_phonebook_query
+        is_employee_query = decision.is_employee_query
+        is_org_overview_query = decision.is_org_overview_query
+        is_banking_product_query = decision.is_banking_product_query
+        is_compliance_query = decision.is_compliance_query
+        is_management_query = decision.is_management_query
+        is_financial_query = decision.is_financial_query
+        is_milestone_query = decision.is_milestone_query
+        is_user_doc_query = decision.is_user_doc_query
+        is_org_overview_query = decision.is_org_overview_query
+        is_banking_product_query = decision.is_banking_product_query
+        is_compliance_query = decision.is_compliance_query
+        is_management_query = decision.is_management_query
+        is_financial_query = decision.is_financial_query
+        is_milestone_query = decision.is_milestone_query
+        is_user_doc_query = decision.is_user_doc_query
+        is_org_overview_query = decision.is_org_overview_query
+        is_banking_product_query = decision.is_banking_product_query
+        is_compliance_query = decision.is_compliance_query
+        is_management_query = decision.is_management_query
+        is_financial_query = decision.is_financial_query
+        is_milestone_query = decision.is_milestone_query
+        is_user_doc_query = decision.is_user_doc_query
+        is_org_overview_query = decision.is_org_overview_query
+        is_banking_product_query = decision.is_banking_product_query
+        is_compliance_query = decision.is_compliance_query
+        is_management_query = decision.is_management_query
+        is_financial_query = decision.is_financial_query
+        is_milestone_query = decision.is_milestone_query
+        is_user_doc_query = decision.is_user_doc_query
+        is_org_overview_query = decision.is_org_overview_query
+        is_banking_product_query = decision.is_banking_product_query
+        is_compliance_query = decision.is_compliance_query
+        is_management_query = decision.is_management_query
+        is_financial_query = decision.is_financial_query
+        is_milestone_query = decision.is_milestone_query
+        is_user_doc_query = decision.is_user_doc_query
         
         # If it's a phonebook/employee/contact query, route to phonebook immediately
-        if (is_phonebook_query or is_contact_query or is_employee_query) and not is_small_talk and PHONEBOOK_DB_AVAILABLE:
+        if forced_target == "PHONEBOOK":
+            logger.info(f"[ROUTING] ✓ Forced target PHONEBOOK → ROUTING TO PHONEBOOK")
+            should_check_phonebook = True
+        elif forced_target == "LIGHTRAG":
+            should_check_phonebook = False
+        elif decision.should_check_phonebook:
             logger.info(f"[ROUTING] ✓ Query detected as phonebook/contact/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
             should_check_phonebook = True
         else:
             # CRITICAL: Check for organizational overview queries (these need special filtering)
-            is_org_overview_query = self._is_organizational_overview_query(query)
-            
             # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries
             # These should go to LightRAG, NOT phonebook
-            is_banking_product_query = self._is_banking_product_query(query)
-            is_compliance_query = self._is_compliance_query(query)
-            is_management_query = self._is_management_query(query)
-            is_financial_query = self._is_financial_report_query(query)
-            is_milestone_query = self._is_milestone_query(query)
-            is_user_doc_query = self._is_user_document_query(query)
-            
             # Log all routing checks
             logger.info(f"[ROUTING] Routing checks - org_overview={is_org_overview_query}, banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
             
@@ -3556,6 +4042,18 @@ When responding:
         else:
             combined_context = context
         
+        # Deterministic guardrail for MetLife tenure/term questions (avoid hallucination)
+        extracted = self._extract_mcepp_plan_term_answer(query, combined_context)
+        if extracted:
+            async for chunk in self._stream_text(extracted):
+                yield chunk
+            await self._persist_turn(session_id, query, extracted, knowledge_base=knowledge_base, client_ip=client_ip)
+            if sources:
+                marker = self._format_sources_marker(sources)
+                if marker:
+                    yield marker
+            return
+
         # Build messages
         messages = self._build_messages(query, combined_context, conversation_history)
 
@@ -3647,23 +4145,42 @@ When responding:
         # Normalize session_id for the remainder of this request.
         # This prevents returning/using a None session_id when callers omit it.
         session_id = effective_session_id
+        forced_target: Optional[str] = None
         
         # ===== CRITICAL: Check for pending disambiguation state (BEFORE other processing) =====
         # This MUST happen before any other routing to ensure disambiguation state is always checked first
         pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
         if pending_disambiguation:
-            result = await self._handle_disambiguation_resolution(
-                query=query,
-                conversation_key=conversation_key,
-                session_id=effective_session_id,
-                pending_disambiguation=pending_disambiguation
-            )
-            if result:
-                return {
-                    "response": result["response"],
-                    "session_id": effective_session_id,
-                    "sources": result.get("sources", []),
-                }
+            disambiguation_type = pending_disambiguation.get("disambiguation_type")
+            if disambiguation_type in {"ROUTING", "ROUTING_FEE_TYPE"}:
+                routing_result = await self._handle_routing_disambiguation(
+                    query=query,
+                    conversation_key=conversation_key,
+                    pending_disambiguation=pending_disambiguation,
+                )
+                if routing_result.get("response"):
+                    response_text = routing_result["response"]
+                    await self._persist_turn(session_id, query, response_text)
+                    return {
+                        "response": response_text,
+                        "session_id": effective_session_id,
+                        "sources": [],
+                    }
+                forced_target = routing_result.get("resolved_target")
+                query = routing_result.get("resolved_query", query)
+            else:
+                result = await self._handle_disambiguation_resolution(
+                    query=query,
+                    conversation_key=conversation_key,
+                    session_id=effective_session_id,
+                    pending_disambiguation=pending_disambiguation
+                )
+                if result:
+                    return {
+                        "response": result["response"],
+                        "session_id": effective_session_id,
+                        "sources": result.get("sources", []),
+                    }
         
         # Get conversation history
         db = get_db()
@@ -3686,11 +4203,66 @@ When responding:
         
         # ===== ROUTING DECISION LOGGING =====
         logger.info(f"[ROUTING] ===== Processing Query (SYNC): '{query}' =====")
+
+        decision = await self.routing_engine.decide(
+            query=query,
+            session_id=effective_session_id,
+            knowledge_base=knowledge_base,
+            client_ip=client_ip,
+        )
+
+        # ===== BROAD LOAN PRODUCT LINE QUERIES (DETERMINISTIC SHORT-CIRCUIT) =====
+        if not forced_target and self._is_broad_loan_product_line_query(query):
+            response_text = self._build_loan_product_line_list_response()
+            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            return {
+                "response": response_text,
+                "session_id": effective_session_id,
+                "sources": [],
+            }
+
+        # Routing disambiguation (fees vs process vs location vs contact)
+        if not forced_target and self._should_prompt_routing_disambiguation(query, decision):
+            fee_candidates = []
+            if decision.is_fee_schedule_query:
+                fee_candidates.append("FEE_ENGINE_CARDS")
+            if decision.is_retail_asset_fee_query:
+                fee_candidates.append("FEE_ENGINE_RETAIL_ASSETS")
+            if decision.is_skybanking_fee_query:
+                fee_candidates.append("FEE_ENGINE_SKYBANKING")
+
+            prompt_message = self._build_routing_disambiguation_prompt()
+            options = self._build_routing_disambiguation_options()
+            state = {
+                "product_line": "ROUTING",
+                "charge_type": "ROUTING",
+                "disambiguation_type": "ROUTING",
+                "options": options,
+                "prompt_message": prompt_message,
+                "extra": {"base_query": query, "fee_candidates": fee_candidates},
+            }
+            await self._set_disambiguation_state_any(conversation_key, state)
+            await self._persist_turn(session_id, query, prompt_message)
+            return {
+                "response": prompt_message,
+                "session_id": effective_session_id,
+                "sources": [],
+            }
+
+        if forced_target:
+            route_location = forced_target == "LOCATION_SERVICE"
+            route_retail_fee = forced_target == "FEE_ENGINE_RETAIL_ASSETS"
+            route_sky_fee = forced_target == "FEE_ENGINE_SKYBANKING"
+            route_card_fee = forced_target == "FEE_ENGINE_CARDS"
+        else:
+            route_location = decision.is_location_query
+            route_retail_fee = decision.is_retail_asset_fee_query
+            route_sky_fee = decision.is_skybanking_fee_query
+            route_card_fee = decision.is_fee_schedule_query
         
         # ===== CRITICAL: RETAIL ASSET FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for retail asset fee queries BEFORE card fee queries
-        is_retail_asset_fee_query = self._is_retail_asset_fee_query(query)
-        if is_retail_asset_fee_query:
+        if route_retail_fee:
             logger.info(f"[FEE_ENGINE] ✓✓✓ RETAIL ASSET FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
             sources = ["Retail Asset Charges Schedule"]
@@ -3719,8 +4291,23 @@ When responding:
         
         # ===== CRITICAL: SKYBANKING FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for Skybanking fee queries BEFORE card fee queries
-        is_skybanking_fee_query = self._is_skybanking_fee_query(query)
-        if is_skybanking_fee_query:
+        if route_sky_fee:
+            if self._is_generic_skybanking_fee_query(query):
+                response_text = (
+                    f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
+                    + "=" * 70
+                    + "\nPlease specify which Skybanking fee you need. For example:\n"
+                    + "- Skybanking  Add money fee\n"
+                    + "- Skybanking  Fund transfer fee (NPSB / Binimoy / RTGS)\n"
+                    + "- Skybanking  Statement / Certificate fee\n"
+                    + "- Skybanking  Duplicate PIN charge\n"
+                )
+                await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+                return {
+                    "response": response_text,
+                    "session_id": effective_session_id,
+                    "sources": [],
+                }
             logger.info(f"[FEE_ENGINE] ✓✓✓ SKYBANKING FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
             sources = ["Skybanking Fees Schedule"]
@@ -3753,8 +4340,7 @@ When responding:
         # MANDATORY: Fee queries MUST route to Fee Engine ONLY (authoritative source)
         # NO LightRAG fallback, NO knowledge base lookup, NO LLM guessing
         # This check happens AFTER location queries, retail asset queries, and Skybanking queries to avoid misrouting
-        is_fee_schedule_query = self._is_fee_schedule_query(query)
-        if is_fee_schedule_query:
+        if route_card_fee:
             logger.info(f"[FEE_ENGINE] ✓✓✓ FEE SCHEDULE QUERY DETECTED (HIGHEST PRIORITY): '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE (NO LightRAG, NO KB)")
             fee_context = await self._get_card_rates_context(query, session_id=session_id)
             sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
@@ -3792,8 +4378,7 @@ When responding:
         
         # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGH PRIORITY) =====
         # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
-        is_location_query = self._is_location_query(query)
-        if is_location_query:
+        if route_location:
             logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
             location_context = await self._get_location_context(query)
             sources = ["EBL Location Database (Normalized)"]
@@ -3802,25 +4387,9 @@ When responding:
             combined_context = location_context
             logger.info(f"[LOCATION_SERVICE] Using EXCLUSIVE location service context: {len(location_context)} chars (LightRAG/KB explicitly skipped)")
             
-            # Build messages with location context only
-            messages = self._build_messages(query, combined_context, conversation_history)
-
-            # Generate response from OpenAI with location data only
-            full_response = ""
-            try:
-                max_response_tokens = min(settings.OPENAI_MAX_TOKENS, 2000)
-                response = await self.openai_client.chat.completions.create(
-                    model=settings.OPENAI_MODEL,
-                    messages=messages,
-                    temperature=settings.OPENAI_TEMPERATURE,
-                    max_tokens=max_response_tokens
-                )
-                
-                if response.choices and response.choices[0].message.content:
-                    full_response = response.choices[0].message.content
-            except Exception as e:
-                logger.error(f"[LOCATION_SERVICE] Error generating response: {e}")
-                full_response = "I apologize, but I encountered an error while processing your location inquiry. Please try again."
+            # Anti-hallucination hard guard:
+            # Return the location service output directly (NO OpenAI call, NO paraphrasing).
+            full_response = combined_context
 
             # Save to memory
             await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
@@ -3833,28 +4402,31 @@ When responding:
         
         # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
         # These should ALWAYS go to phonebook, never LightRAG
-        is_small_talk = self._is_small_talk(query)
-        is_contact_query = self._is_contact_info_query(query)
-        is_phonebook_query = self._is_phonebook_query(query)
-        is_employee_query = self._is_employee_query(query)
+        is_small_talk = False if forced_target else decision.is_small_talk
+        is_contact_query = decision.is_contact_query
+        is_phonebook_query = decision.is_phonebook_query
+        is_employee_query = decision.is_employee_query
+        is_org_overview_query = decision.is_org_overview_query
+        is_banking_product_query = decision.is_banking_product_query
+        is_compliance_query = decision.is_compliance_query
+        is_management_query = decision.is_management_query
+        is_financial_query = decision.is_financial_query
+        is_milestone_query = decision.is_milestone_query
+        is_user_doc_query = decision.is_user_doc_query
         
         # If it's a phonebook/employee/contact query, route to phonebook immediately
-        if (is_phonebook_query or is_contact_query or is_employee_query) and not is_small_talk and PHONEBOOK_DB_AVAILABLE:
+        if forced_target == "PHONEBOOK":
+            logger.info(f"[ROUTING] ✓ Forced target PHONEBOOK → ROUTING TO PHONEBOOK")
+            should_check_phonebook = True
+        elif forced_target == "LIGHTRAG":
+            should_check_phonebook = False
+        elif decision.should_check_phonebook:
             logger.info(f"[ROUTING] ✓ Query detected as phonebook/contact/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
             should_check_phonebook = True
         else:
             # CRITICAL: Check for organizational overview queries (these need special filtering)
-            is_org_overview_query = self._is_organizational_overview_query(query)
-            
             # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries
             # These should go to LightRAG, NOT phonebook
-            is_banking_product_query = self._is_banking_product_query(query)
-            is_compliance_query = self._is_compliance_query(query)
-            is_management_query = self._is_management_query(query)
-            is_financial_query = self._is_financial_report_query(query)
-            is_milestone_query = self._is_milestone_query(query)
-            is_user_doc_query = self._is_user_document_query(query)
-            
             # Log all routing checks
             logger.info(f"[ROUTING] Routing checks - org_overview={is_org_overview_query}, banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
             
@@ -4182,6 +4754,16 @@ When responding:
         
         # Store combined context for currency fixing
         self._last_combined_context = combined_context
+
+        # Deterministic guardrail for MetLife tenure/term questions (avoid hallucination)
+        extracted = self._extract_mcepp_plan_term_answer(query, combined_context)
+        if extracted:
+            await self._persist_turn(session_id, query, extracted, knowledge_base=knowledge_base, client_ip=client_ip)
+            return {
+                "response": extracted,
+                "session_id": session_id,
+                "sources": sources,
+            }
         
         # Build messages
         messages = self._build_messages(query, combined_context, conversation_history)
