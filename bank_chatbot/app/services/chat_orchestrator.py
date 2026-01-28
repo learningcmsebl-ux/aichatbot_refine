@@ -36,6 +36,7 @@ except ImportError:
         pass  # No-op if analytics not available
 from app.services.lightrag_client import LightRAGClient
 from app.services.location_client import LocationClient
+from app.services.location_intent import get_location_intent_flags
 from app.services.routing_engine import RoutingEngine
 
 # Import phonebook (PostgreSQL)
@@ -254,9 +255,9 @@ class ChatOrchestrator:
             if any(indicator in context_lower for indicator in product_indicators):
                 is_easycredit_query = 'easycredit' in query_lower or 'easy credit' in query_lower
                 if is_easycredit_query:
-                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE - EASYCREDIT QUERY 🚨\n" + "="*70 + "\nThe context above contains information about EasyCredit (interest rate, issuance fee, etc.).\n\nYOU MUST:\n1. FIRST: Extract and provide ALL available EasyCredit information from the context:\n   - Interest rate (20% reducing balance method)\n   - Issuance fee (2.3% or Tk. 575, whichever is higher, inclusive of VAT)\n   - Any other EasyCredit details mentioned\n2. THEN: Note what specific information is missing (e.g., 'However, the specific early settlement process is not detailed in the available information')\n3. NEVER say 'the specifics are not detailed' or 'the specific details are not provided' WITHOUT first providing the available EasyCredit information\n\nEXAMPLE CORRECT RESPONSE:\n'EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). However, the specific early settlement process is not detailed in the available information. Please contact the bank directly for this specific detail.'\n\nEXAMPLE WRONG RESPONSE:\n'While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance...' ← FORBIDDEN - missing available EasyCredit info\n" + "="*70
+                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE - EASYCREDIT QUERY 🚨\n" + "="*70 + "\nThe context above contains information about EasyCredit (interest rate, issuance fee, etc.).\n\nYOU MUST:\n1. FIRST: Extract and provide ALL available EasyCredit information from the context:\n   - Interest rate (20% reducing balance method)\n   - Issuance fee (2.3% or Tk. 575, whichever is higher, inclusive of VAT)\n   - Any other EasyCredit details mentioned\n2. If the exact detail is missing, DO NOT add a missing-info sentence.\n3. End with: \"Please contact the related department or unit for this specific detail if needed.\"\n\nEXAMPLE CORRECT RESPONSE:\n'EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). Please contact the related department or unit for this specific detail if needed.'\n\nEXAMPLE WRONG RESPONSE:\n'While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance...' ← FORBIDDEN - missing available EasyCredit info\n" + "="*70
                 else:
-                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. Then note what specific information is missing (e.g., 'However, the specific minimum balance for interest is not detailed in the available information')\n3. NEVER say 'I don't have information' or 'I'm sorry, but the context does not provide information' if the context contains ANY relevant information about the topic\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
+                    partial_info_reminder = "\n\n" + "="*70 + "\n🚨 CRITICAL PARTIAL INFORMATION RULE 🚨\n" + "="*70 + "\nThe context above contains information about the product/account/service mentioned in the query.\n\nYOU MUST:\n1. Extract and provide ALL available information about the product/account/service from the context\n2. If the exact detail is missing, DO NOT add a missing-info sentence.\n3. End with: \"Please contact the related department or unit for this specific detail if needed.\"\n\nEXAMPLE:\n- Query: 'What is the minimum balance for interest on EBL Super HPA Account?'\n- Context mentions 'Super HPA Account' but not minimum balance\n- CORRECT response: 'The EBL Super HPA Account [provide ALL available details from context]. Please contact the related department or unit for this specific detail if needed.'\n- WRONG response: 'I'm sorry, but the context does not provide information...'\n" + "="*70
 
         # Currency preservation reminder (only when card rates context is present)
         if self.OFFICIAL_CARD_RATES_HEADER in context or "Card Rates and Fees Information" in context:
@@ -434,7 +435,7 @@ class ChatOrchestrator:
                 await self._persist_turn(session_id, query, fee_context)
                 return {"response": fee_context, "sources": sources}
             else:
-                error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the bank directly."
+                error_msg = "I apologize, but I couldn't find the fee information for the selected loan product. Please try again or contact the related department or unit for this specific detail if needed."
                 await self._persist_turn(session_id, query, error_msg)
                 return {"response": error_msg, "sources": sources}
         
@@ -568,9 +569,9 @@ Guidelines:
    - **THEN**: Note what specific information is missing (e.g., "However, the specific minimum balance for interest is not detailed in the available information")
    - **ABSOLUTELY FORBIDDEN**: NEVER say "I don't have information" or "I'm sorry, but the context does not provide information" or "I'm sorry, but I don't have the specific information" or "the information provided does not specify" if the context contains ANY relevant information about the topic
    - **ABSOLUTELY FORBIDDEN**: NEVER say "I recommend reaching out directly to the bank" or "checking the specific terms and conditions" as the FIRST response if context contains ANY relevant information
-   - **Example CORRECT response**: If asked about "minimum balance for interest on EBL Super HPA Account" and context mentions "Super HPA Account" with other details but not minimum balance, say: "The EBL Super HPA Account [provide ALL available details from context - interest rates, features, benefits, etc.]. However, the specific minimum balance required for interest is not detailed in the available information. Please contact the bank directly for this specific detail."
-   - **Example CORRECT response**: If asked about "daily cash withdrawal transaction limit for savings account" and context has savings account info but not the specific limit, say: "For savings accounts at Eastern Bank PLC. [provide ALL available information about savings accounts from context - interest rates, features, benefits, etc.]. However, the specific maximum number of daily cash withdrawal transactions is not detailed in the available information. Please contact the bank directly for this specific detail."
-   - **Example CORRECT response**: If asked about "EasyCredit Early Settlement process" and context mentions EasyCredit with interest rate (20% reducing balance) and issuance fee (2.3% or Tk. 575) but not the early settlement process, say: "EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). However, the specific early settlement process is not detailed in the available information. Please contact the bank directly for this specific detail."
+   - **Example CORRECT response**: If asked about "minimum balance for interest on EBL Super HPA Account" and context mentions "Super HPA Account" with other details but not minimum balance, say: "The EBL Super HPA Account [provide ALL available details from context - interest rates, features, benefits, etc.]. Please contact the related department or unit for this specific detail if needed."
+   - **Example CORRECT response**: If asked about "daily cash withdrawal transaction limit for savings account" and context has savings account info but not the specific limit, say: "For savings accounts at Eastern Bank PLC. [provide ALL available information about savings accounts from context - interest rates, features, benefits, etc.]. Please contact the related department or unit for this specific detail if needed."
+   - **Example CORRECT response**: If asked about "EasyCredit Early Settlement process" and context mentions EasyCredit with interest rate (20% reducing balance) and issuance fee (2.3% or Tk. 575) but not the early settlement process, say: "EasyCredit at Eastern Bank PLC. has an annual fee of 20% interest rate (reducing balance method) and an issuance fee of 2.3% or Tk. 575 (whichever is higher, inclusive of VAT). Please contact the related department or unit for this specific detail if needed."
    - **Example WRONG response**: "I'm sorry, but the information provided does not specify the maximum number of daily cash withdrawal transactions allowed for a savings account at Eastern Bank PLC. For accurate information, I recommend reaching out directly to the bank or checking the specific terms and conditions of the savings account." ← THIS IS FORBIDDEN - it doesn't provide any available information first
    - **Example WRONG response**: "While the specifics of the EasyCredit Early Settlement process are not detailed in the available information, it generally involves paying off an outstanding EasyCredit loan balance before the end of the loan term." ← THIS IS FORBIDDEN - it doesn't provide the available EasyCredit information (interest rate, issuance fee) first
 6. Only say "I don't have information" if the context is completely empty or contains NO relevant information about the topic at all (not even the product/account/service name)
@@ -1239,27 +1240,26 @@ When responding:
         # If the query mentions ATM/CRM/RTDM but has no explicit location intent,
         # route to RAG/KB (e.g., "Can I pay card bill in EBL RTDM?").
         machine_location_terms = ["atm", "atms", "crm", "rtdm"]
-        location_cues = ["location", "address", "where", "near", "nearest", "around", "located"]
-        import re
-        has_in_location_phrase = bool(
-            re.search(r"\b(in)\s+(?!ebl\b|skybanking\b|app\b|mobile\b|online\b)[a-z][a-z0-9\s\-]{2,}\b", query_lower)
-        )
-        # Treat as location only if we see explicit location cues or known city/area tokens.
-        known_city_tokens = [
-            "dhaka", "chittagong", "sylhet", "khulna", "rajshahi", "barisal", "rangpur",
-            "narayanganj", "gazipur", "mymensingh", "comilla", "jessore", "bogra",
-            "cox's bazar", "coxs bazar", "feni", "noakhali", "tangail", "faridpur", "kishoreganj",
-        ]
-        known_area_tokens = [
-            "gulshan", "banani", "baridhara", "dhanmondi", "uttara", "motijheel",
-            "mirpur", "tejgaon", "basundhara", "badda", "malibagh", "mohakhali",
-            "paltan", "farmgate", "elephant road", "new market", "mouchak",
-        ]
-        has_geo_token = any(tok in query_lower for tok in known_city_tokens + known_area_tokens)
+        intent_flags = get_location_intent_flags(query)
+        has_location_cue = intent_flags.has_location_cue
+        has_geo_token = intent_flags.has_geo_token
+        has_in_location_phrase = intent_flags.has_in_location_phrase
         if any(k in query_lower for k in machine_location_terms):
-            if not any(k in query_lower for k in location_cues) and not has_geo_token and not has_in_location_phrase:
+            if not has_location_cue and not has_geo_token and not has_in_location_phrase:
                 logger.info(f"[ROUTING] Machine capability query (no location cues); skipping location service: '{query}'")
                 return False
+
+        # Guardrail: process/policy questions that mention "branch" should not default to location.
+        # Example: "What must the branch check before accepting locker surrender?"
+        process_intent_keywords = [
+            "process", "procedure", "steps", "how to", "policy", "guideline",
+            "what must", "checklist", "requirement", "required", "surrender",
+        ]
+        has_process_intent = any(k in query_lower for k in process_intent_keywords)
+        has_branch_keyword = any(k in query_lower for k in ["branch", "branches", "bank branch", "ebl branch"])
+        if has_branch_keyword and has_process_intent and not has_location_cue and not has_geo_token and not has_in_location_phrase:
+            logger.info(f"[ROUTING] Branch process query (no location cues); skipping location service: '{query}'")
+            return False
         
         # Location keywords - check for explicit location-related terms
         location_keywords = [
@@ -1286,7 +1286,6 @@ When responding:
         ]
         
         # Check for location-related patterns
-        import re
         location_patterns = [
             r'\blocation\s+of\b',  # "location of X"
             r'\baddress\s+of\b',   # "address of X"
@@ -1304,6 +1303,8 @@ When responding:
         
         # Check if query contains location keywords
         has_location_keyword = any(kw in query_lower for kw in location_keywords)
+        branch_keywords = ['branch', 'branches', 'bank branch', 'ebl branch']
+        has_branch_keyword = any(kw in query_lower for kw in branch_keywords)
         
         # Check for location patterns using regex
         has_location_pattern = any(re.search(pattern, query_lower) for pattern in location_patterns)
@@ -1321,6 +1322,10 @@ When responding:
         
         # Return True if any location indicator is found
         is_location = has_location_keyword or has_location_pattern or has_branch_name_pattern or has_priority_center_count_query
+        if has_branch_keyword and not has_location_cue and not has_geo_token and not has_in_location_phrase:
+            # Do not treat branch-only wording as a location query without explicit location intent.
+            if is_location and not has_location_pattern and not has_priority_center_count_query:
+                is_location = False
         
         if is_location:
             logger.info(f"[ROUTING] Detected location query: '{query}' (keyword={has_location_keyword}, pattern={has_location_pattern}, branch_pattern={has_branch_name_pattern}, priority_count={has_priority_center_count_query})")
@@ -2782,7 +2787,38 @@ When responding:
         sources = []
         seen_sources = set()  # To avoid duplicates
         excluded_count = 0  # Track how many chunks were excluded
+        logged_missing_doc_meta = False
         payload = lightrag_response.get("data") if isinstance(lightrag_response.get("data"), dict) else lightrag_response
+        import os
+        import json
+        def _normalize_doc_name(name: str) -> str:
+            cleaned = (name or "").strip()
+            if not cleaned:
+                return ""
+            # Normalize separators and whitespace, keep ASCII.
+            cleaned = re.sub(r"[_\-]+", " ", cleaned)
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+            return cleaned
+
+        def _format_source_label(source: str, doc_name: str) -> str:
+            source_clean = (source or "").strip()
+            doc_clean = _normalize_doc_name(doc_name)
+
+            # If doc name is missing, derive a readable name from the source path.
+            if not doc_clean and source_clean:
+                base = os.path.basename(source_clean)
+                if base:
+                    doc_clean = _normalize_doc_name(os.path.splitext(base)[0])
+
+            if doc_clean and source_clean:
+                if doc_clean.lower() in source_clean.lower():
+                    return doc_clean
+                return f"{doc_clean} ({source_clean})"
+            if doc_clean:
+                return doc_clean
+            if source_clean:
+                return source_clean
+            return ""
 
         # IMPORTANT ANTI-HALLUCINATION POLICY:
         # Do NOT use LightRAG's own generated "response" text as context.
@@ -2835,19 +2871,45 @@ When responding:
                     if isinstance(chunk, dict):
                         # Extract source from chunk metadata first (for filtering)
                         # Try multiple possible field names for source
+                        metadata = chunk.get("metadata") if isinstance(chunk.get("metadata"), dict) else {}
                         source = (
-                            chunk.get("source") or 
-                            chunk.get("file_name") or 
-                            chunk.get("document") or 
+                            chunk.get("source") or
+                            chunk.get("file_name") or
+                            chunk.get("document") or
                             chunk.get("file") or
                             chunk.get("doc_name") or
+                            chunk.get("file_path") or
+                            chunk.get("path") or
+                            chunk.get("filename") or
+                            metadata.get("source") or
+                            metadata.get("file_name") or
+                            metadata.get("document") or
+                            metadata.get("file") or
+                            metadata.get("doc_name") or
+                            metadata.get("file_path") or
+                            metadata.get("path") or
+                            metadata.get("filename") or
+                            ""
+                        )
+                        doc_name = (
+                            chunk.get("document_name") or
+                            chunk.get("doc_title") or
+                            chunk.get("document_title") or
+                            chunk.get("title") or
+                            chunk.get("name") or
+                            metadata.get("document_name") or
+                            metadata.get("doc_title") or
+                            metadata.get("document_title") or
+                            metadata.get("title") or
+                            metadata.get("name") or
                             ""
                         )
                         
                         # CRITICAL: Filter out financial documents if requested (for org overview queries)
-                        if filter_financial_docs and source and self._is_financial_document(source):
+                        filter_target = source or doc_name
+                        if filter_financial_docs and filter_target and self._is_financial_document(filter_target):
                             excluded_count += 1
-                            logger.info(f"[FILTER] Excluding chunk from financial document: {source}")
+                            logger.info(f"[FILTER] Excluding chunk from financial document: {filter_target}")
                             continue  # Skip this chunk
                         
                         text = chunk.get("text", chunk.get("content", ""))
@@ -2855,10 +2917,18 @@ When responding:
                             context_parts.append(f"- {text}")
                         
                         # Add source to sources list (only if not filtered)
-                        if source and source not in seen_sources:
-                            seen_sources.add(source)
-                            sources.append(source)
-                            logger.info(f"[SOURCES] Extracted source from chunk: {source}")
+                        label = _format_source_label(source, doc_name)
+                        if not logged_missing_doc_meta and not doc_name and (not source or "knowledge base" in source.lower()):
+                            logger.info(
+                                "[SOURCES] Missing document metadata in chunk. "
+                                f"chunk_keys={list(chunk.keys())}, metadata_keys={list(metadata.keys())}, "
+                                f"source={json.dumps(source)}"
+                            )
+                            logged_missing_doc_meta = True
+                        if label and label not in seen_sources:
+                            seen_sources.add(label)
+                            sources.append(label)
+                            logger.info(f"[SOURCES] Extracted source from chunk: {label}")
                 
                 # Log filtering results
                 if filter_financial_docs and excluded_count > 0:
@@ -2878,14 +2948,28 @@ When responding:
                         seen_sources.add(ref)
                         sources.append(ref)
                 elif isinstance(ref, dict):
-                    source = ref.get("source", ref.get("file_name", ref.get("document", "")))
+                    ref_source = ref.get("source", ref.get("file_name", ref.get("document", "")))
+                    ref_doc_name = ref.get("document_name", ref.get("doc_title", ref.get("document_title", ref.get("title", ref.get("name", "")))))
+                    ref_meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
+                    source = ref_source or ref_meta.get("source") or ref_meta.get("file_name") or ref_meta.get("document") or ref_meta.get("file_path") or ref_meta.get("path") or ref_meta.get("filename") or ""
+                    doc_name = (
+                        ref_doc_name or
+                        ref_meta.get("document_name") or
+                        ref_meta.get("doc_title") or
+                        ref_meta.get("document_title") or
+                        ref_meta.get("title") or
+                        ref_meta.get("name") or
+                        ""
+                    )
                     # Filter financial documents
-                    if filter_financial_docs and self._is_financial_document(source):
-                        logger.info(f"[FILTER] Excluding reference from financial document: {source}")
+                    filter_target = source or doc_name
+                    if filter_financial_docs and filter_target and self._is_financial_document(filter_target):
+                        logger.info(f"[FILTER] Excluding reference from financial document: {filter_target}")
                         continue
-                    if source and source not in seen_sources:
-                        seen_sources.add(source)
-                        sources.append(source)
+                    label = _format_source_label(source, doc_name)
+                    if label and label not in seen_sources:
+                        seen_sources.add(label)
+                        sources.append(label)
         
         # Final fallback: use response text even if it looks like a prompt
         if not context_parts and "response" in lightrag_response:
@@ -4397,6 +4481,7 @@ When responding:
             return {
                 "response": full_response,
                 "sources": sources,
+                "session_id": effective_session_id,
                 "routing": "location_service"
             }  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         

@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, List
 import re
 
 from app.core.config import settings
+from app.services.location_intent import get_location_intent_flags
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,15 @@ class LocationClient:
             return "head_office"
 
         # Check for branch (most common, check last)
-        if any(kw in query_lower for kw in ['branch', 'branches', 'bank branch', 'ebl branch']):
+        # Only treat as branch when there is explicit location intent.
+        branch_keywords = ['branch', 'branches', 'bank branch', 'ebl branch']
+        has_branch_keyword = any(kw in query_lower for kw in branch_keywords)
+        intent_flags = get_location_intent_flags(query)
+        if has_branch_keyword and (
+            intent_flags.has_location_cue
+            or intent_flags.has_geo_token
+            or intent_flags.has_in_location_phrase
+        ):
             return "branch"
         
         return None
@@ -69,7 +78,15 @@ class LocationClient:
         Extract location filters (city, region) from natural language query.
         Returns: {city, region, area, search}
         """
-        query_lower = query.lower()
+        # Normalize org prefixes for location parsing only (keep original query elsewhere).
+        query_clean = (query or "").strip()
+        query_clean = re.sub(
+            r"^\s*(?:ebl|eastern\s+bank(?:\s+plc)?)[\s\-:,]*",
+            "",
+            query_clean,
+            flags=re.IGNORECASE,
+        )
+        query_lower = query_clean.lower()
         filters = {
             "city": None,
             "region": None,
@@ -109,10 +126,11 @@ class LocationClient:
             'where', 'find', 'nearest', 'near', 'nearby', 'around', 'area', 'in', 'at', 'head office', 'priority center',
             'tell', 'me', 'the', 'of', 'is', 'are', 'what', 'can', 'i', 'locate', 'show', 'give', 'provide',
             'a', 'an', 'and', 'or', 'but', 'for', 'with', 'from', 'to', 'on', 'by',
-            'city', 'district', 'division', 'region', 'located'
+            'city', 'district', 'division', 'region', 'located',
+            'ebl', 'eastern', 'bank', 'plc'
         ]
         
-        words = query.split()
+        words = query_clean.split()
         for word in words:
             word_lower = word.lower().strip('.,!?;:')
             word_clean = word.strip('.,!?;:')
@@ -361,7 +379,6 @@ class LocationClient:
                 response_parts.append(f"Total: {total} location(s) found.\n\n")
         
         response_parts.append(f"Found {total} location(s) matching your query:\n")
-        response_parts.append("=" * 70 + "\n")
         
         for loc_type, locs in by_type.items():
             type_name = loc_type.replace("_", " ").title()
@@ -370,7 +387,6 @@ class LocationClient:
                 response_parts.append(f"\n{type_name}s (showing {shown} of {total}):\n")
             else:
                 response_parts.append(f"\n{type_name}s (showing {shown}):\n")
-            response_parts.append("-" * 70 + "\n")
             
             for loc in locs[:10]:  # Limit to 10 per type for readability
                 name = loc.get("name", "Unknown")
@@ -406,8 +422,7 @@ class LocationClient:
             elif len(locs) > 10:
                 response_parts.append(f"... and {len(locs) - 10} more {type_name.lower()}(s)\n")
         
-        response_parts.append("=" * 70)
-        response_parts.append("\nSource: EBL Location Database (Normalized)")
+        response_parts.append("Source: EBL Location Database (Normalized)")
         
         return "".join(response_parts)
 

@@ -85,14 +85,41 @@ class RoutingEngine:
             r"\bmanager\b",
             r"\bcontact\b",
             r"\bphone\b",
-            r"\bnumber\b",
             r"\bmobile\b",
             r"\bemail\b",
             r"\bip phone\b",
             r"\bextension\b",
             r"\bext\b",
+            r"\b(phone|mobile|contact)\s+number\b",
         ]
         phonebook_intent_override = any(re.search(pat, query_lower) for pat in phonebook_intent_patterns)
+        numeric_limit_phrases = [
+            "number of",
+            "how many",
+            "count of",
+            "maximum number",
+            "max number",
+            "limit on the number",
+            "limit on number",
+        ]
+        has_contact_term = any(
+            re.search(pat, query_lower)
+            for pat in [
+                r"\bcontact\b",
+                r"\bphone\b",
+                r"\bmobile\b",
+                r"\bemail\b",
+                r"\bip phone\b",
+                r"\bextension\b",
+                r"\bext\b",
+            ]
+        )
+        if phonebook_intent_override and any(phrase in query_lower for phrase in numeric_limit_phrases) and not has_contact_term:
+            phonebook_intent_override = False
+        # Guardrail: only allow override if a contact/employee/phonebook signal exists.
+        # This prevents policy/process queries like "email confirmation policy" from hitting phonebook.
+        if phonebook_intent_override and not (is_contact_query or is_employee_query or is_phonebook_query):
+            phonebook_intent_override = False
 
         # Knowledge base selection
         chosen_kb = knowledge_base or self.orchestrator._get_knowledge_base(query)

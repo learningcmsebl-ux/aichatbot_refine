@@ -35,6 +35,24 @@ class RoutingCase:
 
 CASES: List[RoutingCase] = [
     RoutingCase(
+        name="EmailConfirmationPolicy_RoutesToLightRAG",
+        query="What is the email confirmation policy for account processing?",
+        expected_target="LIGHTRAG",
+        expected_kb="ebl_products",
+    ),
+    RoutingCase(
+        name="AgentOutlet_MasterVsUnit_Outlets",
+        query="How does a Master Agent differ from a Unit Agent based on the number of outlets they can open?",
+        expected_target="LIGHTRAG",
+        expected_kb="ebl_products",
+    ),
+    RoutingCase(
+        name="AgentOutlet_UnitAgent_OutletLimit",
+        query="What is the limit on the number of outlets a Unit Agent can open?",
+        expected_target="LIGHTRAG",
+        expected_kb="ebl_products",
+    ),
+    RoutingCase(
         name="StaffingRequirement_AgentOutlet",
         query="How many staff are required for customer service and cash transactions from the Agent's side, and how many Bank staff are required at the outlet?",
         expected_target="LIGHTRAG",
