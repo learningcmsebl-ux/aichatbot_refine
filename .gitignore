@@ -60,6 +60,10 @@ build/
 *.temp
 *.bak
 
+# Geocoding artifacts
+location_service/geocode_failures*.csv
+location_service/geocode_progress*.json
+
 # Docker
 docker-compose.override.yml
 

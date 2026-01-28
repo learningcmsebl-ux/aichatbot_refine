@@ -18,7 +18,7 @@ def migrate_phonebook():
     print()
     
     # Check if SQLite database exists
-    sqlite_path = "chatbot_convert/phonebook.db"
+    sqlite_path = os.getenv("SQLITE_PHONEBOOK_PATH", "phonebook.db")
     if not os.path.exists(sqlite_path):
         print(f"✗ SQLite phonebook not found at: {sqlite_path}")
         return False
@@ -150,7 +150,7 @@ def migrate_analytics():
     print()
     
     # Check if SQLite database exists
-    sqlite_path = "chatbot_convert/analytics/conversations.db"
+    sqlite_path = os.getenv("SQLITE_ANALYTICS_PATH", "analytics/conversations.db")
     if not os.path.exists(sqlite_path):
         print(f"✗ SQLite analytics not found at: {sqlite_path}")
         return False
@@ -375,14 +375,16 @@ def main():
     print()
     
     # Check what needs to be migrated
-    phonebook_exists = os.path.exists("chatbot_convert/phonebook.db")
-    analytics_exists = os.path.exists("chatbot_convert/analytics/conversations.db")
+    phonebook_path = os.getenv("SQLITE_PHONEBOOK_PATH", "phonebook.db")
+    analytics_path = os.getenv("SQLITE_ANALYTICS_PATH", "analytics/conversations.db")
+    phonebook_exists = os.path.exists(phonebook_path)
+    analytics_exists = os.path.exists(analytics_path)
     
     if not phonebook_exists and not analytics_exists:
         print("No SQLite databases found to migrate")
         print("  Expected:")
-        print("    - chatbot_convert/phonebook.db")
-        print("    - chatbot_convert/analytics/conversations.db")
+        print(f"    - {phonebook_path}")
+        print(f"    - {analytics_path}")
         return
     
     print("Found SQLite databases:")

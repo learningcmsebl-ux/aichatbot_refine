@@ -2,9 +2,9 @@
 
 ## How Your Chatbot Interacts with PostgreSQL Phonebook
 
-### Current Flow (SQLite → PostgreSQL Migration)
+### Current Flow (PostgreSQL Phonebook)
 
-Your chatbot currently uses SQLite phonebook, but we need to update it to use PostgreSQL. Here's how the integration works:
+The current `bank_chatbot` already uses the PostgreSQL phonebook. Here's how the integration works:
 
 ## Integration Flow
 
@@ -33,33 +33,10 @@ AIAgent.process() method
     └─ Skip LightRAG (faster response)
 ```
 
-## Code Changes Required
+## Code Location
 
-### Step 1: Update Import Statement
-
-**In `chatbot_convert/main.py`:**
-
-**OLD (SQLite):**
-```python
-# Import phone book database
-try:
-    from phonebook_db import get_phonebook_db
-    PHONEBOOK_DB_AVAILABLE = True
-except ImportError:
-    PHONEBOOK_DB_AVAILABLE = False
-```
-
-**NEW (PostgreSQL):**
-```python
-# Import phone book database (PostgreSQL)
-try:
-    from phonebook_postgres import get_phonebook_db
-    PHONEBOOK_DB_AVAILABLE = True
-except ImportError:
-    PHONEBOOK_DB_AVAILABLE = False
-    logger.warning("[WARN] Phone book database not available (phonebook_postgres.py not found)")
-    print("[WARN] Phone book database not available (phonebook_postgres.py not found)")
-```
+**In `bank_chatbot/app/services/chat_orchestrator.py`:**
+- The PostgreSQL phonebook is imported and used in the phonebook/contact routing path.
 
 ### Step 2: Environment Configuration
 

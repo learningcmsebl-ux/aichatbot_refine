@@ -17,6 +17,7 @@ import os
 import secrets
 import hashlib
 from sqlalchemy import create_engine, Column, String, Date, Integer, DECIMAL, Text, DateTime, Boolean, or_, and_, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import UUID
@@ -36,6 +37,15 @@ RETAIL_FEE_BASIS_ALLOWED = {
     "ON_OUTSTANDING",
     "ON_OVERDUE",
     "PER_QUOTATION_CHANGE",
+}
+
+CHARGE_CONTEXT_ALLOWED = {
+    "GENERAL",
+    "ON_LIMIT",
+    "ON_ENHANCED_AMOUNT",
+    "ON_REDUCED_AMOUNT",
+    "ON_CATEGORY_A_B",
+    "ON_CATEGORY_C",
 }
 
 # Import from fee_engine_service
@@ -916,7 +926,14 @@ async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: S
 
         # Map v1 field names to v2 field names for backward compatibility
         # If v2 fields are provided, use them; otherwise map from v1 fields
-        charge_context = getattr(charge_data, 'charge_context', None) or "GENERAL"
+        charge_context_raw = getattr(charge_data, "charge_context", None)
+        if charge_context_raw:
+            charge_context = str(charge_context_raw).strip().upper()
+            if charge_context not in CHARGE_CONTEXT_ALLOWED:
+                allowed = ", ".join(sorted(CHARGE_CONTEXT_ALLOWED))
+                raise HTTPException(status_code=400, detail=f"Invalid charge_context '{charge_context}'. Allowed values: {allowed}")
+        else:
+            charge_context = "GENERAL"
         charge_title = getattr(charge_data, 'charge_title', None) or (charge_data.charge_description[:200] if charge_data.charge_description else charge_data.charge_type)
         
         # Map tier fields: v1 names → v2 names
@@ -993,6 +1010,31 @@ async def create_retail_asset_charge(charge_data: RetailAssetChargeCreate, db: S
         db.commit()
         db.refresh(new_charge)
         return retail_asset_charge_to_dict(new_charge)
+    except IntegrityError as e:
+        db.rollback()
+        constraint_name = getattr(getattr(getattr(e, "orig", None), "diag", None), "constraint_name", None)
+        if constraint_name == "uq_retail_v2_rule" or "uq_retail_v2_rule" in str(e):
+            charge_context_value = locals().get("charge_context") or getattr(charge_data, "charge_context", None) or "GENERAL"
+            existing = (
+                db.query(RetailAssetChargeMaster)
+                .filter(
+                    RetailAssetChargeMaster.loan_product == charge_data.loan_product,
+                    RetailAssetChargeMaster.charge_type == charge_data.charge_type,
+                    RetailAssetChargeMaster.charge_context == charge_context_value,
+                    RetailAssetChargeMaster.effective_from == charge_data.effective_from,
+                )
+                .first()
+            )
+            detail = {
+                "message": (
+                    "Charge already exists for the same loan_product, charge_type, "
+                    "charge_context, and effective_from. Use the update endpoint instead."
+                ),
+                "existing_charge_id": str(existing.charge_id) if existing else None,
+            }
+            raise HTTPException(status_code=409, detail=detail)
+        logger.error(f"Integrity error creating charge: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail="Invalid charge data. Please verify the input and try again.")
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating charge: {e}", exc_info=True)
@@ -1034,6 +1076,13 @@ async def update_retail_asset_charge(charge_id: str, charge_data: RetailAssetCha
                         f"Allowed examples: {allowed_preview}{more}"
                     ),
                 )
+
+        if "charge_context" in update_data and update_data["charge_context"] is not None:
+            charge_context = str(update_data["charge_context"]).strip().upper()
+            if charge_context not in CHARGE_CONTEXT_ALLOWED:
+                allowed = ", ".join(sorted(CHARGE_CONTEXT_ALLOWED))
+                raise HTTPException(status_code=400, detail=f"Invalid charge_context '{charge_context}'. Allowed values: {allowed}")
+            update_data["charge_context"] = charge_context
 
         # Defensive normalization: Postgres fee_basis_enum is strict.
         # The UI previously allowed PER_REQUEST, which is not valid for retail assets.
@@ -1655,6 +1704,12 @@ class PriorityCenterUpdate(BaseModel):
     region: Optional[str] = None
 
 
+class PriorityCenterCreate(BaseModel):
+    center_name: Optional[str] = None
+    city: str
+    region: str
+
+
 class PoiLandmarkCreate(BaseModel):
     name: str
     aliases: Optional[List[str]] = None
@@ -1972,6 +2027,70 @@ async def update_priority_center(
         db.rollback()
         logger.error(f"Error updating priority center: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error updating priority center: {str(e)}")
+
+
+# Create priority center
+@app.post("/api/locations/priority-centers", dependencies=[Depends(verify_admin)])
+async def create_priority_center(
+    priority_data: PriorityCenterCreate,
+    db: Session = Depends(get_location_db)
+):
+    """Create a priority center"""
+    if not LOCATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Location service not available")
+
+    try:
+        region_name = priority_data.region
+        city_name = priority_data.city
+
+        if not region_name or not city_name:
+            raise HTTPException(status_code=400, detail="Region and city are required")
+
+        region = db.query(Region).filter(Region.region_name == region_name).first()
+        if not region:
+            region_code = region_name.upper()[:10]
+            region = Region(
+                region_code=region_code,
+                region_name=region_name,
+                country_code="BD"
+            )
+            db.add(region)
+            db.flush()
+
+        city = db.query(City).filter(
+            City.city_name == city_name,
+            City.region_id == region.region_id
+        ).first()
+        if not city:
+            city = City(
+                city_name=city_name,
+                region_id=region.region_id
+            )
+            db.add(city)
+            db.flush()
+
+        existing = db.query(PriorityCenter).filter(PriorityCenter.city_id == city.city_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Priority center already exists for this city")
+
+        priority = PriorityCenter(
+            city_id=city.city_id,
+            center_name=priority_data.center_name
+        )
+        db.add(priority)
+        db.commit()
+
+        return {
+            "id": str(priority.priority_center_id),
+            "name": priority.center_name or city.city_name,
+            "message": "Priority center created successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating priority center: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating priority center: {str(e)}")
 
 
 # ===== POI / LANDMARKS API =====

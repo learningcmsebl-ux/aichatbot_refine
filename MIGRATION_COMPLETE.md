@@ -76,8 +76,7 @@ Run your application and verify:
 ### 3. Optional: Keep SQLite as Backup
 
 The original SQLite databases are still intact:
-- `chatbot_convert/phonebook.db` (2,930 records)
-- `chatbot_convert/analytics/conversations.db` (351 conversations)
+- Legacy SQLite backups were removed after PostgreSQL verification.
 
 You can keep these as backups or remove them after verifying PostgreSQL works correctly.
 

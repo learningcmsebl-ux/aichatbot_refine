@@ -89,7 +89,7 @@ result = client.health_check()
 
 ## Important Notes
 
-1. **Old Chatbot (`chatbot_convert`)**: Still references port 9261, but is not used by the current `bank_chatbot`
+1. **Legacy chatbot removed**: Current system is `bank_chatbot` only
 2. **LightRAG_30092025**: Running on port 9261, but not used by `bank_chatbot`
 3. **All Active Queries**: Use LightRAG_New on port 9262 ✅
 

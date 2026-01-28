@@ -40,7 +40,15 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE charge_context_enum AS ENUM ('GENERAL','ON_LIMIT','ON_ENHANCED_AMOUNT','ON_REDUCED_AMOUNT');
+  CREATE TYPE charge_context_enum AS ENUM (
+    'GENERAL','ON_LIMIT','ON_ENHANCED_AMOUNT','ON_REDUCED_AMOUNT','ON_CATEGORY_A_B','ON_CATEGORY_C'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Add new enum values if the type already exists
+DO $$ BEGIN
+  ALTER TYPE charge_context_enum ADD VALUE IF NOT EXISTS 'ON_CATEGORY_A_B';
+  ALTER TYPE charge_context_enum ADD VALUE IF NOT EXISTS 'ON_CATEGORY_C';
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 2) New v2 master table
@@ -169,6 +177,8 @@ COMMENT ON INDEX uq_retail_v2_rule IS 'Unique constraint ensuring deterministic 
 -- 8) Backward Compatible VIEW (maps v2 back to v1 structure)
 -- This allows existing code using raw SQL queries on 'retail_asset_charge_master' to continue working
 -- Note: SQLAlchemy ORM uses the v2 table directly (via __tablename__), so it bypasses this VIEW
+-- Option B: replace legacy table with a view
+DROP TABLE IF EXISTS retail_asset_charge_master;
 CREATE OR REPLACE VIEW retail_asset_charge_master AS
 SELECT
   charge_id,

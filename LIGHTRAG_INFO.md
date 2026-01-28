@@ -189,7 +189,7 @@ docs = client.get_documents(page=1, page_size=10)
 
 ## Integration with Your Chatbot
 
-In your old chatbot (`chatbot_convert/main.py`):
+In your current chatbot (`bank_chatbot/app/services/chat_orchestrator.py`):
 - LightRAG is queried for banking/product questions
 - Results are cached in Redis
 - Context is formatted and sent to OpenAI

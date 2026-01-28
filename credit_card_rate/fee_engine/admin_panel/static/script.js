@@ -222,6 +222,8 @@ function setupEventListeners() {
     document.getElementById('machineClearFilters').addEventListener('click', clearMachineFilters);
     document.getElementById('priorityApplyFilters').addEventListener('click', applyPriorityFilters);
     document.getElementById('priorityClearFilters').addEventListener('click', clearPriorityFilters);
+    const addPriorityBtn = document.getElementById('addNewPriorityCenter');
+    if (addPriorityBtn) addPriorityBtn.addEventListener('click', () => showAddPriorityModal());
 
     // POI filters + actions
     const poiApply = document.getElementById('poiApplyFilters');
@@ -398,8 +400,19 @@ async function apiCall(endpoint, options = {}) {
     }
     
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(error.detail || 'Request failed');
+        const errorBody = await response.json().catch(() => ({}));
+        let message = 'Request failed';
+        if (typeof errorBody.detail === 'string') {
+            message = errorBody.detail;
+        } else if (errorBody.detail && typeof errorBody.detail.message === 'string') {
+            message = errorBody.detail.message;
+        } else if (typeof errorBody.message === 'string') {
+            message = errorBody.message;
+        }
+        const err = new Error(message || 'Request failed');
+        err.status = response.status;
+        err.data = errorBody.detail ?? errorBody;
+        throw err;
     }
     
     return response.json();
@@ -703,6 +716,18 @@ async function handleSave(e) {
             loadRules();
         }
     } catch (error) {
+        const conflictId = error && error.status === 409 && error.data && error.data.existing_charge_id
+            ? error.data.existing_charge_id
+            : null;
+        if (conflictId) {
+            errorDiv.textContent = `Error: ${error.message} (Existing ID: ${conflictId})`;
+            errorDiv.classList.add('show');
+            const shouldOpen = confirm('A matching charge already exists. Open it for editing?');
+            if (shouldOpen) {
+                await editRetailCharge(conflictId);
+            }
+            return;
+        }
         errorDiv.textContent = 'Error: ' + error.message;
         errorDiv.classList.add('show');
     }
@@ -1993,10 +2018,51 @@ async function handleSaveMachine(e) {
 }
 
 // Edit Priority Center Functions
+async function showAddPriorityModal() {
+    document.getElementById('priorityModalTitle').textContent = 'Add Priority Center';
+    document.getElementById('editPriorityId').value = '';
+    document.getElementById('editPriorityName').value = '';
+
+    const citySelect = document.getElementById('editPriorityCity');
+    const regionSelect = document.getElementById('editPriorityRegion');
+    if (!locationFiltersData) {
+        await loadLocationFilters();
+    }
+    if (locationFiltersData) {
+        if (citySelect.options.length <= 1) {
+            locationFiltersData.cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                citySelect.appendChild(option);
+            });
+        }
+        if (regionSelect.options.length <= 1) {
+            locationFiltersData.regions.forEach(region => {
+                const option = document.createElement('option');
+                option.value = region;
+                option.textContent = region;
+                regionSelect.appendChild(option);
+            });
+        }
+    }
+
+    citySelect.value = '';
+    regionSelect.value = '';
+
+    document.getElementById('editPriorityError').textContent = '';
+    document.getElementById('editPriorityError').classList.remove('show');
+    document.getElementById('editPriorityModal').style.display = 'block';
+}
+
 async function editPriorityCenter(priorityId) {
     try {
         const priority = await apiCall(`/api/locations/priority-centers/${priorityId}`);
+        if (!locationFiltersData) {
+            await loadLocationFilters();
+        }
         populatePriorityEditForm(priority);
+        document.getElementById('priorityModalTitle').textContent = 'Edit Priority Center';
         document.getElementById('editPriorityModal').style.display = 'block';
     } catch (error) {
         showError('Failed to load priority center: ' + error.message);
@@ -2055,11 +2121,19 @@ async function handleSavePriority(e) {
     };
     
     try {
-        await apiCall(`/api/locations/priority-centers/${priorityId}`, {
-            method: 'PUT',
-            body: JSON.stringify(formData)
-        });
-        showSuccess('Priority center updated successfully!');
+        if (priorityId) {
+            await apiCall(`/api/locations/priority-centers/${priorityId}`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+            showSuccess('Priority center updated successfully!');
+        } else {
+            await apiCall(`/api/locations/priority-centers`, {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            showSuccess('Priority center created successfully!');
+        }
         closeEditPriorityModal();
         loadPriorityCenters();
     } catch (error) {

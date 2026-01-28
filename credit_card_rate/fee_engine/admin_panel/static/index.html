@@ -417,6 +417,7 @@
                     <button id="priorityApplyFilters" class="btn btn-primary">Apply Filters</button>
                     <button id="priorityClearFilters" class="btn btn-secondary">Clear</button>
                     <button id="exportPriorityCenters" class="btn btn-info" onclick="exportPriorityCentersToCSV()">📥 Export to CSV</button>
+                    <button id="addNewPriorityCenter" class="btn btn-success">+ Add New Priority Center</button>
                 </div>
             </div>
 
@@ -860,10 +861,10 @@
         </div>
     </div>
 
-    <!-- Edit Priority Center Modal -->
+    <!-- Edit/Add Priority Center Modal -->
     <div id="editPriorityModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h2>Edit Priority Center</h2>
+            <h2 id="priorityModalTitle">Edit Priority Center</h2>
             <form id="editPriorityForm">
                 <input type="hidden" id="editPriorityId">
                 <div class="form-group">
@@ -957,10 +958,17 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="editRetailChargeContext">Charge Context * (Documentation Only)</label>
-                        <input type="text" id="editRetailChargeContext" required placeholder="e.g., GENERAL, ON_LIMIT, CASH LIMIT">
+                        <label for="editRetailChargeContext">Charge Context *</label>
+                        <select id="editRetailChargeContext" required>
+                            <option value="GENERAL">GENERAL</option>
+                            <option value="ON_LIMIT">ON_LIMIT</option>
+                            <option value="ON_ENHANCED_AMOUNT">ON_ENHANCED_AMOUNT</option>
+                            <option value="ON_REDUCED_AMOUNT">ON_REDUCED_AMOUNT</option>
+                            <option value="ON_CATEGORY_A_B">ON_CATEGORY_A_B</option>
+                            <option value="ON_CATEGORY_C">ON_CATEGORY_C</option>
+                        </select>
                         <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
-                            📝 For documentation/categorization only. Lookups use the "Description" field.
+                            Valid enum values only. This is part of the uniqueness constraint.
                         </small>
                     </div>
                     <div class="form-group">

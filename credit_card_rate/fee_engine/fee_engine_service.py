@@ -833,7 +833,8 @@ def extract_charge_context(charge_description: str) -> str:
     Extract charge_context from charge_description using keyword matching.
     
     Returns:
-        charge_context: ON_LIMIT, ON_ENHANCED_AMOUNT, ON_REDUCED_AMOUNT, or GENERAL
+        charge_context: ON_LIMIT, ON_ENHANCED_AMOUNT, ON_REDUCED_AMOUNT,
+        ON_CATEGORY_A_B, ON_CATEGORY_C, or GENERAL
         (Only valid enum values for charge_context_enum)
     """
     if not charge_description:
@@ -841,6 +842,12 @@ def extract_charge_context(charge_description: str) -> str:
     
     desc_lower = charge_description.lower()
     
+    # Category-specific phrases
+    if any(keyword in desc_lower for keyword in ["category a and category b", "category a & b", "category a/b"]):
+        return "ON_CATEGORY_A_B"
+    if "category c" in desc_lower:
+        return "ON_CATEGORY_C"
+
     # Check for enhancement keywords first (before generic limit)
     if any(keyword in desc_lower for keyword in ["enhancement", "enhance", "limit enhancement", "enhance limit"]):
         return "ON_ENHANCED_AMOUNT"
