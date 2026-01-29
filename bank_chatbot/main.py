@@ -1,6 +1,8 @@
 """
 Bank Chatbot - FastAPI Orchestrator
 Main application entry point for the bank chatbot system.
+
+Uses Dependency Injection for service lifecycle management.
 """
 
 from fastapi import FastAPI, HTTPException, Request
@@ -10,10 +12,11 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.config import settings
-from app.api.routes import chat_router, health_router, analytics_router, debug_router, orchestrator
+from app.api.routes import chat_router, health_router, analytics_router, debug_router, get_container
 from app.api.phonebook_routes import phonebook_router
 from app.database.postgres import init_db, close_db
 from app.database.redis_client import init_redis, close_redis
+from app.core.dependencies import startup_services, shutdown_services
 
 # Configure logging
 logging.basicConfig(
@@ -25,20 +28,21 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager for startup and shutdown"""
+    """
+    Application lifespan manager for startup and shutdown.
+    
+    Uses Dependency Injection container for service lifecycle management.
+    """
     # Startup
     logger.info("Starting Bank Chatbot application...")
     await init_db()
     await init_redis()
+    await startup_services()  # Initialize DI container services
     logger.info("Application started successfully")
     yield
     # Shutdown
     logger.info("Shutting down Bank Chatbot application...")
-    # Close LightRAG client (httpx.AsyncClient)
-    try:
-        await orchestrator.close()
-    except Exception as e:
-        logger.warning(f"Error closing orchestrator: {e}")
+    await shutdown_services()  # Cleanup DI container services
     await close_db()
     await close_redis()
     logger.info("Application shut down successfully")

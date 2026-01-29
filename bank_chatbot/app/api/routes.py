@@ -1,18 +1,59 @@
 """
 API routes for the Bank Chatbot.
+
+Uses Dependency Injection for services via FastAPI's Depends().
+Uses Pydantic DTOs for request/response validation and documentation.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from fastapi.responses import StreamingResponse
 from fastapi import Request as FastAPIRequest
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 import asyncio
 
 from app.services.chat_orchestrator import ChatOrchestrator
 from app.services.lightrag_client import LightRAGClient
 from app.database.redis_client import RedisCache
+from app.core.dependencies import (
+    get_orchestrator,
+    get_lightrag_client,
+    get_redis_cache,
+    get_container,
+    ServiceContainer,
+)
+
+# Import DTOs from models
+from app.models.chat import (
+    ChatRequest,
+    ChatResponse,
+    ChatMessage,
+    ChatHistoryResponse,
+    ClearHistoryResponse,
+    RouteDebugResponse,
+)
+from app.models.health import (
+    HealthResponse,
+    DetailedHealthResponse,
+    ComponentHealth,
+)
+from app.models.analytics import (
+    PerformanceMetricsResponse,
+    OverallMetrics,
+    DailyMetric,
+    MostAskedQuestionsResponse,
+    MostAskedQuestion,
+    UnansweredQuestionsResponse,
+    UnansweredQuestion,
+    ConversationHistoryResponse,
+    ConversationRecord,
+    RoutingDistributionResponse,
+    RoutingDistributionItem,
+    TestConversationLogResponse,
+    ConversationLogCheckResponse,
+    ConversationLogCheckRecord,
+)
+from app.models.common import StatusEnum
 
 logger = logging.getLogger(__name__)
 
@@ -22,132 +63,133 @@ chat_router = APIRouter()
 analytics_router = APIRouter()
 debug_router = APIRouter()
 
-# Initialize orchestrator (singleton)
-orchestrator = ChatOrchestrator()
+# Legacy: Keep orchestrator reference for backward compatibility
+# New code should use Depends(get_orchestrator) instead
+def _get_legacy_orchestrator() -> ChatOrchestrator:
+    """Get orchestrator from DI container (for backward compatibility)."""
+    return get_container().orchestrator
+
+# For backward compatibility with code that imports 'orchestrator' directly
+# This is a lazy property that will be resolved when accessed
+class _OrchestratorProxy:
+    """Proxy object that lazily gets orchestrator from DI container."""
+    def __getattr__(self, name):
+        return getattr(get_container().orchestrator, name)
+
+orchestrator = _OrchestratorProxy()
 
 # Export orchestrator for shutdown hook
-__all__ = ['orchestrator', 'health_router', 'chat_router', 'analytics_router', 'debug_router']
-
-
-# Request/Response Models
-class ChatRequest(BaseModel):
-    """Chat request model"""
-    query: str = Field(..., description="User's query or message")
-    session_id: Optional[str] = Field(None, description="Session ID for conversation history")
-    knowledge_base: Optional[str] = Field(None, description="LightRAG knowledge base name")
-    stream: bool = Field(True, description="Whether to stream the response")
-
-
-class ChatResponse(BaseModel):
-    """Chat response model"""
-    response: str = Field(..., description="Assistant's response")
-    session_id: str = Field(..., description="Session ID for the conversation")
-    sources: Optional[List[str]] = Field(default=[], description="Knowledge base sources used")
-
-
-class RouteDebugResponse(BaseModel):
-    """Routing debug response model"""
-    query: str
-    target: str
-    knowledge_base: str
-    pending_disambiguation: bool
-    signals: dict
+__all__ = ['orchestrator', 'health_router', 'chat_router', 'analytics_router', 'debug_router', 'get_container']
 
 
 # Health Check Routes
-@health_router.get("/health")
+@health_router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "Bank Chatbot API"
-    }
+    return HealthResponse(
+        status=StatusEnum.HEALTHY,
+        service="Bank Chatbot API"
+    )
 
 
-@health_router.get("/health/detailed")
-async def detailed_health_check():
-    """Detailed health check with component status"""
-    status = {
-        "status": "healthy",
-        "service": "Bank Chatbot API",
-        "components": {}
-    }
+@health_router.get("/health/detailed", response_model=DetailedHealthResponse)
+async def detailed_health_check(
+    lightrag_client: LightRAGClient = Depends(get_lightrag_client),
+    redis_cache: RedisCache = Depends(get_redis_cache),
+):
+    """
+    Detailed health check with component status.
     
-    # Check LightRAG
-    try:
-        lightrag_client = LightRAGClient()
-        health = await lightrag_client.health_check()
-        status["components"]["lightrag"] = {
-            "status": "healthy" if health.get("status") != "error" else "unhealthy",
-            "details": health
-        }
-        await lightrag_client.close()
-    except asyncio.CancelledError:
-        status["components"]["lightrag"] = {
-            "status": "unhealthy",
-            "error": "Connection cancelled/timeout"
-        }
-    except Exception as e:
-        status["components"]["lightrag"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+    Uses injected dependencies instead of creating new instances.
+    Runs health checks in PARALLEL for faster response time.
+    """
+    components: Dict[str, ComponentHealth] = {}
     
-    # Check Redis
-    try:
-        redis_cache = RedisCache()
-        # Try a simple operation
-        await redis_cache.set("health_check", "ok", ttl=10)
-        await redis_cache.get("health_check")
-        status["components"]["redis"] = {
-            "status": "healthy"
-        }
-    except asyncio.CancelledError:
-        status["components"]["redis"] = {
-            "status": "unhealthy",
-            "error": "Connection cancelled/timeout"
-        }
-    except Exception as e:
-        status["components"]["redis"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+    # ============================================================
+    # PARALLEL HEALTH CHECKS - Run LightRAG and Redis in parallel
+    # ============================================================
+    async def check_lightrag() -> ComponentHealth:
+        """Check LightRAG health."""
+        try:
+            health = await lightrag_client.health_check()
+            return ComponentHealth(
+                status=StatusEnum.HEALTHY if health.get("status") != "error" else StatusEnum.UNHEALTHY,
+                details=health
+            )
+        except asyncio.CancelledError:
+            return ComponentHealth(
+                status=StatusEnum.UNHEALTHY,
+                error="Connection cancelled/timeout"
+            )
+        except Exception as e:
+            return ComponentHealth(
+                status=StatusEnum.UNHEALTHY,
+                error=str(e)
+            )
     
-    # Check PostgreSQL (basic check)
+    async def check_redis() -> ComponentHealth:
+        """Check Redis health."""
+        try:
+            await redis_cache.set("health_check", "ok", ttl=10)
+            await redis_cache.get("health_check")
+            return ComponentHealth(status=StatusEnum.HEALTHY)
+        except asyncio.CancelledError:
+            return ComponentHealth(
+                status=StatusEnum.UNHEALTHY,
+                error="Connection cancelled/timeout"
+            )
+        except Exception as e:
+            return ComponentHealth(
+                status=StatusEnum.UNHEALTHY,
+                error=str(e)
+            )
+    
+    # Run LightRAG and Redis checks in parallel (performance optimization)
+    lightrag_result, redis_result = await asyncio.gather(
+        check_lightrag(),
+        check_redis(),
+        return_exceptions=False
+    )
+    
+    components["lightrag"] = lightrag_result
+    components["redis"] = redis_result
+    
+    # Check PostgreSQL (synchronous - run after parallel checks)
     try:
         from app.database.postgres import engine
         from sqlalchemy import text
         if engine:
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            status["components"]["postgresql"] = {
-                "status": "healthy"
-            }
+            components["postgresql"] = ComponentHealth(status=StatusEnum.HEALTHY)
         else:
-            status["components"]["postgresql"] = {
-                "status": "unhealthy",
-                "error": "Engine not initialized"
-            }
+            components["postgresql"] = ComponentHealth(
+                status=StatusEnum.UNHEALTHY,
+                error="Engine not initialized"
+            )
     except asyncio.CancelledError:
-        status["components"]["postgresql"] = {
-            "status": "unhealthy",
-            "error": "Connection cancelled/timeout"
-        }
+        components["postgresql"] = ComponentHealth(
+            status=StatusEnum.UNHEALTHY,
+            error="Connection cancelled/timeout"
+        )
     except Exception as e:
-        status["components"]["postgresql"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        components["postgresql"] = ComponentHealth(
+            status=StatusEnum.UNHEALTHY,
+            error=str(e)
+        )
     
     # Overall status
     all_healthy = all(
-        comp.get("status") == "healthy"
-        for comp in status["components"].values()
+        comp.status == StatusEnum.HEALTHY
+        for comp in components.values()
     )
-    if not all_healthy:
-        status["status"] = "degraded"
+    overall_status = StatusEnum.HEALTHY if all_healthy else StatusEnum.DEGRADED
     
-    return status
+    return DetailedHealthResponse(
+        status=overall_status,
+        service="Bank Chatbot API",
+        components=components
+    )
 
 
 def is_local_network_ip(ip: str) -> bool:
@@ -264,11 +306,16 @@ def get_client_ip(request: FastAPIRequest) -> str:
 
 # Chat Routes
 @chat_router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, http_request: FastAPIRequest):
+async def chat(
+    request: ChatRequest,
+    http_request: FastAPIRequest,
+    chat_orchestrator: ChatOrchestrator = Depends(get_orchestrator),
+):
     """
-    Chat endpoint - Process user query and return response
+    Chat endpoint - Process user query and return response.
     
     Supports both streaming and non-streaming responses.
+    Uses injected ChatOrchestrator via dependency injection.
     """
     try:
         client_ip = get_client_ip(http_request)
@@ -276,7 +323,7 @@ async def chat(request: ChatRequest, http_request: FastAPIRequest):
         if request.stream:
             # Streaming response
             async def generate():
-                async for chunk in orchestrator.process_chat(
+                async for chunk in chat_orchestrator.process_chat(
                     query=request.query,
                     session_id=request.session_id,
                     knowledge_base=request.knowledge_base,
@@ -294,7 +341,7 @@ async def chat(request: ChatRequest, http_request: FastAPIRequest):
             )
         else:
             # Non-streaming response
-            result = await orchestrator.process_chat_sync(
+            result = await chat_orchestrator.process_chat_sync(
                 query=request.query,
                 session_id=request.session_id,
                 knowledge_base=request.knowledge_base,
@@ -314,16 +361,21 @@ async def chat(request: ChatRequest, http_request: FastAPIRequest):
 
 
 @chat_router.post("/chat/stream")
-async def chat_stream(request: ChatRequest, http_request: FastAPIRequest):
+async def chat_stream(
+    request: ChatRequest,
+    http_request: FastAPIRequest,
+    chat_orchestrator: ChatOrchestrator = Depends(get_orchestrator),
+):
     """
-    Streaming chat endpoint - Stream response chunks
+    Streaming chat endpoint - Stream response chunks.
+    Uses injected ChatOrchestrator via dependency injection.
     """
     try:
         client_ip = get_client_ip(http_request) if http_request else "unknown"
         
         async def generate():
             try:
-                async for chunk in orchestrator.process_chat(
+                async for chunk in chat_orchestrator.process_chat(
                     query=request.query,
                     session_id=request.session_id,
                     knowledge_base=request.knowledge_base,
@@ -355,7 +407,7 @@ async def chat_stream(request: ChatRequest, http_request: FastAPIRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@chat_router.get("/chat/history/{session_id}")
+@chat_router.get("/chat/history/{session_id}", response_model=ChatHistoryResponse)
 async def get_chat_history(session_id: str, limit: Optional[int] = 50):
     """Get conversation history for a session"""
     try:
@@ -368,18 +420,19 @@ async def get_chat_history(session_id: str, limit: Optional[int] = 50):
                 session_id=session_id,
                 limit=limit
             )
-            return {
-                "session_id": session_id,
-                "messages": [
-                    {
-                        "id": msg.id,
-                        "role": msg.role,
-                        "message": msg.message,
-                        "created_at": msg.created_at.isoformat()
-                    }
-                    for msg in history
-                ]
-            }
+            messages = [
+                ChatMessage(
+                    id=msg.id,
+                    role=msg.role,
+                    message=msg.message,
+                    created_at=msg.created_at.isoformat()
+                )
+                for msg in history
+            ]
+            return ChatHistoryResponse(
+                session_id=session_id,
+                messages=messages
+            )
         finally:
             memory.close()
             db.close()
@@ -388,7 +441,7 @@ async def get_chat_history(session_id: str, limit: Optional[int] = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@chat_router.delete("/chat/history/{session_id}")
+@chat_router.delete("/chat/history/{session_id}", response_model=ClearHistoryResponse)
 async def clear_chat_history(session_id: str):
     """Clear conversation history for a session"""
     try:
@@ -398,10 +451,10 @@ async def clear_chat_history(session_id: str):
         memory = PostgresChatMemory(db=db)
         try:
             success = memory.clear_session(session_id)
-            return {
-                "session_id": session_id,
-                "cleared": success
-            }
+            return ClearHistoryResponse(
+                session_id=session_id,
+                cleared=success
+            )
         finally:
             memory.close()
             db.close()
@@ -411,55 +464,144 @@ async def clear_chat_history(session_id: str):
 
 
 # Analytics Routes
-@analytics_router.get("/analytics/performance")
+@analytics_router.get("/analytics/performance", response_model=PerformanceMetricsResponse)
 async def get_performance(days: int = Query(30, ge=1, le=365)):
     """Get performance metrics for the last N days"""
     try:
         from app.services.analytics import get_performance_metrics
-        return get_performance_metrics(days=days)
+        data = get_performance_metrics(days=days)
+        
+        # Convert to DTOs
+        daily_metrics = [
+            DailyMetric(**metric) for metric in data.get('daily_metrics', [])
+        ]
+        overall = OverallMetrics(**data.get('overall', {
+            'total_conversations': 0,
+            'total_answered': 0,
+            'total_unanswered': 0,
+            'overall_answer_rate': 0,
+            'avg_response_time_ms': 0
+        }))
+        
+        return PerformanceMetricsResponse(
+            period_days=data.get('period_days', days),
+            overall=overall,
+            daily_metrics=daily_metrics
+        )
     except Exception as e:
         logger.error(f"Analytics performance error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@analytics_router.get("/analytics/most-asked")
+@analytics_router.get("/analytics/most-asked", response_model=MostAskedQuestionsResponse)
 async def get_most_asked(limit: int = Query(20, ge=1, le=100)):
     """Get most frequently asked questions"""
     try:
         from app.services.analytics import get_most_asked_questions
-        return {"questions": get_most_asked_questions(limit=limit)}
+        data = get_most_asked_questions(limit=limit)
+        
+        questions = [MostAskedQuestion(**q) for q in data]
+        return MostAskedQuestionsResponse(questions=questions)
     except Exception as e:
         logger.error(f"Analytics most-asked error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@analytics_router.get("/analytics/unanswered")
+@analytics_router.get("/analytics/unanswered", response_model=UnansweredQuestionsResponse)
 async def get_unanswered(limit: int = Query(50, ge=1, le=200)):
     """Get questions that were not answered"""
     try:
         from app.services.analytics import get_unanswered_questions
-        return {"questions": get_unanswered_questions(limit=limit)}
+        data = get_unanswered_questions(limit=limit)
+        
+        questions = [UnansweredQuestion(**q) for q in data]
+        return UnansweredQuestionsResponse(questions=questions)
     except Exception as e:
         logger.error(f"Analytics unanswered error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@analytics_router.get("/analytics/history")
+@analytics_router.get("/analytics/history", response_model=ConversationHistoryResponse)
 async def get_history(
     session_id: Optional[str] = Query(None),
-    limit: int = Query(100, ge=1, le=1000)
+    limit: int = Query(100, ge=1, le=1000),
+    search: Optional[str] = Query(None),
+    routing_target: Optional[str] = Query(None)
 ):
-    """Get conversation history"""
+    """Get conversation history with optional filters"""
     try:
         from app.services.analytics import get_conversation_history
-        return {"conversations": get_conversation_history(session_id=session_id, limit=limit)}
+        data = get_conversation_history(
+            session_id=session_id, 
+            limit=limit,
+            search=search,
+            routing_target=routing_target
+        )
+        
+        conversations = [ConversationRecord(**conv) for conv in data]
+        return ConversationHistoryResponse(conversations=conversations)
     except Exception as e:
         logger.error(f"Analytics history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@analytics_router.get("/analytics/routing-distribution", response_model=RoutingDistributionResponse)
+async def get_routing_dist(days: int = Query(30, ge=1, le=365)):
+    """Get routing distribution statistics for the last N days"""
+    try:
+        from app.services.analytics import get_routing_distribution
+        data = get_routing_distribution(days=days)
+        
+        distribution = [
+            RoutingDistributionItem(**item) for item in data.get('distribution', [])
+        ]
+        
+        return RoutingDistributionResponse(
+            period_days=data.get('period_days', days),
+            distribution=distribution,
+            total=data.get('total', 0)
+        )
+    except Exception as e:
+        logger.error(f"Analytics routing distribution error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@analytics_router.get("/analytics/export-csv")
+async def export_conversations_csv(
+    days: int = Query(30, ge=1, le=365),
+    search: Optional[str] = Query(None)
+):
+    """Export conversations as CSV"""
+    try:
+        from app.services.analytics import get_conversations_csv
+        import csv
+        import io
+        from fastapi.responses import StreamingResponse
+        
+        conversations = get_conversations_csv(days=days, search=search)
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        if conversations:
+            fieldnames = conversations[0].keys()
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(conversations)
+        
+        output.seek(0)
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=conversations_export_{days}days.csv"}
+        )
+    except Exception as e:
+        logger.error(f"Analytics CSV export error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Debug Routes
-@debug_router.post("/debug/test-conversation-log")
+@debug_router.post("/debug/test-conversation-log", response_model=TestConversationLogResponse)
 async def test_conversation_log():
     """Test endpoint to create a ConversationLog record"""
     try:
@@ -474,16 +616,16 @@ async def test_conversation_log():
             client_ip="127.0.0.1"
         )
         
-        return {
-            "status": "success",
-            "message": "Test ConversationLog record created successfully"
-        }
+        return TestConversationLogResponse(
+            status="success",
+            message="Test ConversationLog record created successfully"
+        )
     except Exception as e:
         logger.error(f"Error creating test ConversationLog: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@debug_router.get("/debug/check-conversation-log")
+@debug_router.get("/debug/check-conversation-log", response_model=ConversationLogCheckResponse)
 async def check_conversation_log():
     """Debug endpoint to directly query ConversationLog table"""
     try:
@@ -493,7 +635,14 @@ async def check_conversation_log():
         
         db = get_db()
         if not db:
-            return {"status": "error", "message": "Database not available"}
+            return ConversationLogCheckResponse(
+                status="error",
+                table_exists=False,
+                record_count=0,
+                recent_records=[],
+                available_tables=[],
+                message="Database not available"
+            )
         
         try:
             # Check if table exists
@@ -510,38 +659,47 @@ async def check_conversation_log():
                 recent_records = db.query(ConversationLog).order_by(
                     ConversationLog.created_at.desc()
                 ).limit(5).all()
-                recent = [{
-                    "id": r.id,
-                    "session_id": r.session_id,
-                    "client_ip": r.client_ip,
-                    "created_at": r.created_at.isoformat() if r.created_at else None
-                } for r in recent_records]
+                recent = [
+                    ConversationLogCheckRecord(
+                        id=r.id,
+                        session_id=r.session_id,
+                        client_ip=r.client_ip,
+                        created_at=r.created_at.isoformat() if r.created_at else None
+                    )
+                    for r in recent_records
+                ]
             
-            return {
-                "status": "success",
-                "table_exists": table_exists,
-                "record_count": count,
-                "recent_records": recent,
-                "available_tables": tables
-            }
+            return ConversationLogCheckResponse(
+                status="success",
+                table_exists=table_exists,
+                record_count=count,
+                recent_records=recent,
+                available_tables=tables
+            )
         finally:
             db.close()
     except Exception as e:
         logger.error(f"Error checking ConversationLog: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
+        return ConversationLogCheckResponse(
+            status="error",
+            table_exists=False,
+            record_count=0,
+            recent_records=[],
+            available_tables=[],
+            message=str(e)
+        )
 
 
 @debug_router.get("/debug/lightrag")
-async def debug_lightrag():
-    """Debug endpoint for LightRAG status and last query"""
+async def debug_lightrag(
+    lightrag_client: LightRAGClient = Depends(get_lightrag_client),
+):
+    """Debug endpoint for LightRAG status and last query (uses DI)."""
     try:
-        lightrag_client = LightRAGClient()
         health = await lightrag_client.health_check()
         
         # Get last query info if available
         last_query_info = getattr(lightrag_client, '_last_query', None)
-        
-        await lightrag_client.close()
         
         return {
             "status": "ok",
@@ -562,14 +720,15 @@ async def debug_route(
     session_id: Optional[str] = None,
     knowledge_base: Optional[str] = None,
     http_request: FastAPIRequest = None,
+    chat_orchestrator: ChatOrchestrator = Depends(get_orchestrator),
 ):
     """
-    Debug endpoint to show routing decision for a query.
+    Debug endpoint to show routing decision for a query (uses DI).
     No OpenAI calls are made; safe for troubleshooting and regression tests.
     """
     try:
         client_ip = get_client_ip(http_request) if http_request else "unknown"
-        decision = await orchestrator.diagnose_routing(
+        decision = await chat_orchestrator.diagnose_routing(
             query=query,
             session_id=session_id,
             knowledge_base=knowledge_base,
@@ -579,4 +738,60 @@ async def debug_route(
     except Exception as e:
         logger.error(f"Route debug error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@debug_router.get("/debug/response-cache-stats")
+async def get_response_cache_stats(
+    redis_cache: RedisCache = Depends(get_redis_cache),
+):
+    """
+    Get OpenAI response cache statistics.
+    
+    Returns cache hit/miss counts and hit rate percentage.
+    Used to monitor token optimization effectiveness.
+    """
+    try:
+        stats = await redis_cache.get_response_cache_stats()
+        return {
+            "status": "success",
+            "cache_stats": stats,
+            "description": {
+                "hits": "Number of queries served from cache (no OpenAI call)",
+                "misses": "Number of queries that required OpenAI API call",
+                "hit_rate": "Percentage of queries served from cache",
+                "available": "Whether Redis cache is available"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Response cache stats error: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "cache_stats": {"hits": 0, "misses": 0, "hit_rate": 0.0, "available": False}
+        }
+
+
+@debug_router.delete("/debug/response-cache")
+async def clear_response_cache(
+    redis_cache: RedisCache = Depends(get_redis_cache),
+):
+    """
+    Clear all cached OpenAI responses.
+    
+    Use this when you need to force fresh responses from OpenAI.
+    """
+    try:
+        deleted_count = await redis_cache.clear_response_cache()
+        return {
+            "status": "success",
+            "message": f"Cleared {deleted_count} cached responses",
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logger.error(f"Clear response cache error: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "deleted_count": 0
+        }
 

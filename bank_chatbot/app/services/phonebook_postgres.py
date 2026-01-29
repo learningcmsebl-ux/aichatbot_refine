@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+PHONEBOOK_MAX_RESULTS = int(os.getenv("PHONEBOOK_MAX_RESULTS", "50"))
+
 
 class Employee(Base):
     """Employee model for PostgreSQL"""
@@ -89,6 +91,12 @@ class PhoneBookDB:
             echo=False
         )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+
+    def _normalize_limit(self, limit: Optional[int], default: int) -> int:
+        effective_limit = default if limit is None else limit
+        if effective_limit <= 0:
+            return 0
+        return min(effective_limit, PHONEBOOK_MAX_RESULTS)
         self._init_database()
     
     def _init_database(self):
@@ -397,13 +405,16 @@ class PhoneBookDB:
     def search_by_name(self, name: str, limit: int = 10) -> List[Dict]:
         """Search employees by name using full-text search"""
         with self.get_session() as session:
+            effective_limit = self._normalize_limit(limit, 10)
+            if effective_limit == 0:
+                return []
             # Use PostgreSQL full-text search with @@ operator
             search_query = func.plainto_tsquery('english', name)
             query = session.query(Employee).filter(
                 Employee.search_vector.op('@@')(search_query)
             ).order_by(
                 func.ts_rank(Employee.search_vector, search_query).desc()
-            ).limit(limit)
+            ).limit(effective_limit)
             
             results = []
             for emp in query.all():
@@ -454,12 +465,15 @@ class PhoneBookDB:
     def search_by_partial_name(self, name_part: str, limit: int = 10) -> List[Dict]:
         """Search by partial name match"""
         with self.get_session() as session:
+            effective_limit = self._normalize_limit(limit, 10)
+            if effective_limit == 0:
+                return []
             name_lower = name_part.lower()
             query = session.query(Employee).filter(
                 (func.lower(Employee.full_name).like(f'%{name_lower}%')) |
                 (func.lower(Employee.first_name).like(f'%{name_lower}%')) |
                 (func.lower(Employee.last_name).like(f'%{name_lower}%'))
-            ).limit(limit)
+            ).limit(effective_limit)
             
             results = []
             for emp in query.all():
@@ -575,8 +589,11 @@ class PhoneBookDB:
             location: Optional location/branch name to filter by (searches in department field)
         """
         with self.get_session() as session:
+            effective_limit = self._normalize_limit(limit, 20)
+            if effective_limit == 0:
+                return []
             stop_words = ['of', 'the', 'and', '&', 'a', 'an', 'in', 'on', 'at', 'to', 'for']
-            keywords = [k.strip() for k in designation.lower().split() 
+            keywords = [k.strip() for k in designation.lower().split()
                        if len(k.strip()) > 2 and k.strip() not in stop_words]
             
             query = session.query(Employee)
@@ -604,7 +621,7 @@ class PhoneBookDB:
                     (func.lower(Employee.division).like(f'%{location_clean}%'))
                 )
             
-            query = query.limit(limit)
+            query = query.limit(effective_limit)
             
             results = []
             for emp in query.all():
@@ -629,10 +646,13 @@ class PhoneBookDB:
     def search_by_department(self, department: str, limit: int = 50) -> List[Dict]:
         """Search by department"""
         with self.get_session() as session:
+            effective_limit = self._normalize_limit(limit, 50)
+            if effective_limit == 0:
+                return []
             query = session.query(Employee).filter(
                 (func.lower(Employee.department).like(f'%{department.lower()}%')) |
                 (func.lower(Employee.division).like(f'%{department.lower()}%'))
-            ).limit(limit)
+            ).limit(effective_limit)
             
             results = []
             for emp in query.all():

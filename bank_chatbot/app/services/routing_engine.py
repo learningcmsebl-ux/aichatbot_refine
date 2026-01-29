@@ -149,7 +149,8 @@ class RoutingEngine:
             and not is_small_talk
             and self.phonebook_db_available
         )
-        will_use_lightrag = not should_check_phonebook and not is_small_talk
+        # will_use_lightrag is only True when target is actually LIGHTRAG
+        will_use_lightrag = target == "LIGHTRAG"
 
         signals = {
             "is_location_query": is_location_query,

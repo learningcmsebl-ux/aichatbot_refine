@@ -1,11 +1,20 @@
 """
 Chat Orchestrator - Coordinates all components for chat processing.
+
+Supports Dependency Injection for loose coupling and testability.
+
+Refactored to use handler classes (addressing God Object anti-pattern):
+- QueryClassifier: Query type detection (_is_*_query methods)
+- ResponseFormatter: Response formatting and text transformations
+- DisambiguationHandler: Disambiguation state management
 """
+
+from __future__ import annotations  # Enable forward references for type hints
 
 import uuid
 import logging
 import re
-from typing import Optional, AsyncGenerator, List, Dict, Any
+from typing import Optional, AsyncGenerator, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 import pytz
 
@@ -15,6 +24,17 @@ import httpx
 from app.core.config import settings
 from app.database.postgres import PostgresChatMemory, get_db
 from app.database.redis_client import RedisCache, get_cache_key
+
+# Import extracted handlers (God Object refactoring)
+from app.services.handlers import (
+    QueryClassifier,
+    ResponseFormatter,
+    DisambiguationHandler,
+)
+
+# Type hints for dependency injection (avoid circular imports)
+if TYPE_CHECKING:
+    from app.services.fee_engine_client import FeeEngineClient
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +100,23 @@ class LeadFlowState:
 
 
 class ChatOrchestrator:
-    """Orchestrates chat processing with PostgreSQL, Redis, and LightRAG"""
+    """
+    Orchestrates chat processing with PostgreSQL, Redis, and LightRAG.
+    
+    Supports Dependency Injection for better testability and loose coupling.
+    Dependencies can be injected via constructor or will be created with defaults.
+    
+    Example with DI:
+        orchestrator = ChatOrchestrator(
+            lightrag_client=mock_lightrag,
+            fee_engine_client=mock_fee_engine,
+            location_client=mock_location,
+            redis_cache=mock_redis
+        )
+    
+    Example without DI (backward compatible):
+        orchestrator = ChatOrchestrator()  # Creates all dependencies internally
+    """
     
     # Constants for repeated strings
     OFFICIAL_CARD_RATES_HEADER = "OFFICIAL CARD RATES AND FEES INFORMATION"
@@ -97,17 +133,87 @@ class ChatOrchestrator:
     SOURCES_MARKER_PREFIX = "\n\n__SOURCES__"
     SOURCES_MARKER_SUFFIX = "__SOURCES__"
     
-    def __init__(self):
-        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.lightrag_client = LightRAGClient()
-        self.redis_cache = RedisCache()
-        self.location_client = LocationClient()
+    def __init__(
+        self,
+        *,
+        lightrag_client: Optional["LightRAGClient"] = None,
+        fee_engine_client: Optional["FeeEngineClient"] = None,
+        location_client: Optional["LocationClient"] = None,
+        redis_cache: Optional["RedisCache"] = None,
+        phonebook_db: Optional[Any] = None,
+        openai_client: Optional[AsyncOpenAI] = None,
+    ):
+        """
+        Initialize ChatOrchestrator with optional dependency injection.
+        
+        Args:
+            lightrag_client: LightRAG client instance (optional, creates default if not provided)
+            fee_engine_client: Fee Engine client instance (optional, creates default if not provided)
+            location_client: Location service client instance (optional, creates default if not provided)
+            redis_cache: Redis cache instance (optional, creates default if not provided)
+            phonebook_db: Phonebook database instance (optional, uses global if not provided)
+            openai_client: OpenAI async client instance (optional, creates default if not provided)
+        """
+        # OpenAI client (for LLM responses)
+        self.openai_client = openai_client or AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # Inject dependencies or create defaults
+        self.lightrag_client = lightrag_client or LightRAGClient()
+        self.redis_cache = redis_cache or RedisCache()
+        self.location_client = location_client or LocationClient()
+        
+        # Fee engine client - lazy import to avoid circular dependency
+        if fee_engine_client is not None:
+            self.fee_engine_client = fee_engine_client
+        else:
+            from app.services.fee_engine_client import FeeEngineClient
+            self.fee_engine_client = FeeEngineClient()
+        
+        # Phonebook database
+        self._phonebook_db = phonebook_db  # Can be None, will use global instance
+        
+        # Other initialization
         self.system_message = self._get_system_message()
         self.lead_flows: Dict[str, LeadFlowState] = {}  # session_id -> LeadFlowState
-        self.routing_engine = RoutingEngine(self, phonebook_db_available=PHONEBOOK_DB_AVAILABLE)
+        
+        # Determine phonebook availability
+        phonebook_available = PHONEBOOK_DB_AVAILABLE
+        if phonebook_db is not None:
+            phonebook_available = True
+        
+        self.routing_engine = RoutingEngine(self, phonebook_db_available=phonebook_available)
+        
+        # Initialize extracted handler classes (God Object refactoring)
+        # These handlers delegate specific responsibilities for cleaner code
+        self.query_classifier = QueryClassifier(
+            location_intent_getter=get_location_intent_flags
+        )
+        self.response_formatter = ResponseFormatter(timezone="Asia/Dhaka")
+        self.disambiguation_handler = DisambiguationHandler(redis_cache=self.redis_cache)
+        
         # Fallback disambiguation store (used when Redis is unavailable).
         # Key: conversation_key/session_id, Value: {"state": <dict>, "expires_at": <unix_ts>}
         self._local_disambiguation_state: Dict[str, Dict[str, Any]] = {}
+        
+        logger.info(
+            f"ChatOrchestrator initialized - "
+            f"LightRAG: {'injected' if lightrag_client else 'default'}, "
+            f"FeeEngine: {'injected' if fee_engine_client else 'default'}, "
+            f"Location: {'injected' if location_client else 'default'}, "
+            f"Redis: {'injected' if redis_cache else 'default'}, "
+            f"Phonebook: {'injected' if phonebook_db else 'global'}, "
+            f"Handlers: QueryClassifier, ResponseFormatter, DisambiguationHandler"
+        )
+    
+    @property
+    def phonebook_db(self):
+        """Get phonebook database instance (injected or global)."""
+        if self._phonebook_db is not None:
+            return self._phonebook_db
+        # Fallback to global instance
+        if PHONEBOOK_DB_AVAILABLE:
+            return get_phonebook_db()
+        return None
 
     def _local_disambiguation_cleanup(self) -> None:
         """Remove expired local disambiguation entries."""
@@ -212,6 +318,88 @@ class ChatOrchestrator:
             return text
         logger.warning(f"[PROMPT] Capping '{label}' from {len(text)} to {max_chars} chars")
         return text[:max_chars] + "\n\n[... truncated ...]"
+
+    # ============================================================
+    # Response Caching (Token Optimization)
+    # ============================================================
+    
+    async def _get_cached_openai_response(
+        self,
+        query: str,
+        context: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if we have a cached OpenAI response for this query+context.
+        
+        Args:
+            query: User's query
+            context: Combined context (LightRAG + Fee Engine)
+        
+        Returns:
+            Dict with 'response' and 'sources' if cached, None otherwise
+        """
+        try:
+            cached = await self.redis_cache.get_cached_response(query, context)
+            if cached:
+                logger.info(f"[RESPONSE_CACHE] Using cached response for query: '{query[:50]}...'")
+                return cached
+            return None
+        except Exception as e:
+            logger.debug(f"[RESPONSE_CACHE] Cache check failed: {e}")
+            return None
+    
+    async def _cache_openai_response(
+        self,
+        query: str,
+        context: str,
+        response: str,
+        sources: Optional[List[str]] = None,
+        routing_target: Optional[str] = None,
+    ) -> None:
+        """
+        Cache an OpenAI response for future identical queries.
+        
+        Args:
+            query: User's query
+            context: Combined context used for the response
+            response: The OpenAI response to cache
+            sources: Optional list of sources
+            routing_target: The routing target (for analytics)
+        """
+        try:
+            await self.redis_cache.cache_response(
+                query=query,
+                context=context,
+                response=response,
+                sources=sources,
+                routing_target=routing_target,
+            )
+        except Exception as e:
+            logger.debug(f"[RESPONSE_CACHE] Failed to cache response: {e}")
+
+    async def _stream_cached_response(
+        self,
+        cached_response: str,
+        chunk_size: int = 20,
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream a cached response in chunks to maintain consistent UX.
+        
+        Args:
+            cached_response: The cached response text
+            chunk_size: Number of characters per chunk
+        
+        Yields:
+            Response chunks
+        """
+        import asyncio
+        
+        # Stream the response in small chunks to simulate streaming
+        for i in range(0, len(cached_response), chunk_size):
+            chunk = cached_response[i:i + chunk_size]
+            yield chunk
+            # Small delay to make streaming feel natural (but much faster than OpenAI)
+            await asyncio.sleep(0.01)
 
     def _build_prompt_addons(
         self,
@@ -340,22 +528,29 @@ class ChatOrchestrator:
         user_text: str,
         assistant_text: str,
         knowledge_base: Optional[str] = None,
-        client_ip: Optional[str] = None
+        client_ip: Optional[str] = None,
+        routing_target: Optional[str] = None
     ) -> None:
-        """Persist user and assistant messages to PostgresChatMemory and optionally log analytics."""
+        """Persist user and assistant messages to PostgresChatMemory and optionally log analytics.
+        
+        Args:
+            routing_target: Which service handled the query (FEE_ENGINE, FEE_ENGINE_RETAIL, 
+                           FEE_ENGINE_SKYBANKING, LIGHTRAG, LOCATION, PHONEBOOK, SMALL_TALK, etc.)
+        """
         db = get_db()
         memory = PostgresChatMemory(db=db)
         try:
             if memory._available:
                 memory.add_message(session_id, "user", user_text)
                 memory.add_message(session_id, "assistant", assistant_text)
-                if ANALYTICS_AVAILABLE and (knowledge_base is not None or client_ip is not None):
+                if ANALYTICS_AVAILABLE:
                     log_conversation(
                         session_id=session_id,
                         user_message=user_text,
                         assistant_response=assistant_text,
                         knowledge_base=knowledge_base,
-                        client_ip=client_ip
+                        client_ip=client_ip,
+                        routing_target=routing_target
                     )
         finally:
             memory.close()
@@ -519,10 +714,30 @@ class ChatOrchestrator:
             return {"response": disambiguation_msg, "sources": sources}
     
     async def close(self):
-        """Close all async clients and resources"""
+        """Close all async clients and resources in parallel."""
+        import asyncio
+        
+        # Close all HTTP clients in parallel for faster shutdown
+        close_tasks = []
+        
         if self.lightrag_client:
-            await self.lightrag_client.close()
-            logger.info("LightRAG client closed")
+            close_tasks.append(self._safe_close(self.lightrag_client, "LightRAG"))
+        if self.fee_engine_client:
+            close_tasks.append(self._safe_close(self.fee_engine_client, "FeeEngine"))
+        if self.location_client:
+            close_tasks.append(self._safe_close(self.location_client, "Location"))
+        
+        if close_tasks:
+            await asyncio.gather(*close_tasks, return_exceptions=True)
+            logger.info(f"All {len(close_tasks)} async clients closed")
+    
+    async def _safe_close(self, client, name: str):
+        """Safely close a client, logging any errors."""
+        try:
+            await client.close()
+            logger.info(f"{name} client closed")
+        except Exception as e:
+            logger.warning(f"Error closing {name} client: {e}")
     
     def _get_system_message(self) -> str:
         """Get system message for the chatbot"""
@@ -637,62 +852,157 @@ When responding:
   which means every six months"
 ═══════════════════════════════════════════════════════════════════════════════"""
     
+    # =========================================================================
+    # Query Classification Methods (delegated to QueryClassifier)
+    # These methods delegate to self.query_classifier for backward compatibility
+    # The actual logic is now in app/services/handlers/query_classifier.py
+    # =========================================================================
+    
     def _is_small_talk(self, query: str) -> bool:
-        """Detect if query is small talk (greetings, thanks, etc.)"""
-        query_lower = query.lower().strip()
-        
-        # CRITICAL: Contact/phonebook keywords override - never treat as small talk
-        # If it's a contact query, it should check phonebook, not be treated as small talk
-        contact_keywords = [
-            'phone', 'telephone', 'tel', 'call', 'contact', 'number', 'phone number',
-            'mobile', 'cell', 'email', 'address', 'extension', 'ext', 'pabx', 'ip phone',
-            'employee', 'staff', 'emp id', 'who is', 'who are', 'who works',
-            'designation', 'department', 'manager', 'director', 'head of'
-        ]
-        
-        if any(keyword in query_lower for keyword in contact_keywords):
-            return False  # Force it into phonebook check (not small talk)
-        
-        # Banking keywords override - never treat as small talk
-        banking_keywords = [
-            "loan", "card", "account", "balance", "deposit", "withdrawal",
-            "interest", "rate", "fee", "service", "product", "banking",
-            "credit", "debit", "transaction", "statement", "minimum", "maximum"
-        ]
-        
-        if any(keyword in query_lower for keyword in banking_keywords):
-            return False
-        
-        # Small talk patterns
-        # IMPORTANT: Avoid substring false-positives (e.g., "childs" contains "hi").
-        # Use word-boundaries for single-word intents, and substring for multi-word phrases.
-        small_talk_phrases = [
-            "good morning", "good afternoon", "good evening",
-            "how are you", "how's it going", "what's up",
-            "thank you", "appreciate it",
-            "see you",
-            "what are you", "who are you", "what can you do",
-        ]
-        if any(phrase in query_lower for phrase in small_talk_phrases):
-            return True
-
-        import re
-        small_talk_words = ["hi", "hello", "hey", "thanks", "bye", "goodbye", "farewell"]
-        return any(re.search(rf"\\b{re.escape(w)}\\b", query_lower) for w in small_talk_words)
+        """Detect if query is small talk. Delegates to QueryClassifier."""
+        return self.query_classifier.is_small_talk(query)
     
     def _is_datetime_query(self, query: str) -> bool:
-        """Detect if query is asking about date or time"""
-        query_lower = query.lower().strip()
-        
-        datetime_keywords = [
-            "date", "time", "what time", "what date", "current time", "current date",
-            "today", "now", "what day", "what is the time", "what is the date",
-            "tell me the time", "tell me the date", "time now", "date today"
-        ]
-        
-        return any(keyword in query_lower for keyword in datetime_keywords)
+        """Detect if query is about date/time. Delegates to QueryClassifier."""
+        return self.query_classifier.is_datetime_query(query)
     
     def _is_contact_info_query(self, query: str) -> bool:
+        """Detect contact info query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_contact_info_query(query)
+    
+    def _is_phonebook_query(self, query: str) -> bool:
+        """Detect phonebook query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_phonebook_query(query)
+    
+    def _is_employee_query(self, query: str) -> bool:
+        """Detect employee query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_employee_query(query)
+    
+    def _is_financial_report_query(self, query: str) -> bool:
+        """Detect financial report query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_financial_report_query(query)
+    
+    def _is_user_document_query(self, query: str) -> bool:
+        """Detect user document query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_user_document_query(query)
+    
+    def _is_organizational_overview_query(self, query: str) -> bool:
+        """Detect organizational overview query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_organizational_overview_query(query)
+    
+    def _is_management_query(self, query: str) -> bool:
+        """Detect management query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_management_query(query)
+    
+    def _is_milestone_query(self, query: str) -> bool:
+        """Detect milestone query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_milestone_query(query)
+    
+    def _is_fee_schedule_query(self, query: str) -> bool:
+        """Detect fee schedule query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_fee_schedule_query(query)
+    
+    def _is_retail_asset_fee_query(self, query: str) -> bool:
+        """Detect retail asset fee query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_retail_asset_fee_query(query)
+    
+    def _is_skybanking_fee_query(self, query: str) -> bool:
+        """Detect Skybanking fee query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_skybanking_fee_query(query)
+    
+    def _is_generic_skybanking_fee_query(self, query: str) -> bool:
+        """Detect generic Skybanking fee query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_generic_skybanking_fee_query(query)
+    
+    def _is_card_rates_query(self, query: str) -> bool:
+        """Detect card rates query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_card_rates_query(query)
+    
+    def _is_location_query(self, query: str) -> bool:
+        """Detect location query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_location_query(query)
+    
+    def _is_compliance_query(self, query: str) -> bool:
+        """Detect compliance query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_compliance_query(query)
+    
+    def _is_banking_product_query(self, query: str) -> bool:
+        """Detect banking product query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_banking_product_query(query)
+    
+    def _is_broad_loan_product_line_query(self, query: str) -> bool:
+        """Detect broad loan product line query. Delegates to QueryClassifier."""
+        return self.query_classifier.is_broad_loan_product_line_query(query)
+    
+    # =========================================================================
+    # Response Formatting Methods (delegated to ResponseFormatter)
+    # =========================================================================
+    
+    def _clean_markdown_formatting(self, text: str) -> str:
+        """Clean markdown from text. Delegates to ResponseFormatter."""
+        return self.response_formatter.clean_markdown(text)
+    
+    def _fix_currency_symbols(self, text: str, context: str = "") -> str:
+        """Fix currency symbols. Delegates to ResponseFormatter."""
+        return self.response_formatter.fix_currency_symbols(text, context)
+    
+    def _fix_bank_name(self, text: str) -> str:
+        """Fix bank name consistency. Delegates to ResponseFormatter."""
+        return self.response_formatter.fix_bank_name(text)
+    
+    def _get_current_datetime(self) -> str:
+        """Get current datetime. Delegates to ResponseFormatter."""
+        return self.response_formatter.get_current_datetime()
+    
+    # =========================================================================
+    # Disambiguation Methods (delegated to DisambiguationHandler)
+    # =========================================================================
+    
+    def _resolve_selection(self, query: str, options: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Resolve user selection. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.resolve_selection(query, options)
+    
+    def _looks_like_new_query_during_disambiguation(self, query: str, options: List[Dict[str, Any]]) -> bool:
+        """Check if query is new during disambiguation. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.looks_like_new_query(query, options)
+    
+    def _has_process_intent(self, query: str) -> bool:
+        """Check for process intent. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.has_process_intent(query)
+    
+    def _should_prompt_routing_disambiguation(self, query: str, decision: Any) -> bool:
+        """Check if routing disambiguation needed. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.should_prompt_routing_disambiguation(query, decision)
+    
+    def _build_routing_disambiguation_prompt(self) -> str:
+        """Build routing disambiguation prompt. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.build_routing_disambiguation_prompt()
+    
+    def _build_routing_disambiguation_options(self) -> List[Dict[str, Any]]:
+        """Build routing disambiguation options. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.build_routing_disambiguation_options()
+    
+    def _build_fee_type_disambiguation_prompt(self, fee_candidates: List[str]) -> str:
+        """Build fee type disambiguation prompt. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.build_fee_type_disambiguation_prompt(fee_candidates)
+    
+    def _build_fee_type_disambiguation_options(self, fee_candidates: List[str]) -> List[Dict[str, Any]]:
+        """Build fee type disambiguation options. Delegates to DisambiguationHandler."""
+        return self.disambiguation_handler.build_fee_type_disambiguation_options(fee_candidates)
+    
+    # =========================================================================
+    # NOTE: Original _is_*_query implementations have been moved to:
+    # app/services/handlers/query_classifier.py
+    # 
+    # The delegation methods above forward calls to the QueryClassifier.
+    # Original implementations are preserved in the handler for reference.
+    # =========================================================================
+    
+    # Non-delegated methods (location context, policy checks, etc.) continue below...
+    # NOTE: Duplicate _is_*_query methods below will be removed in future cleanup.
+    #       The delegation methods above (lines 753-889) are the canonical versions.
+    
+    def _is_contact_info_query_impl(self, query: str) -> bool:
         """Detect if query is about contact information (ONLY phone number or email)
         This should ALWAYS check phonebook first, never LightRAG
         VERY RESTRICTIVE - only phone and email, nothing else"""
@@ -1012,7 +1322,9 @@ When responding:
             "personal loan", "home loan", "car loan", "auto loan",
             "business loan", "executive loan", "assure loan", "women's loan",
             "retail asset", "loan processing", "loan fee", "loan charge",
-            "overdraft", "od", "emi loan", "secured loan", "unsecured loan"
+            "overdraft", "od", "emi loan", "secured loan", "unsecured loan",
+            "cib charge", "cib fee",
+            "other charges", "other charge"
         ]
         
         # If query contains retail asset keywords, it's NOT a card fee query
@@ -1130,6 +1442,9 @@ When responding:
             'notarization fee',
             'noc fee', 'loan repayment certificate', 'loan repayment certificate (noc)',
             'loan outstanding certificate', 'loan outstanding certificate fee',
+            # CIB charge is a retail-asset fee in the v2 schedule
+            'cib charge', 'cib fee',
+            'other charges', 'other charge',
         ]
         has_exclusive_fee = any(fee_term in query_lower for fee_term in retail_asset_exclusive_fees)
         has_card_keyword = any(card_kw in query_lower for card_kw in ['card', 'credit card', 'debit card', 'visa', 'mastercard'])
@@ -1215,7 +1530,9 @@ When responding:
             "add money", "fund transfer", "npsb", "binimoy", "binomoy", "rtgs",
             "statement", "certificate", "account certificate", "balance certificate",
             "dps certificate", "loan outstanding certificate", "loan tax certificate",
-            "noc", "duplicate pin", "bill payment", "government payment", "annual service",
+            "noc", "duplicate pin", "bill payment", "government payment",
+            "a challan", "a-challan", "achallan", "challan",
+            "annual service",
             "service charge",
         ]
 
@@ -1684,7 +2001,7 @@ When responding:
             "home loan", "housing loan", "mortgage",
             "personal loan", "executive loan",
             "auto loan", "car loan", "vehicle loan",
-            "education loan",
+            "education loan", "edu loan", "edu-loan", "eduloan",
             "business loan", "sme", "sme loan", "startup",
             "women", "women's", "woman entrepreneur",
             "fast cash", "fast loan",
@@ -2183,6 +2500,10 @@ When responding:
                     "on_limit": ["on limit", "on loan amount", "loan amount"],
                     "on_enhanced_amount": ["enhanced", "enhancement", "enhance", "enhanced amount"],
                     "on_reduced_amount": ["reduced", "reduction", "reduce", "reduced amount"],
+                    "on_category_a": ["category a", "cat a"],
+                    "on_category_b": ["category b", "cat b"],
+                    "on_category_a_b": ["category a and category b", "category a & b", "category a/b"],
+                    "on_category_c": ["category c", "cat c"],
                     "general": ["general", "normal", "standard"]
                 }
                 if charge_context in context_keywords:
@@ -2197,8 +2518,47 @@ When responding:
         logger.info(f"[DISAMBIGUATION] Could not resolve selection from query: '{query}'")
         return None
 
+    def _looks_like_new_query_during_disambiguation(self, query: str, options: List[Dict[str, Any]]) -> bool:
+        """
+        Heuristic: if a pending disambiguation exists but the user sent a new question,
+        clear the disambiguation state and proceed with normal routing.
+        """
+        import re
+
+        query_lower = (query or "").strip().lower()
+        if not query_lower:
+            return False
+
+        # If user replied with a leading option number, treat as selection.
+        if re.match(r"^\s*\d+\s*[\.\)]?\s*", query_lower):
+            return False
+
+        # If the query can be resolved to an option, it's a selection.
+        if self._resolve_selection(query, options):
+            return False
+
+        # If the query contains fee/loan/card/skybanking/location/contact intent, it's likely a new question.
+        intent_keywords = [
+            "fee", "fees", "charge", "charges", "cost", "pricing", "price",
+            "loan", "retail asset", "skybanking", "card",
+            "branch", "atm", "location", "address",
+            "contact", "phone", "mobile", "email", "extension",
+            "process", "procedure", "how to", "steps",
+        ]
+        if any(k in query_lower for k in intent_keywords):
+            return True
+
+        # Fallback: long queries are likely new questions.
+        if len(query_lower.split()) >= 5:
+            return True
+
+        return False
+
     def _has_process_intent(self, query: str) -> bool:
         query_lower = (query or "").lower()
+        # Avoid treating "processing fee" as a process intent
+        if any(k in query_lower for k in ["processing fee", "processing_fee"]):
+            return False
         return any(k in query_lower for k in ["process", "procedure", "how to", "steps", "method"])
 
     def _should_prompt_routing_disambiguation(self, query: str, decision: Any) -> bool:
@@ -2555,7 +2915,7 @@ When responding:
             # Handle Skybanking fees (status = "FOUND")
             if fee_result and fee_result.get("status") == "FOUND" and "fees" in fee_result:
                 formatted = fee_client.format_fee_response(fee_result, query=query)
-                context = f"{self.OFFICIAL_SKYBANKING_HEADER}\n{'='*70}\n{formatted}\n{'='*70}\n\nThis information is from the Skybanking Fees Schedule and is authoritative."
+                context = f"{self.OFFICIAL_SKYBANKING_HEADER}\n{formatted}\n\nThis information is from the Skybanking Fees Schedule and is authoritative."
                 logger.info(f"[FEE_ENGINE] Skybanking fee found and formatted for query: '{query}'")
                 return context
             
@@ -3447,39 +3807,48 @@ When responding:
         # This MUST happen before any other routing to ensure disambiguation state is always checked first
         pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
         if pending_disambiguation:
-            disambiguation_type = pending_disambiguation.get("disambiguation_type")
-            if disambiguation_type in {"ROUTING", "ROUTING_FEE_TYPE"}:
-                routing_result = await self._handle_routing_disambiguation(
-                    query=query,
-                    conversation_key=conversation_key,
-                    pending_disambiguation=pending_disambiguation,
-                )
-                if routing_result.get("response"):
-                    response_text = routing_result["response"]
-                    await self._persist_turn(session_id, query, response_text)
-                    async for chunk in self._stream_text(response_text):
-                        yield chunk
-                    return
-                forced_target = routing_result.get("resolved_target")
-                query = routing_result.get("resolved_query", query)
+            # If user asked a new question, clear stale disambiguation state.
+            if self._looks_like_new_query_during_disambiguation(
+                query,
+                pending_disambiguation.get("options", []),
+            ):
+                logger.info("[DISAMBIGUATION] New query detected; clearing pending disambiguation state.")
+                await self._clear_disambiguation_state_any(conversation_key)
+                pending_disambiguation = None
             else:
-                result = await self._handle_disambiguation_resolution(
-                    query=query,
-                    conversation_key=conversation_key,
-                    session_id=effective_session_id,
-                    pending_disambiguation=pending_disambiguation
-                )
-                if result:
-                    # Stream the response and exit
-                    async for chunk in self._stream_text(result["response"]):
-                        yield chunk
-                    # If available, also send sources marker for frontend parsing
-                    sources = result.get("sources") or []
-                    if sources:
-                        marker = self._format_sources_marker(sources)
-                        if marker:
-                            yield marker
-                    return
+                disambiguation_type = pending_disambiguation.get("disambiguation_type")
+                if disambiguation_type in {"ROUTING", "ROUTING_FEE_TYPE"}:
+                    routing_result = await self._handle_routing_disambiguation(
+                        query=query,
+                        conversation_key=conversation_key,
+                        pending_disambiguation=pending_disambiguation,
+                    )
+                    if routing_result.get("response"):
+                        response_text = routing_result["response"]
+                        await self._persist_turn(session_id, query, response_text)
+                        async for chunk in self._stream_text(response_text):
+                            yield chunk
+                        return
+                    forced_target = routing_result.get("resolved_target")
+                    query = routing_result.get("resolved_query", query)
+                else:
+                    result = await self._handle_disambiguation_resolution(
+                        query=query,
+                        conversation_key=conversation_key,
+                        session_id=effective_session_id,
+                        pending_disambiguation=pending_disambiguation
+                    )
+                    if result:
+                        # Stream the response and exit
+                        async for chunk in self._stream_text(result["response"]):
+                            yield chunk
+                        # If available, also send sources marker for frontend parsing
+                        sources = result.get("sources") or []
+                        if sources:
+                            marker = self._format_sources_marker(sources)
+                            if marker:
+                                yield marker
+                        return
         
         # Check if user is already in lead collection flow
         # DISABLED: Lead generation is disabled via ENABLE_LEAD_GENERATION setting
@@ -3553,7 +3922,7 @@ When responding:
         # a product-line list and a follow-up question. This avoids generic bank-overview answers.
         if not forced_target and self._is_broad_loan_product_line_query(query):
             response_text = self._build_loan_product_line_list_response()
-            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip, routing_target="PRODUCT_INFO")
             async for chunk in self._stream_text(response_text):
                 yield chunk
             return
@@ -3579,27 +3948,21 @@ When responding:
                 "extra": {"base_query": query, "fee_candidates": fee_candidates},
             }
             await self._set_disambiguation_state_any(conversation_key, state)
-            await self._persist_turn(session_id, query, prompt_message)
+            await self._persist_turn(session_id, query, prompt_message, routing_target="DISAMBIGUATION")
             async for chunk in self._stream_text(prompt_message):
                 yield chunk
             return
 
-        if forced_target:
-            route_location = forced_target == "LOCATION_SERVICE"
-            route_retail_fee = forced_target == "FEE_ENGINE_RETAIL_ASSETS"
-            route_sky_fee = forced_target == "FEE_ENGINE_SKYBANKING"
-            route_card_fee = forced_target == "FEE_ENGINE_CARDS"
-        else:
-            route_location = decision.is_location_query
-            route_retail_fee = decision.is_retail_asset_fee_query
-            route_sky_fee = decision.is_skybanking_fee_query
-            route_card_fee = decision.is_fee_schedule_query
+        # Use decision.target as the single source of truth for routing
+        # forced_target overrides if set (from disambiguation resolution)
+        effective_target = forced_target if forced_target else decision.target
+        logger.info(f"[ROUTING] Effective target: {effective_target} (forced={forced_target is not None})")
 
         # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGHEST PRIORITY) =====
         # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
         # This MUST be checked BEFORE fee schedule queries to avoid misrouting priority center queries
 
-        if route_location:
+        if effective_target == "LOCATION_SERVICE":
             logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
             location_context = await self._get_location_context(query)
             sources = ["EBL Location Database (Normalized)"]
@@ -3615,13 +3978,13 @@ When responding:
                 yield chunk
             
             # Save to memory
-            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="LOCATION")
             
             return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
         # ===== CRITICAL: RETAIL ASSET FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for retail asset fee queries BEFORE card fee queries
-        if route_retail_fee:
+        if effective_target == "FEE_ENGINE_RETAIL_ASSETS":
             logger.info(f"[FEE_ENGINE] ✓✓✓ RETAIL ASSET FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
             sources = ["Retail Asset Charges Schedule"]
@@ -3641,26 +4004,26 @@ When responding:
                 yield chunk
             
             # Save to memory
-            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_RETAIL")
             
             return  # EXIT - do not proceed to other routing
         
         # ===== CRITICAL: SKYBANKING FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for Skybanking fee queries BEFORE card fee queries
-        if route_sky_fee:
+        if effective_target == "FEE_ENGINE_SKYBANKING":
             if self._is_generic_skybanking_fee_query(query):
                 clarification = (
                     f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
-                    + "=" * 70
-                    + "\nPlease specify which Skybanking fee you need. For example:\n"
+                    + "Please specify which Skybanking fee you need. For example:\n"
                     + "- Skybanking  Add money fee\n"
                     + "- Skybanking  Fund transfer fee (NPSB / Binimoy / RTGS)\n"
+                    + "- Skybanking  A-Challan (government payment) fee\n"
                     + "- Skybanking  Statement / Certificate fee\n"
                     + "- Skybanking  Duplicate PIN charge\n"
                 )
                 async for chunk in self._stream_text(clarification):
                     yield chunk
-                await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip)
+                await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_SKYBANKING")
                 return
             logger.info(f"[FEE_ENGINE] ✓✓✓ SKYBANKING FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=session_id)  # Pass session_id for disambiguation state storage
@@ -3669,10 +4032,8 @@ When responding:
             # ALWAYS return fee engine response, even if empty
             if not fee_context:
                 fee_context = (
-                    "=" * 70 + "\n"
                     f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
-                    "Source: Fee Engine (Skybanking Fees Schedule)\n"
-                    "=" * 70 + "\n\n"
+                    "Source: Fee Engine (Skybanking Fees Schedule)\n\n"
                     "The specific information about this Skybanking fee is not available in the current schedule. "
                     "Please verify the service details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                 )
@@ -3683,7 +4044,7 @@ When responding:
                 yield chunk
             
             # Save to memory
-            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_SKYBANKING")
             
             return  # EXIT - do not proceed to other routing
         
@@ -3691,7 +4052,7 @@ When responding:
         # MANDATORY: Fee queries MUST route to Fee Engine ONLY (authoritative source)
         # NO LightRAG fallback, NO knowledge base lookup, NO LLM guessing
         # This check happens AFTER location queries, retail asset queries, and Skybanking queries to avoid misrouting
-        if route_card_fee:
+        if effective_target == "FEE_ENGINE_CARDS":
             logger.info(f"[FEE_ENGINE] ✓✓✓ FEE SCHEDULE QUERY DETECTED (HIGHEST PRIORITY): '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE (NO LightRAG, NO KB)")
             fee_context = await self._get_card_rates_context(query, session_id=session_id)
             sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
@@ -3721,166 +4082,92 @@ When responding:
                 yield chunk
 
             # Save to memory
-            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_CARDS")
 
             return  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
-        # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
-        # These should ALWAYS go to phonebook, never LightRAG
-        is_small_talk = False if forced_target else decision.is_small_talk
-        is_contact_query = decision.is_contact_query
-        is_phonebook_query = decision.is_phonebook_query
-        is_employee_query = decision.is_employee_query
-        is_org_overview_query = decision.is_org_overview_query
-        is_banking_product_query = decision.is_banking_product_query
-        is_compliance_query = decision.is_compliance_query
-        is_management_query = decision.is_management_query
-        is_financial_query = decision.is_financial_query
-        is_milestone_query = decision.is_milestone_query
-        is_user_doc_query = decision.is_user_doc_query
-        is_org_overview_query = decision.is_org_overview_query
-        is_banking_product_query = decision.is_banking_product_query
-        is_compliance_query = decision.is_compliance_query
-        is_management_query = decision.is_management_query
-        is_financial_query = decision.is_financial_query
-        is_milestone_query = decision.is_milestone_query
-        is_user_doc_query = decision.is_user_doc_query
-        is_org_overview_query = decision.is_org_overview_query
-        is_banking_product_query = decision.is_banking_product_query
-        is_compliance_query = decision.is_compliance_query
-        is_management_query = decision.is_management_query
-        is_financial_query = decision.is_financial_query
-        is_milestone_query = decision.is_milestone_query
-        is_user_doc_query = decision.is_user_doc_query
-        is_org_overview_query = decision.is_org_overview_query
-        is_banking_product_query = decision.is_banking_product_query
-        is_compliance_query = decision.is_compliance_query
-        is_management_query = decision.is_management_query
-        is_financial_query = decision.is_financial_query
-        is_milestone_query = decision.is_milestone_query
-        is_user_doc_query = decision.is_user_doc_query
-        is_org_overview_query = decision.is_org_overview_query
-        is_banking_product_query = decision.is_banking_product_query
-        is_compliance_query = decision.is_compliance_query
-        is_management_query = decision.is_management_query
-        is_financial_query = decision.is_financial_query
-        is_milestone_query = decision.is_milestone_query
-        is_user_doc_query = decision.is_user_doc_query
+        # Determine routing based on effective_target (single source of truth)
+        should_check_phonebook = effective_target == "PHONEBOOK"
+        is_small_talk_route = effective_target == "OPENAI_SMALL_TALK"
+        will_use_lightrag = effective_target == "LIGHTRAG"
         
-        # If it's a phonebook/employee/contact query, route to phonebook immediately
-        if forced_target == "PHONEBOOK":
-            logger.info(f"[ROUTING] ✓ Forced target PHONEBOOK → ROUTING TO PHONEBOOK")
-            should_check_phonebook = True
-        elif forced_target == "LIGHTRAG":
-            should_check_phonebook = False
-        elif decision.should_check_phonebook:
-            logger.info(f"[ROUTING] ✓ Query detected as phonebook/contact/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
-            should_check_phonebook = True
-        else:
-            # CRITICAL: Check for organizational overview queries (these need special filtering)
-            # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries
-            # These should go to LightRAG, NOT phonebook
-            # Log all routing checks
-            logger.info(f"[ROUTING] Routing checks - org_overview={is_org_overview_query}, banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
-            
-            # If it's an organizational overview query, route to LightRAG but with special filtering instructions
-            # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
-            if is_org_overview_query or is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
-                routing_type = []
-                if is_org_overview_query:
-                    routing_type.append("org_overview")
-                if is_banking_product_query:
-                    routing_type.append("banking_product")
-                if is_compliance_query:
-                    routing_type.append("compliance")
-                if is_management_query:
-                    routing_type.append("management")
-                if is_financial_query:
-                    routing_type.append("financial")
-                if is_milestone_query:
-                    routing_type.append("milestone")
-                if is_user_doc_query:
-                    routing_type.append("user_doc")
-                logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
-                should_check_phonebook = False
-            elif is_small_talk:
-                logger.info(f"[ROUTING] ✓ Query detected as small talk → ROUTING TO OPENAI (no LightRAG)")
-                should_check_phonebook = False
-            else:
-                logger.info(f"[ROUTING] ✓ Query not matched to special categories → ROUTING TO LIGHTRAG (default)")
-                should_check_phonebook = False
-        
-        logger.info(f"[ROUTING] Final decision - will_check_phonebook={should_check_phonebook}, will_use_lightrag={not should_check_phonebook and not is_small_talk}")
+        logger.info(f"[ROUTING] Final decision - effective_target={effective_target}, will_check_phonebook={should_check_phonebook}, will_use_lightrag={will_use_lightrag}, is_small_talk={is_small_talk_route}")
         
         # Check phonebook FIRST for contact queries (before LightRAG)
         if should_check_phonebook:
-            try:
-                phonebook_db = get_phonebook_db()
-                
-                # Extract search term from query
-                # For role-based queries like "branch manager of X", preserve the full context
-                import re
-                query_lower = query.lower()
-                
-                # Check if it's a role + location query (e.g., "branch manager of Gulshan")
-                role_location_pattern = r'(branch\s+)?manager\s+(of|at)\s+(.+?)(?:\s+branch)?$'
-                match = re.search(role_location_pattern, query_lower)
-                if match:
-                    # Extract location/branch name
-                    location = match.group(3).strip()
-                    role = match.group(1) + "manager" if match.group(1) else "manager"
-                    search_term = f"{role} {location}"
-                    logger.info(f"[PHONEBOOK] Extracted role+location query: '{search_term}' from '{query}'")
-                else:
-                    # First, check if query starts with "find", "search", "lookup", etc. and extract the term after it
-                    find_search_pattern = r'^(find|search|lookup|who is|contact|info about|get)\s+(.+)$'
-                    match = re.search(find_search_pattern, query_lower, re.IGNORECASE)
+            # Use injected phonebook DB (DI-aware); fall back to None if unavailable.
+            phonebook_db = self.phonebook_db
+            if not phonebook_db:
+                logger.warning("[PHONEBOOK] Phonebook DB unavailable; cannot serve phonebook request.")
+                should_check_phonebook = False
+                # Preserve existing behavior: return a phonebook error response.
+                raise RuntimeError("Phonebook DB unavailable")
+            else:
+                try:
+                    # Extract search term from query
+                    # For role-based queries like "branch manager of X", preserve the full context
+                    import re
+                    query_lower = query.lower()
+                    
+                    # Check if it's a role + location query (e.g., "branch manager of Gulshan")
+                    role_location_pattern = r'(branch\s+)?manager\s+(of|at)\s+(.+?)(?:\s+branch)?$'
+                    match = re.search(role_location_pattern, query_lower)
                     if match:
-                        # Extract the search term after the prefix
-                        search_term = match.group(2).strip()
-                        logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed prefix '{match.group(1)}')")
+                        # Extract location/branch name
+                        location = match.group(3).strip()
+                        role = match.group(1) + "manager" if match.group(1) else "manager"
+                        search_term = f"{role} {location}"
+                        logger.info(f"[PHONEBOOK] Extracted role+location query: '{search_term}' from '{query}'")
                     else:
-                        # Handle patterns like "phone number of X", "contact info for X", "email of X"
-                        # Extract employee ID/name after "of", "for", etc.
-                        # Pattern: (contact word) (optional "number") (of/for/about) (employee ID/name)
-                        of_for_patterns = [
-                            r'\b(phone|contact|email|mobile|telephone)\s+number\s+(?:of|for|about)\s+(.+)$',  # "phone number of X"
-                            r'\b(phone|contact|email|mobile|telephone)\s+(?:of|for|about)\s+(.+)$',  # "phone of X"
-                            r'\b(contact|info|information|details?)\s+(?:info|information|details?)?\s+(?:of|for|about)\s+(.+)$',  # "contact info for X"
-                        ]
-                        match = None
-                        for pattern in of_for_patterns:
-                            match = re.search(pattern, query_lower, re.IGNORECASE)
-                            if match:
-                                search_term = match.group(2).strip() if len(match.groups()) >= 2 else match.group(1).strip()
-                                logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed contact info prefix)")
-                                break
-                        if not match:
-                            # Standard extraction: remove common words but preserve role and location terms
-                            search_term = re.sub(
-                                r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were|of|for|about)\b', 
-                                '', 
-                                query, 
-                                flags=re.IGNORECASE
-                            ).strip()
-                    # Clean up multiple spaces and remove leading/trailing "of", "for", "about"
-                    search_term = re.sub(r'\s+', ' ', search_term).strip()
-                    search_term = re.sub(r'^(of|for|about)\s+', '', search_term, flags=re.IGNORECASE).strip()
-                    search_term = re.sub(r'\s+(of|for|about)$', '', search_term, flags=re.IGNORECASE).strip()
-                    
-                    # Remove bank name suffixes (e.g., "of EBL", "of Eastern Bank", "at EBL")
-                    # This helps when queries include "head of Retail & SME Banking Division of EBL"
-                    search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
-                    
-                    # Remove "Division" if it appears anywhere (e.g., "Retail & SME Banking Division head" -> "Retail & SME Banking head")
-                    # This helps match designations that don't include "Division"
-                    # Remove "division" as a whole word (not part of other words)
-                    original_search_term = search_term
-                    search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
-                    # Clean up multiple spaces that might result
-                    search_term = re.sub(r'\s+', ' ', search_term).strip()
-                    if original_search_term != search_term:
-                        logger.info(f"[PHONEBOOK] Removed 'division' from search term: '{original_search_term}' -> '{search_term}'")
+                        # First, check if query starts with "find", "search", "lookup", etc. and extract the term after it
+                        find_search_pattern = r'^(find|search|lookup|who is|contact|info about|get)\s+(.+)$'
+                        match = re.search(find_search_pattern, query_lower, re.IGNORECASE)
+                        if match:
+                            # Extract the search term after the prefix
+                            search_term = match.group(2).strip()
+                            logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed prefix '{match.group(1)}')")
+                        else:
+                            # Handle patterns like "phone number of X", "contact info for X", "email of X"
+                            # Extract employee ID/name after "of", "for", etc.
+                            # Pattern: (contact word) (optional "number") (of/for/about) (employee ID/name)
+                            of_for_patterns = [
+                                r'\b(phone|contact|email|mobile|telephone)\s+number\s+(?:of|for|about)\s+(.+)$',  # "phone number of X"
+                                r'\b(phone|contact|email|mobile|telephone)\s+(?:of|for|about)\s+(.+)$',  # "phone of X"
+                                r'\b(contact|info|information|details?)\s+(?:info|information|details?)?\s+(?:of|for|about)\s+(.+)$',  # "contact info for X"
+                            ]
+                            match = None
+                            for pattern in of_for_patterns:
+                                match = re.search(pattern, query_lower, re.IGNORECASE)
+                                if match:
+                                    search_term = match.group(2).strip() if len(match.groups()) >= 2 else match.group(1).strip()
+                                    logger.info(f"[PHONEBOOK] Extracted search term '{search_term}' from query '{query}' (removed contact info prefix)")
+                                    break
+                            if not match:
+                                # Standard extraction: remove common words but preserve role and location terms
+                                search_term = re.sub(
+                                    r'\b(phone|contact|number|email|address|mobile|telephone|who\s+is|what\s+is|tell\s+me|the|is|are|was|were|of|for|about)\b', 
+                                    '', 
+                                    query, 
+                                    flags=re.IGNORECASE
+                                ).strip()
+                        # Clean up multiple spaces and remove leading/trailing "of", "for", "about"
+                        search_term = re.sub(r'\s+', ' ', search_term).strip()
+                        search_term = re.sub(r'^(of|for|about)\s+', '', search_term, flags=re.IGNORECASE).strip()
+                        search_term = re.sub(r'\s+(of|for|about)$', '', search_term, flags=re.IGNORECASE).strip()
+                        
+                        # Remove bank name suffixes (e.g., "of EBL", "of Eastern Bank", "at EBL")
+                        # This helps when queries include "head of Retail & SME Banking Division of EBL"
+                        search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
+                        
+                        # Remove "Division" if it appears anywhere (e.g., "Retail & SME Banking Division head" -> "Retail & SME Banking head")
+                        # This helps match designations that don't include "Division"
+                        # Remove "division" as a whole word (not part of other words)
+                        original_search_term = search_term
+                        search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
+                        # Clean up multiple spaces that might result
+                        search_term = re.sub(r'\s+', ' ', search_term).strip()
+                        if original_search_term != search_term:
+                            logger.info(f"[PHONEBOOK] Removed 'division' from search term: '{original_search_term}' -> '{search_term}'")
                     
                     # If search term looks like a division/department name without a role, try adding "head"
                     # This handles queries like "Who is Retail & SME Banking Division?" -> "Retail & SME Banking head"
@@ -3912,108 +4199,129 @@ When responding:
                         # Try multiple search strategies
                         results = phonebook_db.smart_search(search_term, limit=5)
                 
-                # Final cleanup: Always remove "division" and bank name suffixes before searching
-                # This ensures cleanup happens regardless of which code path was taken
-                if search_term:
-                    original_final = search_term
-                    search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
-                    search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
-                    search_term = re.sub(r'\s+', ' ', search_term).strip()
-                    if original_final != search_term:
-                        logger.info(f"[PHONEBOOK] Final cleanup: '{original_final}' -> '{search_term}'")
-                        # If we cleaned the term and haven't searched yet, try searching with cleaned term
-                        if not results:
-                            results = phonebook_db.smart_search(search_term, limit=5)
-                
-                if results:
-                    logger.info(f"[OK] Found {len(results)} results in phonebook for: {search_term}")
+                    # Final cleanup: Always remove "division" and bank name suffixes before searching
+                    # This ensures cleanup happens regardless of which code path was taken
+                    if search_term:
+                        original_final = search_term
+                        search_term = re.sub(r'\s+(of|at|in)\s+(ebl|eastern\s+bank|eastern\s+bank\s+plc)[\s.]*$', '', search_term, flags=re.IGNORECASE).strip()
+                        search_term = re.sub(r'\bdivision\b', '', search_term, flags=re.IGNORECASE).strip()
+                        search_term = re.sub(r'\s+', ' ', search_term).strip()
+                        if original_final != search_term:
+                            logger.info(f"[PHONEBOOK] Final cleanup: '{original_final}' -> '{search_term}'")
+                            # If we cleaned the term and haven't searched yet, try searching with cleaned term
+                            if not results:
+                                results = phonebook_db.smart_search(search_term, limit=5)
                     
-                    # Stream response in chunks for better performance
-                    full_response = ""
-                    
-                    if len(results) == 1:
-                        # Single result - detailed format (stream in chunks)
-                        contact_info = phonebook_db.format_contact_info(results[0])
-                        # Stream in sentence chunks
-                        sentences = contact_info.split('\n')
-                        for sentence in sentences:
-                            if sentence.strip():
-                                chunk = sentence + '\n'
-                                full_response += chunk
-                                yield chunk
-                        # Add source
-                        source_chunk = "\n\n(Source: Phone Book Database)"
-                        full_response += source_chunk
-                        yield source_chunk
+                    if results:
+                        logger.info(f"[OK] Found {len(results)} results in phonebook for: {search_term}")
+                        
+                        # Stream response in chunks for better performance
+                        full_response = ""
+                        
+                        if len(results) == 1:
+                            # Single result - detailed format (stream in chunks)
+                            contact_info = phonebook_db.format_contact_info(results[0])
+                            # Stream in sentence chunks
+                            sentences = contact_info.split('\n')
+                            for sentence in sentences:
+                                if sentence.strip():
+                                    chunk = sentence + '\n'
+                                    full_response += chunk
+                                    yield chunk
+                            # Add source
+                            source_chunk = "\n\n(Source: Phone Book Database)"
+                            full_response += source_chunk
+                            yield source_chunk
+                        else:
+                            # Multiple results - list format (stream each result as it's formatted)
+                            for i, emp in enumerate(results[:5], 1):
+                                # Stream each employee entry as a chunk
+                                entry_chunk = f"{i}. {emp['full_name']}\n"
+                                full_response += entry_chunk
+                                yield entry_chunk
+                                
+                                if emp.get('designation'):
+                                    chunk = f"   Designation: {emp['designation']}\n"
+                                    full_response += chunk
+                                    yield chunk
+                                if emp.get('department'):
+                                    chunk = f"   Department: {emp['department']}\n"
+                                    full_response += chunk
+                                    yield chunk
+                                if emp.get('email'):
+                                    chunk = f"   Email: {emp['email']}\n"
+                                    full_response += chunk
+                                    yield chunk
+                                if emp.get('employee_id'):
+                                    chunk = f"   Employee ID: {emp['employee_id']}\n"
+                                    full_response += chunk
+                                    yield chunk
+                                if emp.get('mobile'):
+                                    chunk = f"   Mobile: {emp['mobile']}\n"
+                                    full_response += chunk
+                                    yield chunk
+                                if emp.get('ip_phone'):
+                                    chunk = f"   IP Phone: {emp['ip_phone']}\n"
+                                    full_response += chunk
+                                    yield chunk
+                                
+                                # Empty line between entries
+                                full_response += "\n"
+                                yield "\n"
+                            
+                            # Stream summary
+                            total_count = phonebook_db.count_search_results(search_term)
+                            summary_chunk = f"We found {total_count} matching contact(s) in total. Showing only the top 5 results.\n\n"
+                            full_response += summary_chunk
+                            yield summary_chunk
+                            
+                            if total_count > 5:
+                                narrow_chunk = "Please provide more details to narrow down the search.\n\n"
+                                full_response += narrow_chunk
+                                yield narrow_chunk
+                            
+                            source_chunk = "(Source: Phone Book Database)"
+                            full_response += source_chunk
+                            yield source_chunk
+                        
+                        # Save to memory
+                        await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="PHONEBOOK")
+                        
+                        return  # DO NOT query LightRAG for contact queries
+                        
                     else:
-                        # Multiple results - list format (stream each result as it's formatted)
-                        for i, emp in enumerate(results[:5], 1):
-                            # Stream each employee entry as a chunk
-                            entry_chunk = f"{i}. {emp['full_name']}\n"
-                            full_response += entry_chunk
-                            yield entry_chunk
-                            
-                            if emp.get('designation'):
-                                chunk = f"   Designation: {emp['designation']}\n"
-                                full_response += chunk
-                                yield chunk
-                            if emp.get('department'):
-                                chunk = f"   Department: {emp['department']}\n"
-                                full_response += chunk
-                                yield chunk
-                            if emp.get('email'):
-                                chunk = f"   Email: {emp['email']}\n"
-                                full_response += chunk
-                                yield chunk
-                            if emp.get('employee_id'):
-                                chunk = f"   Employee ID: {emp['employee_id']}\n"
-                                full_response += chunk
-                                yield chunk
-                            if emp.get('mobile'):
-                                chunk = f"   Mobile: {emp['mobile']}\n"
-                                full_response += chunk
-                                yield chunk
-                            if emp.get('ip_phone'):
-                                chunk = f"   IP Phone: {emp['ip_phone']}\n"
-                                full_response += chunk
-                                yield chunk
-                            
-                            # Empty line between entries
-                            full_response += "\n"
-                            yield "\n"
+                        # No results in phonebook - return helpful message (DO NOT use LightRAG)
+                        logger.info(f"[INFO] No results in phonebook for '{search_term}' (contact query - NOT using LightRAG)")
                         
-                        # Stream summary
-                        total_count = phonebook_db.count_search_results(search_term)
-                        summary_chunk = f"We found {total_count} matching contact(s) in total. Showing only the top 5 results.\n\n"
-                        full_response += summary_chunk
-                        yield summary_chunk
+                        # Stream response in chunks
+                        chunks = [
+                            f"I couldn't find any contact information for '{search_term}' in the employee directory. ",
+                            "Please try:\n",
+                            "- Providing the full name\n",
+                            "- Using the employee ID\n",
+                            "- Specifying the department or designation\n",
+                            "\n(Source: Phone Book Database)"
+                        ]
                         
-                        if total_count > 5:
-                            narrow_chunk = "Please provide more details to narrow down the search.\n\n"
-                            full_response += narrow_chunk
-                            yield narrow_chunk
+                        full_response = ""
+                        for chunk in chunks:
+                            full_response += chunk
+                            yield chunk
                         
-                        source_chunk = "(Source: Phone Book Database)"
-                        full_response += source_chunk
-                        yield source_chunk
+                        # Save to memory
+                        await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="PHONEBOOK")
+                        
+                        return  # DO NOT query LightRAG for contact queries
                     
-                    # Save to memory
-                    await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
+                except Exception as e:
+                    # For contact queries, even if phonebook has an error, don't use LightRAG
+                    logger.error(f"[ERROR] Phonebook error for contact query (NOT using LightRAG): {e}")
                     
-                    return  # DO NOT query LightRAG for contact queries
-                    
-                else:
-                    # No results in phonebook - return helpful message (DO NOT use LightRAG)
-                    logger.info(f"[INFO] No results in phonebook for '{search_term}' (contact query - NOT using LightRAG)")
-                    
-                    # Stream response in chunks
+                    # Stream error response in chunks
                     chunks = [
-                        f"I couldn't find any contact information for '{search_term}' in the employee directory. ",
-                        "Please try:\n",
-                        "- Providing the full name\n",
-                        "- Using the employee ID\n",
-                        "- Specifying the department or designation\n",
-                        "\n(Source: Phone Book Database)"
+                        "I'm having trouble accessing the employee directory right now. ",
+                        "Please try again in a moment, or contact support for assistance.",
+                        "\n\n(Source: Phone Book Database)"
                     ]
                     
                     full_response = ""
@@ -4022,30 +4330,9 @@ When responding:
                         yield chunk
                     
                     # Save to memory
-                    await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
+                    await self._persist_turn(session_id, query, full_response, knowledge_base=None, routing_target="PHONEBOOK")
                     
                     return  # DO NOT query LightRAG for contact queries
-                    
-            except Exception as e:
-                # For contact queries, even if phonebook has an error, don't use LightRAG
-                logger.error(f"[ERROR] Phonebook error for contact query (NOT using LightRAG): {e}")
-                
-                # Stream error response in chunks
-                chunks = [
-                    "I'm having trouble accessing the employee directory right now. ",
-                    "Please try again in a moment, or contact support for assistance.",
-                    "\n\n(Source: Phone Book Database)"
-                ]
-                
-                full_response = ""
-                for chunk in chunks:
-                    full_response += chunk
-                    yield chunk
-                
-                # Save to memory
-                await self._persist_turn(session_id, query, full_response, knowledge_base=None)
-                
-                return  # DO NOT query LightRAG for contact queries
         
         # Determine if we need LightRAG context (only for non-contact queries)
         context = ""
@@ -4053,14 +4340,14 @@ When responding:
         card_rates_context = ""
         is_card_rates_query = False  # Initialize to avoid UnboundLocalError
         
-        if not is_small_talk:
+        if not is_small_talk_route:
             # Check for policy queries and validate required entities
-            if is_compliance_query:
+            if decision.is_compliance_query:
                 has_entities, clarification = self._check_policy_entities(query)
                 if not has_entities and clarification:
                     logger.info(f"[POLICY] Policy query missing required entities, asking for clarification")
                     # Save to memory
-                    await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip)
+                    await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip, routing_target="CLARIFICATION")
                     
                     # Stream clarification question
                     for char in clarification:
@@ -4131,7 +4418,7 @@ When responding:
         if extracted:
             async for chunk in self._stream_text(extracted):
                 yield chunk
-            await self._persist_turn(session_id, query, extracted, knowledge_base=knowledge_base, client_ip=client_ip)
+            await self._persist_turn(session_id, query, extracted, knowledge_base=knowledge_base, client_ip=client_ip, routing_target="LIGHTRAG")
             if sources:
                 marker = self._format_sources_marker(sources)
                 if marker:
@@ -4141,6 +4428,34 @@ When responding:
         # Build messages
         messages = self._build_messages(query, combined_context, conversation_history)
 
+        # ============================================================
+        # RESPONSE CACHING: Check for cached response before OpenAI call
+        # ============================================================
+        cached_result = await self._get_cached_openai_response(query, combined_context)
+        if cached_result:
+            # Cache hit! Stream the cached response
+            cached_response = cached_result.get("response", "")
+            cached_sources = cached_result.get("sources", [])
+            logger.info(f"[RESPONSE_CACHE] 🎯 CACHE HIT - Streaming cached response ({len(cached_response)} chars)")
+            
+            # Stream cached response in chunks for consistent UX
+            async for chunk in self._stream_cached_response(cached_response):
+                yield chunk
+            
+            # Send sources if available
+            final_sources = cached_sources if cached_sources else sources
+            if final_sources:
+                marker = self._format_sources_marker(final_sources)
+                if marker:
+                    yield marker
+            
+            # Save to memory (still track the interaction)
+            await self._persist_turn(session_id, query, cached_response, knowledge_base=knowledge_base, client_ip=client_ip, routing_target="LIGHTRAG_CACHED")
+            return
+
+        # ============================================================
+        # Cache miss - Call OpenAI API
+        # ============================================================
         # Stream response from OpenAI
         full_response = ""
         try:
@@ -4189,6 +4504,17 @@ When responding:
         # Fix bank name (replace "Eastern Bank Limited" with "Eastern Bank PLC")
         full_response = self._fix_bank_name(full_response)
         
+        # ============================================================
+        # RESPONSE CACHING: Cache the OpenAI response for future queries
+        # ============================================================
+        await self._cache_openai_response(
+            query=query,
+            context=combined_context,
+            response=full_response,
+            sources=sources,
+            routing_target="LIGHTRAG",
+        )
+        
         # Store sources for later retrieval (we'll send them at the end of stream)
         # For now, we'll append sources as a special marker that frontend can parse
         if sources:
@@ -4200,7 +4526,7 @@ When responding:
             logger.info(f"[SOURCES] No sources to send for query: '{query[:50]}...'")
         
         # Save to memory
-        await self._persist_turn(session_id, query, full_response, knowledge_base=knowledge_base, client_ip=client_ip)
+        await self._persist_turn(session_id, query, full_response, knowledge_base=knowledge_base, client_ip=client_ip, routing_target="LIGHTRAG")
     
     async def process_chat_sync(
         self,
@@ -4235,36 +4561,45 @@ When responding:
         # This MUST happen before any other routing to ensure disambiguation state is always checked first
         pending_disambiguation = await self._get_disambiguation_state_any(conversation_key)
         if pending_disambiguation:
-            disambiguation_type = pending_disambiguation.get("disambiguation_type")
-            if disambiguation_type in {"ROUTING", "ROUTING_FEE_TYPE"}:
-                routing_result = await self._handle_routing_disambiguation(
-                    query=query,
-                    conversation_key=conversation_key,
-                    pending_disambiguation=pending_disambiguation,
-                )
-                if routing_result.get("response"):
-                    response_text = routing_result["response"]
-                    await self._persist_turn(session_id, query, response_text)
-                    return {
-                        "response": response_text,
-                        "session_id": effective_session_id,
-                        "sources": [],
-                    }
-                forced_target = routing_result.get("resolved_target")
-                query = routing_result.get("resolved_query", query)
+            # If user asked a new question, clear stale disambiguation state.
+            if self._looks_like_new_query_during_disambiguation(
+                query,
+                pending_disambiguation.get("options", []),
+            ):
+                logger.info("[DISAMBIGUATION] New query detected; clearing pending disambiguation state.")
+                await self._clear_disambiguation_state_any(conversation_key)
+                pending_disambiguation = None
             else:
-                result = await self._handle_disambiguation_resolution(
-                    query=query,
-                    conversation_key=conversation_key,
-                    session_id=effective_session_id,
-                    pending_disambiguation=pending_disambiguation
-                )
-                if result:
-                    return {
-                        "response": result["response"],
-                        "session_id": effective_session_id,
-                        "sources": result.get("sources", []),
-                    }
+                disambiguation_type = pending_disambiguation.get("disambiguation_type")
+                if disambiguation_type in {"ROUTING", "ROUTING_FEE_TYPE"}:
+                    routing_result = await self._handle_routing_disambiguation(
+                        query=query,
+                        conversation_key=conversation_key,
+                        pending_disambiguation=pending_disambiguation,
+                    )
+                    if routing_result.get("response"):
+                        response_text = routing_result["response"]
+                        await self._persist_turn(session_id, query, response_text)
+                        return {
+                            "response": response_text,
+                            "session_id": effective_session_id,
+                            "sources": [],
+                        }
+                    forced_target = routing_result.get("resolved_target")
+                    query = routing_result.get("resolved_query", query)
+                else:
+                    result = await self._handle_disambiguation_resolution(
+                        query=query,
+                        conversation_key=conversation_key,
+                        session_id=effective_session_id,
+                        pending_disambiguation=pending_disambiguation
+                    )
+                    if result:
+                        return {
+                            "response": result["response"],
+                            "session_id": effective_session_id,
+                            "sources": result.get("sources", []),
+                        }
         
         # Get conversation history
         db = get_db()
@@ -4298,7 +4633,7 @@ When responding:
         # ===== BROAD LOAN PRODUCT LINE QUERIES (DETERMINISTIC SHORT-CIRCUIT) =====
         if not forced_target and self._is_broad_loan_product_line_query(query):
             response_text = self._build_loan_product_line_list_response()
-            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip, routing_target="PRODUCT_INFO")
             return {
                 "response": response_text,
                 "session_id": effective_session_id,
@@ -4326,27 +4661,47 @@ When responding:
                 "extra": {"base_query": query, "fee_candidates": fee_candidates},
             }
             await self._set_disambiguation_state_any(conversation_key, state)
-            await self._persist_turn(session_id, query, prompt_message)
+            await self._persist_turn(session_id, query, prompt_message, routing_target="DISAMBIGUATION")
             return {
                 "response": prompt_message,
                 "session_id": effective_session_id,
                 "sources": [],
             }
 
-        if forced_target:
-            route_location = forced_target == "LOCATION_SERVICE"
-            route_retail_fee = forced_target == "FEE_ENGINE_RETAIL_ASSETS"
-            route_sky_fee = forced_target == "FEE_ENGINE_SKYBANKING"
-            route_card_fee = forced_target == "FEE_ENGINE_CARDS"
-        else:
-            route_location = decision.is_location_query
-            route_retail_fee = decision.is_retail_asset_fee_query
-            route_sky_fee = decision.is_skybanking_fee_query
-            route_card_fee = decision.is_fee_schedule_query
+        # Use decision.target as the single source of truth for routing
+        # forced_target overrides if set (from disambiguation resolution)
+        effective_target = forced_target if forced_target else decision.target
+        logger.info(f"[ROUTING] Effective target: {effective_target} (forced={forced_target is not None})")
+
+        # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGHEST PRIORITY) =====
+        # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
+        # This MUST be checked BEFORE fee schedule queries to avoid misrouting priority center queries
+        if effective_target == "LOCATION_SERVICE":
+            logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
+            location_context = await self._get_location_context(query)
+            sources = ["EBL Location Database (Normalized)"]
+            
+            # Use ONLY location service context - NO LightRAG, NO knowledge base
+            combined_context = location_context
+            logger.info(f"[LOCATION_SERVICE] Using EXCLUSIVE location service context: {len(location_context)} chars (LightRAG/KB explicitly skipped)")
+            
+            # Anti-hallucination hard guard:
+            # Return the location service output directly (NO OpenAI call, NO paraphrasing).
+            full_response = combined_context
+
+            # Save to memory
+            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip, routing_target="LOCATION")
+            
+            return {
+                "response": full_response,
+                "sources": sources,
+                "session_id": effective_session_id,
+                "routing": "location_service"
+            }  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
         # ===== CRITICAL: RETAIL ASSET FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for retail asset fee queries BEFORE card fee queries
-        if route_retail_fee:
+        if effective_target == "FEE_ENGINE_RETAIL_ASSETS":
             logger.info(f"[FEE_ENGINE] ✓✓✓ RETAIL ASSET FEE QUERY DETECTED: '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE")
             fee_context = await self._get_card_rates_context(query, session_id=effective_session_id, conversation_key=conversation_key)  # FIX #1: Pass conversation_key for stable disambiguation state
             sources = ["Retail Asset Charges Schedule"]
@@ -4365,7 +4720,7 @@ When responding:
             response_text = fee_context
             
             # Save to memory
-            await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_RETAIL")
 
             return {
                 "response": response_text,
@@ -4375,18 +4730,18 @@ When responding:
         
         # ===== CRITICAL: SKYBANKING FEE QUERIES - EXCLUSIVE FEE ENGINE ROUTING (HIGH PRIORITY) =====
         # Check for Skybanking fee queries BEFORE card fee queries
-        if route_sky_fee:
+        if effective_target == "FEE_ENGINE_SKYBANKING":
             if self._is_generic_skybanking_fee_query(query):
                 response_text = (
                     f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
-                    + "=" * 70
-                    + "\nPlease specify which Skybanking fee you need. For example:\n"
+                    + "Please specify which Skybanking fee you need. For example:\n"
                     + "- Skybanking  Add money fee\n"
                     + "- Skybanking  Fund transfer fee (NPSB / Binimoy / RTGS)\n"
+                    + "- Skybanking  A-Challan (government payment) fee\n"
                     + "- Skybanking  Statement / Certificate fee\n"
                     + "- Skybanking  Duplicate PIN charge\n"
                 )
-                await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+                await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_SKYBANKING")
                 return {
                     "response": response_text,
                     "session_id": effective_session_id,
@@ -4399,10 +4754,8 @@ When responding:
             # ALWAYS return fee engine response, even if empty
             if not fee_context:
                 fee_context = (
-                    "=" * 70 + "\n"
                     f"{self.OFFICIAL_SKYBANKING_HEADER}\n"
-                    f"{self.FEE_ENGINE_SOURCE_SKYBANKING}\n"
-                    "=" * 70 + "\n\n"
+                    f"{self.FEE_ENGINE_SOURCE_SKYBANKING}\n\n"
                     "The specific information about this Skybanking fee is not available in the current schedule. "
                     "Please verify the service details and try again, or contact Eastern Bank PLC. directly for this specific detail."
                 )
@@ -4412,7 +4765,7 @@ When responding:
             response_text = fee_context
             
             # Save to memory
-            await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(effective_session_id, query, response_text, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_SKYBANKING")
             
             return {
                 "response": response_text,
@@ -4424,7 +4777,7 @@ When responding:
         # MANDATORY: Fee queries MUST route to Fee Engine ONLY (authoritative source)
         # NO LightRAG fallback, NO knowledge base lookup, NO LLM guessing
         # This check happens AFTER location queries, retail asset queries, and Skybanking queries to avoid misrouting
-        if route_card_fee:
+        if effective_target == "FEE_ENGINE_CARDS":
             logger.info(f"[FEE_ENGINE] ✓✓✓ FEE SCHEDULE QUERY DETECTED (HIGHEST PRIORITY): '{query}' → EXCLUSIVE ROUTING TO FEE ENGINE (NO LightRAG, NO KB)")
             fee_context = await self._get_card_rates_context(query, session_id=session_id)
             sources = ["Card Charges and Fees Schedule (Effective from 01st January, 2026)"]
@@ -4452,7 +4805,7 @@ When responding:
             response_text = combined_context
 
             # Save to memory
-            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip)
+            await self._persist_turn(session_id, query, response_text, knowledge_base=None, client_ip=client_ip, routing_target="FEE_ENGINE_CARDS")
 
             return {
                 "response": response_text,
@@ -4460,94 +4813,21 @@ When responding:
                 "sources": sources
             }  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
         
-        # ===== LOCATION QUERIES - ROUTE TO LOCATION SERVICE (HIGH PRIORITY) =====
-        # Route location queries (branches, ATMs, CRMs, RTDMs, priority centers, head office) to location service
-        if route_location:
-            logger.info(f"[LOCATION_SERVICE] ✓✓✓ LOCATION QUERY DETECTED: '{query}' → ROUTING TO LOCATION SERVICE (NO LightRAG, NO KB)")
-            location_context = await self._get_location_context(query)
-            sources = ["EBL Location Database (Normalized)"]
-            
-            # Use ONLY location service context - NO LightRAG, NO knowledge base
-            combined_context = location_context
-            logger.info(f"[LOCATION_SERVICE] Using EXCLUSIVE location service context: {len(location_context)} chars (LightRAG/KB explicitly skipped)")
-            
-            # Anti-hallucination hard guard:
-            # Return the location service output directly (NO OpenAI call, NO paraphrasing).
-            full_response = combined_context
-
-            # Save to memory
-            await self._persist_turn(session_id, query, full_response, knowledge_base=None, client_ip=client_ip)
-            
-            return {
-                "response": full_response,
-                "sources": sources,
-                "session_id": effective_session_id,
-                "routing": "location_service"
-            }  # EXIT - do not proceed to LightRAG, phonebook, or any other routing
+        # Determine routing based on effective_target (single source of truth)
+        should_check_phonebook = effective_target == "PHONEBOOK"
+        is_small_talk_route = effective_target == "OPENAI_SMALL_TALK"
+        will_use_lightrag = effective_target == "LIGHTRAG"
         
-        # CRITICAL: Check for phonebook/employee/contact queries FIRST (before other routing)
-        # These should ALWAYS go to phonebook, never LightRAG
-        is_small_talk = False if forced_target else decision.is_small_talk
-        is_contact_query = decision.is_contact_query
-        is_phonebook_query = decision.is_phonebook_query
-        is_employee_query = decision.is_employee_query
-        is_org_overview_query = decision.is_org_overview_query
-        is_banking_product_query = decision.is_banking_product_query
-        is_compliance_query = decision.is_compliance_query
-        is_management_query = decision.is_management_query
-        is_financial_query = decision.is_financial_query
-        is_milestone_query = decision.is_milestone_query
-        is_user_doc_query = decision.is_user_doc_query
-        
-        # If it's a phonebook/employee/contact query, route to phonebook immediately
-        if forced_target == "PHONEBOOK":
-            logger.info(f"[ROUTING] ✓ Forced target PHONEBOOK → ROUTING TO PHONEBOOK")
-            should_check_phonebook = True
-        elif forced_target == "LIGHTRAG":
-            should_check_phonebook = False
-        elif decision.should_check_phonebook:
-            logger.info(f"[ROUTING] ✓ Query detected as phonebook/contact/employee → ROUTING TO PHONEBOOK (NOT LightRAG)")
-            should_check_phonebook = True
-        else:
-            # CRITICAL: Check for organizational overview queries (these need special filtering)
-            # CRITICAL: Check for banking product/compliance/management/financial/milestone/user document queries
-            # These should go to LightRAG, NOT phonebook
-            # Log all routing checks
-            logger.info(f"[ROUTING] Routing checks - org_overview={is_org_overview_query}, banking_product={is_banking_product_query}, compliance={is_compliance_query}, management={is_management_query}, financial={is_financial_query}, milestone={is_milestone_query}, user_doc={is_user_doc_query}")
-            
-            # If it's an organizational overview query, route to LightRAG but with special filtering instructions
-            # If it's a banking product/compliance/management/financial/milestone/user document query, skip phonebook and go to LightRAG
-            if is_org_overview_query or is_banking_product_query or is_compliance_query or is_management_query or is_financial_query or is_milestone_query or is_user_doc_query:
-                routing_type = []
-                if is_org_overview_query:
-                    routing_type.append("org_overview")
-                if is_banking_product_query:
-                    routing_type.append("banking_product")
-                if is_compliance_query:
-                    routing_type.append("compliance")
-                if is_management_query:
-                    routing_type.append("management")
-                if is_financial_query:
-                    routing_type.append("financial")
-                if is_milestone_query:
-                    routing_type.append("milestone")
-                if is_user_doc_query:
-                    routing_type.append("user_doc")
-                logger.info(f"[ROUTING] ✓ Query detected as special ({', '.join(routing_type)}) → ROUTING TO LIGHTRAG (skipping phonebook)")
-                should_check_phonebook = False
-            elif is_small_talk:
-                logger.info(f"[ROUTING] ✓ Query detected as small talk → ROUTING TO OPENAI (no LightRAG)")
-                should_check_phonebook = False
-            else:
-                logger.info(f"[ROUTING] ✓ Query not matched to special categories → ROUTING TO LIGHTRAG (default)")
-                should_check_phonebook = False
-        
-        logger.info(f"[ROUTING] Final decision - will_check_phonebook={should_check_phonebook}, will_use_lightrag={not should_check_phonebook and not is_small_talk}")
+        logger.info(f"[ROUTING] Final decision - effective_target={effective_target}, will_check_phonebook={should_check_phonebook}, will_use_lightrag={will_use_lightrag}, is_small_talk={is_small_talk_route}")
         
         # Check phonebook FIRST for contact queries (before LightRAG)
         if should_check_phonebook:
             try:
-                phonebook_db = get_phonebook_db()
+                phonebook_db = self.phonebook_db
+                if not phonebook_db:
+                    logger.warning("[PHONEBOOK] Phonebook DB unavailable; skipping phonebook routing.")
+                    should_check_phonebook = False
+                    raise RuntimeError("Phonebook DB unavailable")
                 
                 # Extract search term from query
                 # For role-based queries like "branch manager of X", preserve the full context
@@ -4691,7 +4971,7 @@ When responding:
                         response += "(Source: Phone Book Database)"
 
                     # Save to memory
-                    await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip)
+                    await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip, routing_target="PHONEBOOK")
                     
                     return {
                         "response": response,
@@ -4709,7 +4989,7 @@ When responding:
                     response += "\n(Source: Phone Book Database)"
 
                     # Save to memory
-                    await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip)
+                    await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip, routing_target="PHONEBOOK")
                     
                     return {
                         "response": response,
@@ -4724,7 +5004,7 @@ When responding:
                 response += "\n\n(Source: Phone Book Database)"
 
                 # Save to memory
-                await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip)
+                await self._persist_turn(session_id, query, response, knowledge_base=None, client_ip=client_ip, routing_target="PHONEBOOK")
                 
                 return {
                     "response": response,
@@ -4737,14 +5017,14 @@ When responding:
         card_rates_context = ""
         is_card_rates_query = False  # Initialize to avoid UnboundLocalError
         
-        if not is_small_talk:
+        if not is_small_talk_route:
             # Check for policy queries and validate required entities
-            if is_compliance_query:
+            if decision.is_compliance_query:
                 has_entities, clarification = self._check_policy_entities(query)
                 if not has_entities and clarification:
                     logger.info(f"[POLICY] Policy query missing required entities, asking for clarification")
                     # Save to memory
-                    await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip)
+                    await self._persist_turn(session_id, query, clarification, knowledge_base=None, client_ip=client_ip, routing_target="CLARIFICATION")
                     
                     return {
                         "response": clarification,
@@ -4843,7 +5123,7 @@ When responding:
         # Deterministic guardrail for MetLife tenure/term questions (avoid hallucination)
         extracted = self._extract_mcepp_plan_term_answer(query, combined_context)
         if extracted:
-            await self._persist_turn(session_id, query, extracted, knowledge_base=knowledge_base, client_ip=client_ip)
+            await self._persist_turn(session_id, query, extracted, knowledge_base=knowledge_base, client_ip=client_ip, routing_target="LIGHTRAG")
             return {
                 "response": extracted,
                 "session_id": session_id,
@@ -4853,6 +5133,27 @@ When responding:
         # Build messages
         messages = self._build_messages(query, combined_context, conversation_history)
         
+        # ============================================================
+        # RESPONSE CACHING: Check for cached response before OpenAI call
+        # ============================================================
+        cached_result = await self._get_cached_openai_response(query, combined_context)
+        if cached_result:
+            cached_response = cached_result.get("response", "")
+            cached_sources = cached_result.get("sources", [])
+            logger.info(f"[RESPONSE_CACHE] 🎯 CACHE HIT - Returning cached response ({len(cached_response)} chars)")
+            
+            # Save to memory (still track the interaction)
+            await self._persist_turn(session_id, query, cached_response, knowledge_base=knowledge_base, client_ip=client_ip, routing_target="LIGHTRAG_CACHED")
+            
+            return {
+                "response": cached_response,
+                "session_id": session_id,
+                "sources": cached_sources if cached_sources else sources
+            }
+        
+        # ============================================================
+        # Cache miss - Call OpenAI API
+        # ============================================================
         # Get response from OpenAI
         try:
             # Calculate max_tokens dynamically to avoid context length errors
@@ -4881,8 +5182,19 @@ When responding:
             logger.error(f"OpenAI API error: {e}")
             full_response = "I apologize, but I'm experiencing technical difficulties. Please try again later."
         
+        # ============================================================
+        # RESPONSE CACHING: Cache the OpenAI response for future queries
+        # ============================================================
+        await self._cache_openai_response(
+            query=query,
+            context=combined_context,
+            response=full_response,
+            sources=sources,
+            routing_target="LIGHTRAG",
+        )
+        
         # Save to memory (user message was saved earlier before OpenAI call)
-        await self._persist_turn(session_id, query, full_response, knowledge_base=knowledge_base, client_ip=client_ip)
+        await self._persist_turn(session_id, query, full_response, knowledge_base=knowledge_base, client_ip=client_ip, routing_target="LIGHTRAG")
         
         return {
             "response": full_response,

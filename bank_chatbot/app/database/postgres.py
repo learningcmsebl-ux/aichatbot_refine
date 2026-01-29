@@ -130,8 +130,8 @@ class PostgresChatMemory:
             return None
     
     def get_conversation_history(
-        self, 
-        session_id: str, 
+        self,
+        session_id: str,
         limit: Optional[int] = None
     ) -> List[ChatMessage]:
         """Get conversation history for a session"""
@@ -142,10 +142,13 @@ class PostgresChatMemory:
             query = self.db.query(ChatMessage).filter(
                 ChatMessage.session_id == session_id
             ).order_by(ChatMessage.created_at.asc())
-            
-            if limit:
-                query = query.limit(limit)
-            
+
+            hard_cap = min(settings.MAX_CONVERSATION_HISTORY, 50)
+            effective_limit = hard_cap if limit is None else min(limit, hard_cap)
+            if effective_limit <= 0:
+                return []
+            query = query.limit(effective_limit)
+
             return query.all()
         except Exception as e:
             logger.warning(f"Error getting conversation history (continuing without history): {e}")

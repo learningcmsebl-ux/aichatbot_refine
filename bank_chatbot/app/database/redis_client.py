@@ -1,16 +1,21 @@
 """
 Redis client for caching LightRAG queries and responses.
+Includes OpenAI response caching for token optimization.
 """
 
 import redis.asyncio as aioredis
 import json
 import hashlib
 import logging
+import re
 from typing import Optional, Any, List, Dict
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Response cache TTL (default 2 hours for OpenAI responses)
+RESPONSE_CACHE_TTL = int(settings.REDIS_CACHE_TTL) if hasattr(settings, 'REDIS_CACHE_TTL') else 7200
 
 redis_client: Optional[aioredis.Redis] = None
 
@@ -226,4 +231,216 @@ class RedisCache:
         except Exception as e:
             logger.warning(f"Redis clear disambiguation state error: {e}")
             return False
+    
+    # ============================================================
+    # OpenAI Response Caching (Token Optimization)
+    # ============================================================
+    
+    def _get_response_cache_key(self, query: str, context_hash: str) -> str:
+        """
+        Generate cache key for OpenAI response.
+        
+        Args:
+            query: Normalized user query
+            context_hash: Hash of the context used for the response
+        
+        Returns:
+            Cache key string
+        """
+        # Normalize query for consistent caching
+        normalized_query = re.sub(r'\s+', ' ', query.lower().strip())
+        combined = f"{normalized_query}:{context_hash}"
+        cache_hash = hashlib.md5(combined.encode('utf-8')).hexdigest()
+        return f"openai_response:{cache_hash}"
+    
+    def _hash_context(self, context: str) -> str:
+        """
+        Generate hash for context content.
+        
+        Args:
+            context: The context string (from LightRAG/Fee Engine)
+        
+        Returns:
+            MD5 hash of the context
+        """
+        if not context:
+            return "empty"
+        return hashlib.md5(context.encode('utf-8')).hexdigest()[:16]
+    
+    async def get_cached_response(
+        self, 
+        query: str, 
+        context: str,
+        include_metadata: bool = False
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cached OpenAI response for a query+context combination.
+        
+        Args:
+            query: User query
+            context: Context used for the response (from LightRAG/Fee Engine)
+            include_metadata: If True, return full cache entry with metadata
+        
+        Returns:
+            Cached response dict with 'response' key, or None if not found
+        """
+        if not self.client:
+            logger.debug("[RESPONSE_CACHE] Redis not available - cache disabled")
+            return None
+        
+        try:
+            context_hash = self._hash_context(context)
+            cache_key = self._get_response_cache_key(query, context_hash)
+            
+            cached = await self.client.get(cache_key)
+            if cached:
+                data = json.loads(cached)
+                logger.info(f"[RESPONSE_CACHE] HIT for query: '{query[:50]}...' (context_hash: {context_hash})")
+                
+                # Update hit count for analytics
+                try:
+                    await self.client.hincrby("response_cache:stats", "hits", 1)
+                except Exception:
+                    pass  # Stats are optional
+                
+                if include_metadata:
+                    return data
+                return {"response": data.get("response"), "sources": data.get("sources", [])}
+            
+            logger.debug(f"[RESPONSE_CACHE] MISS for query: '{query[:50]}...'")
+            try:
+                await self.client.hincrby("response_cache:stats", "misses", 1)
+            except Exception:
+                pass  # Stats are optional
+            
+            return None
+        except Exception as e:
+            logger.warning(f"[RESPONSE_CACHE] Get error: {e}")
+            return None
+    
+    async def cache_response(
+        self,
+        query: str,
+        context: str,
+        response: str,
+        sources: Optional[List[str]] = None,
+        ttl: Optional[int] = None,
+        routing_target: Optional[str] = None
+    ) -> bool:
+        """
+        Cache an OpenAI response.
+        
+        Args:
+            query: User query
+            context: Context used for the response
+            response: The OpenAI response to cache
+            sources: Optional list of sources used
+            ttl: Time-to-live in seconds (default: RESPONSE_CACHE_TTL)
+            routing_target: The routing target (for analytics)
+        
+        Returns:
+            True if cached successfully
+        """
+        if not self.client:
+            logger.debug("[RESPONSE_CACHE] Redis not available - cannot cache")
+            return False
+        
+        # Don't cache error responses
+        error_indicators = [
+            "technical difficulties",
+            "apologize",
+            "try again later",
+            "error occurred"
+        ]
+        response_lower = response.lower()
+        if any(indicator in response_lower for indicator in error_indicators):
+            logger.debug("[RESPONSE_CACHE] Not caching error response")
+            return False
+        
+        # Don't cache very short responses (likely errors or incomplete)
+        if len(response) < 50:
+            logger.debug(f"[RESPONSE_CACHE] Not caching short response ({len(response)} chars)")
+            return False
+        
+        try:
+            context_hash = self._hash_context(context)
+            cache_key = self._get_response_cache_key(query, context_hash)
+            
+            cache_data = {
+                "response": response,
+                "sources": sources or [],
+                "query": query[:200],  # Store truncated query for debugging
+                "context_hash": context_hash,
+                "routing_target": routing_target,
+                "cached_at": __import__('datetime').datetime.utcnow().isoformat()
+            }
+            
+            effective_ttl = ttl or RESPONSE_CACHE_TTL
+            await self.client.setex(
+                cache_key,
+                effective_ttl,
+                json.dumps(cache_data)
+            )
+            
+            logger.info(
+                f"[RESPONSE_CACHE] CACHED response for query: '{query[:50]}...' "
+                f"(TTL: {effective_ttl}s, context_hash: {context_hash}, "
+                f"response_len: {len(response)})"
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"[RESPONSE_CACHE] Set error: {e}")
+            return False
+    
+    async def get_response_cache_stats(self) -> Dict[str, Any]:
+        """
+        Get response cache statistics.
+        
+        Returns:
+            Dict with hits, misses, and hit rate
+        """
+        if not self.client:
+            return {"hits": 0, "misses": 0, "hit_rate": 0.0, "available": False}
+        
+        try:
+            stats = await self.client.hgetall("response_cache:stats")
+            hits = int(stats.get("hits", 0))
+            misses = int(stats.get("misses", 0))
+            total = hits + misses
+            hit_rate = round((hits / total * 100), 2) if total > 0 else 0.0
+            
+            return {
+                "hits": hits,
+                "misses": misses,
+                "total": total,
+                "hit_rate": hit_rate,
+                "available": True
+            }
+        except Exception as e:
+            logger.warning(f"[RESPONSE_CACHE] Stats error: {e}")
+            return {"hits": 0, "misses": 0, "hit_rate": 0.0, "available": False, "error": str(e)}
+    
+    async def clear_response_cache(self) -> int:
+        """
+        Clear all cached OpenAI responses.
+        
+        Returns:
+            Number of keys deleted
+        """
+        if not self.client:
+            return 0
+        
+        try:
+            keys = []
+            async for key in self.client.scan_iter(match="openai_response:*"):
+                keys.append(key)
+            
+            if keys:
+                deleted = await self.client.delete(*keys)
+                logger.info(f"[RESPONSE_CACHE] Cleared {deleted} cached responses")
+                return deleted
+            return 0
+        except Exception as e:
+            logger.warning(f"[RESPONSE_CACHE] Clear error: {e}")
+            return 0
 

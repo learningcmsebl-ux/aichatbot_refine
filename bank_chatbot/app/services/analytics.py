@@ -63,12 +63,14 @@ class ConversationLog(Base):
     knowledge_base = Column(String(255))
     response_time_ms = Column(Integer)
     client_ip = Column(String(45), index=True)  # IPv6 max length is 45 chars
+    routing_target = Column(String(50), index=True)  # FEE_ENGINE, LIGHTRAG, LOCATION, PHONEBOOK, etc.
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     
     __table_args__ = (
         Index('idx_analytics_session_created', 'session_id', 'created_at'),
         Index('idx_analytics_is_answered', 'is_answered'),
         Index('idx_analytics_client_ip', 'client_ip'),
+        Index('idx_analytics_routing_target', 'routing_target'),
     )
 
 
@@ -109,10 +111,15 @@ def log_conversation(
     assistant_response: str,
     knowledge_base: Optional[str] = None,
     response_time_ms: Optional[int] = None,
-    client_ip: Optional[str] = None
+    client_ip: Optional[str] = None,
+    routing_target: Optional[str] = None
 ):
     """
     Log a conversation for analytics
+    
+    Args:
+        routing_target: Which service handled the query (FEE_ENGINE, FEE_ENGINE_RETAIL, 
+                       FEE_ENGINE_SKYBANKING, LIGHTRAG, LOCATION, PHONEBOOK, SMALL_TALK, etc.)
     """
     db = get_db()
     if not db:
@@ -131,10 +138,11 @@ def log_conversation(
                 is_answered=is_answered,
                 knowledge_base=knowledge_base,
                 response_time_ms=response_time_ms,
-                client_ip=client_ip
+                client_ip=client_ip,
+                routing_target=routing_target
             )
             db.add(conversation)
-            logger.info(f"Added ConversationLog for session {session_id}")
+            logger.info(f"Added ConversationLog for session {session_id} (routing: {routing_target})")
         except Exception as conv_error:
             logger.error(f"Error creating ConversationLog: {conv_error}", exc_info=True)
             # Continue with other logging even if ConversationLog fails
@@ -358,8 +366,99 @@ def get_performance_metrics(days: int = 30) -> Dict:
         db.close()
 
 
-def get_conversation_history(session_id: Optional[str] = None, limit: int = 100) -> List[Dict]:
-    """Get conversation history"""
+def get_routing_distribution(days: int = 30) -> Dict:
+    """Get routing distribution statistics for the last N days"""
+    db = get_db()
+    if not db:
+        return {'distribution': [], 'total': 0}
+    
+    try:
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Get counts by routing target
+        distribution = db.query(
+            ConversationLog.routing_target,
+            func.count(ConversationLog.id).label('count')
+        ).filter(
+            ConversationLog.created_at >= start_date,
+            ConversationLog.routing_target.isnot(None)
+        ).group_by(
+            ConversationLog.routing_target
+        ).order_by(
+            func.count(ConversationLog.id).desc()
+        ).all()
+        
+        total = sum(item.count for item in distribution)
+        
+        results = []
+        for item in distribution:
+            percentage = round(100.0 * item.count / total, 2) if total > 0 else 0
+            results.append({
+                'routing_target': item.routing_target or 'UNKNOWN',
+                'count': item.count,
+                'percentage': percentage
+            })
+        
+        return {
+            'period_days': days,
+            'distribution': results,
+            'total': total
+        }
+    except Exception as e:
+        logger.error(f"Error getting routing distribution: {e}")
+        return {'distribution': [], 'total': 0}
+    finally:
+        db.close()
+
+
+def get_conversations_csv(days: int = 30, search: Optional[str] = None) -> List[Dict]:
+    """Get conversations for CSV export"""
+    db = get_db()
+    if not db:
+        return []
+    
+    try:
+        start_date = datetime.utcnow() - timedelta(days=days)
+        query = db.query(ConversationLog).filter(
+            ConversationLog.created_at >= start_date
+        )
+        
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                (ConversationLog.user_message.ilike(search_pattern)) |
+                (ConversationLog.assistant_response.ilike(search_pattern))
+            )
+        
+        conversations = query.order_by(
+            ConversationLog.created_at.desc()
+        ).all()
+        
+        results = []
+        for conv in conversations:
+            results.append({
+                'id': conv.id,
+                'session_id': conv.session_id,
+                'user_message': conv.user_message,
+                'assistant_response': conv.assistant_response,
+                'is_answered': 'Yes' if conv.is_answered else 'No',
+                'knowledge_base': conv.knowledge_base or '',
+                'routing_target': conv.routing_target or '',
+                'response_time_ms': conv.response_time_ms or '',
+                'client_ip': conv.client_ip or '',
+                'created_at': conv.created_at.isoformat() if conv.created_at else ''
+            })
+        
+        return results
+    except Exception as e:
+        logger.error(f"Error getting conversations for CSV: {e}")
+        return []
+    finally:
+        db.close()
+
+
+def get_conversation_history(session_id: Optional[str] = None, limit: int = 100, search: Optional[str] = None, routing_target: Optional[str] = None) -> List[Dict]:
+    """Get conversation history with optional filters"""
     db = get_db()
     if not db:
         logger.warning("Database not available for conversation history")
@@ -370,6 +469,16 @@ def get_conversation_history(session_id: Optional[str] = None, limit: int = 100)
         
         if session_id:
             query = query.filter(ConversationLog.session_id == session_id)
+        
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                (ConversationLog.user_message.ilike(search_pattern)) |
+                (ConversationLog.assistant_response.ilike(search_pattern))
+            )
+        
+        if routing_target:
+            query = query.filter(ConversationLog.routing_target == routing_target)
         
         conversations = query.order_by(
             ConversationLog.created_at.desc()
@@ -388,6 +497,7 @@ def get_conversation_history(session_id: Optional[str] = None, limit: int = 100)
                 'knowledge_base': conv.knowledge_base,
                 'response_time_ms': conv.response_time_ms,
                 'client_ip': conv.client_ip,
+                'routing_target': conv.routing_target,
                 'created_at': conv.created_at.isoformat() if conv.created_at else None
             })
         
