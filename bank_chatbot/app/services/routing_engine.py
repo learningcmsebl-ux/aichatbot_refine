@@ -313,6 +313,7 @@ class RoutingEngine:
             self._evaluate_semantic_router(query, regex_target)
         )
         target = self._apply_semantic_override(
+            query_lower=query_lower,
             regex_target=regex_target,
             semantic_target=semantic_target,
             semantic_confident=semantic_confident,
@@ -402,6 +403,20 @@ class RoutingEngine:
         {"FEE_ENGINE_CARDS", "FEE_ENGINE_RETAIL_ASSETS", "FEE_ENGINE_SKYBANKING"}
     )
 
+    # Fee-intent tokens. The fee engine answers about money amounts/charges, so a
+    # semantic override INTO a fee target is only allowed when the user actually
+    # asks about a fee/charge/cost. This stops product-info queries like
+    # "fast loan" or "personal loan" from being pulled into the fee engine.
+    _FEE_INTENT_RE = re.compile(
+        r"\b(fee|fees|charge|charges|cost|costs|pricing|price|rate|rates|"
+        r"processing|commission|penalty|interest|per\s*cent|percent|%|tk|bdt|taka|"
+        r"settlement|renewal|enhancement|reduction|stamp|cancellation)\b"
+    )
+
+    @classmethod
+    def _has_fee_intent(cls, query_lower: str) -> bool:
+        return bool(cls._FEE_INTENT_RE.search(query_lower))
+
     def _semantic_target_allowed(self, semantic_target: str) -> bool:
         """True if a DB-backed semantic target has its data source available."""
         gate = {
@@ -419,6 +434,7 @@ class RoutingEngine:
     def _apply_semantic_override(
         self,
         *,
+        query_lower: str,
         regex_target: str,
         semantic_target: Optional[str],
         semantic_confident: bool,
@@ -429,8 +445,11 @@ class RoutingEngine:
         Precedence / guards (active mode only):
         1. Pending disambiguation always wins (stateful continuation).
         2. Fee targets from the regex chain stay deterministic (never overridden).
-        3. Otherwise, a confident + available semantic target overrides.
-        4. Below-threshold or unavailable -> fall back to the regex target.
+        3. A semantic override INTO a fee target requires explicit fee intent in
+           the query (money/charge words) - stops product-info queries like
+           "fast loan" from being pulled into the fee engine.
+        4. Otherwise, a confident + available semantic target overrides.
+        5. Below-threshold or unavailable -> fall back to the regex target.
 
         In shadow mode (or when disabled) this always returns the regex target.
         """
@@ -449,6 +468,17 @@ class RoutingEngine:
             if not (semantic_confident and semantic_target):
                 return regex_target
             if not self._semantic_target_allowed(semantic_target):
+                return regex_target
+            # Do not let the semantic router pull a non-fee query into the fee
+            # engine unless the user actually asked about a fee/charge/cost.
+            if semantic_target in self._FEE_TARGETS and not self._has_fee_intent(query_lower):
+                logger.info(
+                    "[SEMANTIC_ACTIVE] blocked fee override (no fee intent) "
+                    "regex=%s semantic=%s query=%r",
+                    regex_target,
+                    semantic_target,
+                    query_lower,
+                )
                 return regex_target
 
             if semantic_target != regex_target:

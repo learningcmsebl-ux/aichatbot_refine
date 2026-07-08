@@ -1260,7 +1260,22 @@ class QueryClassifier:
         if not any(m in q for m in broad_markers):
             # Also treat short "ebl loan" style prompts as broad if they lack detail markers.
             # Examples: "EBL loan", "EBL loan product", "tell me about EBL loan"
+            # BUT only when there is no specific product name token: "tell me about
+            # ebl mukti loan" names a product ("mukti") and must go to RAG, not the
+            # generic product-line list.
             if not (("ebl" in q or "eastern bank" in q) and "loan" in q and len(q.split()) <= 6):
+                return False
+            # Strip filler/generic words; if any content word remains, the user named
+            # a specific loan product -> not a broad product-line request.
+            _generic = {
+                "tell", "me", "about", "the", "a", "an", "is", "what", "whats",
+                "what's", "give", "show", "please", "info", "information", "details",
+                "detail", "on", "of", "for", "your", "you", "do", "does", "have",
+                "ebl", "eastern", "bank", "bd", "plc", "loan", "loans", "product",
+                "products", "line", "lines", "offer", "offers",
+            }
+            residual = [w for w in re.findall(r"[a-z0-9']+", q) if w not in _generic]
+            if residual:
                 return False
 
         # If user is asking for details, do NOT treat as broad product-line request.

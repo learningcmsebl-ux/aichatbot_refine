@@ -192,6 +192,18 @@ ROUTE_UTTERANCES: Dict[str, List[str]] = {
         "corporate account opening requirements",
         "what is the leave policy",
         "explain the anti money laundering policy",
+        # Loan / product INFORMATION (not fees) -> knowledge base, so bare product
+        # names are not pulled into the fee engine.
+        "tell me about the personal loan",
+        "tell me about ebl fast loan",
+        "fast loan details",
+        "what is ebl mukti loan",
+        "details of the home loan product",
+        "tell me about the auto loan",
+        "features and benefits of the executive loan",
+        "information about the education loan",
+        "what loans does ebl offer",
+        "overview of the fast cash facility",
     ],
 }
 
