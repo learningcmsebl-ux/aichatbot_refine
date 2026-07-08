@@ -303,6 +303,22 @@ class RoutingEngine:
         else:
             target = "LIGHTRAG"
 
+        # ===== SEMANTIC ROUTER (shadow / active) =====
+        # The regex chain above is the baseline / fallback. When the semantic
+        # router is enabled we always log the comparison (shadow); in "active"
+        # mode we let a confident semantic decision override the regex target,
+        # subject to safety guards below.
+        regex_target = target
+        semantic_target, semantic_score, semantic_confident, semantic_agrees = (
+            self._evaluate_semantic_router(query, regex_target)
+        )
+        target = self._apply_semantic_override(
+            regex_target=regex_target,
+            semantic_target=semantic_target,
+            semantic_confident=semantic_confident,
+            pending_disambiguation=bool(pending_disambiguation),
+        )
+
         should_check_phonebook = target == "PHONEBOOK" and self.phonebook_db_available
         should_check_forms = target == "EBLHOME_FORMS" and self.forms_db_available
         should_check_apps = target == "EBLHOME_APPS" and self.apps_db_available
@@ -312,14 +328,6 @@ class RoutingEngine:
         should_check_proposals = target == "EBLHOME_PROPOSALS" and self.proposals_db_available
         # will_use_lightrag is only True when target is actually LIGHTRAG
         will_use_lightrag = target == "LIGHTRAG"
-
-        # ===== SEMANTIC ROUTER (shadow / active) =====
-        # In shadow mode we compute + log the semantic decision alongside the
-        # legacy regex decision but DO NOT change routing. This lets us measure
-        # agreement on real traffic before ever enabling active mode.
-        semantic_target, semantic_score, semantic_confident, semantic_agrees = (
-            self._evaluate_semantic_router(query, target)
-        )
 
         signals = {
             "is_location_query": is_location_query,
@@ -385,6 +393,74 @@ class RoutingEngine:
             semantic_confident=semantic_confident,
             semantic_agrees=semantic_agrees,
         )
+
+    # Fee targets are kept deterministic (regex) even in active mode: they carry
+    # the highest anti-hallucination risk (money amounts) and the Fee Engine is
+    # the sole authoritative source. The semantic router is used for everything
+    # else, where misrouting is the actual problem we are solving.
+    _FEE_TARGETS = frozenset(
+        {"FEE_ENGINE_CARDS", "FEE_ENGINE_RETAIL_ASSETS", "FEE_ENGINE_SKYBANKING"}
+    )
+
+    def _semantic_target_allowed(self, semantic_target: str) -> bool:
+        """True if a DB-backed semantic target has its data source available."""
+        gate = {
+            "PHONEBOOK": self.phonebook_db_available,
+            "EBLHOME_FORMS": self.forms_db_available,
+            "EBLHOME_APPS": self.apps_db_available,
+            "EBLHOME_LEADERSHIP": self.leadership_db_available,
+            "EBLHOME_SOC": self.soc_db_available,
+            "EBLHOME_PROPOSALS": self.proposals_db_available,
+            "EBLHOME_CIRCULARS": self.circulars_db_available,
+        }
+        # LIGHTRAG / DATETIME / OPENAI_SMALL_TALK / LOCATION_SERVICE / FEE_* -> allowed.
+        return gate.get(semantic_target, True)
+
+    def _apply_semantic_override(
+        self,
+        *,
+        regex_target: str,
+        semantic_target: Optional[str],
+        semantic_confident: bool,
+        pending_disambiguation: bool,
+    ) -> str:
+        """Decide the final target, applying the semantic router in active mode.
+
+        Precedence / guards (active mode only):
+        1. Pending disambiguation always wins (stateful continuation).
+        2. Fee targets from the regex chain stay deterministic (never overridden).
+        3. Otherwise, a confident + available semantic target overrides.
+        4. Below-threshold or unavailable -> fall back to the regex target.
+
+        In shadow mode (or when disabled) this always returns the regex target.
+        """
+        try:
+            from app.core.config import settings
+
+            enabled = getattr(settings, "ENABLE_SEMANTIC_ROUTER", False)
+            mode = getattr(settings, "SEMANTIC_ROUTER_MODE", "shadow").strip().lower()
+            if not enabled or mode != "active":
+                return regex_target
+
+            if pending_disambiguation or regex_target == "DISAMBIGUATION":
+                return regex_target
+            if regex_target in self._FEE_TARGETS:
+                return regex_target
+            if not (semantic_confident and semantic_target):
+                return regex_target
+            if not self._semantic_target_allowed(semantic_target):
+                return regex_target
+
+            if semantic_target != regex_target:
+                logger.info(
+                    "[SEMANTIC_ACTIVE] override regex=%s -> semantic=%s",
+                    regex_target,
+                    semantic_target,
+                )
+            return semantic_target
+        except Exception as exc:  # noqa: BLE001 - never break routing
+            logger.warning("[SEMANTIC_ACTIVE] override skipped due to error: %s", exc)
+            return regex_target
 
     def _evaluate_semantic_router(self, query: str, regex_target: str):
         """Run the semantic router in shadow mode (log-only) when enabled.
