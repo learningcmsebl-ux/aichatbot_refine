@@ -2438,6 +2438,35 @@ Additional targeted reminders may be appended to the user message when relevant.
         ]
         return "\n".join(lines)
     
+    # Filename/title markers that identify investor/financial documents. Used to
+    # exclude annual reports & financial statements from organizational-overview
+    # answers (which should use customer-facing website content instead).
+    _FINANCIAL_DOC_MARKERS = (
+        "annual report", "annual-report", "annual_report",
+        "financial statement", "financial-statement", "financial_statement",
+        "financial statements", "financial-statements", "financial_statements",
+        "half-yearly", "half yearly", "half_yearly", "halfyearly",
+        "quarterly", "balance sheet", "balance-sheet", "income statement",
+        "cash flow", "audited", "auditors report", "auditor's report",
+        "profit and loss", "profit & loss",
+    )
+
+    @classmethod
+    def _is_financial_document(cls, name: Optional[str]) -> bool:
+        """True if a source/document name looks like an annual report or
+        financial statement (to be excluded from org-overview answers)."""
+        if not name:
+            return False
+        text = str(name).lower()
+        if any(marker in text for marker in cls._FINANCIAL_DOC_MARKERS):
+            return True
+        # Quarter tokens like "q1"/"q3" combined with a year or "report".
+        if re.search(r"\bq[1-4]\b", text) and (
+            re.search(r"\b20\d{2}\b", text) or "report" in text or "statement" in text
+        ):
+            return True
+        return False
+
     def _format_lightrag_context(
         self, 
         lightrag_response: Dict[str, Any],
