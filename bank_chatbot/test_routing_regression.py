@@ -86,6 +86,18 @@ CASES: List[RoutingCase] = [
         expected_target="LIGHTRAG",
         expected_kb="ebl_products",
     ),
+    RoutingCase(
+        name="BeneficialOwner_NotPhonebook",
+        query="Who is the beneficial owner of a limited company?",
+        expected_target="LIGHTRAG",
+        expected_kb="ebl_policies",
+    ),
+    RoutingCase(
+        name="ICTSecurity_NotPhonebook",
+        query="Who is primarily responsible for upholding ICT Security at EBL?",
+        expected_target="LIGHTRAG",
+        expected_kb="ebl_policies",
+    ),
 ]
 
 

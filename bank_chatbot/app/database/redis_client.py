@@ -236,20 +236,30 @@ class RedisCache:
     # OpenAI Response Caching (Token Optimization)
     # ============================================================
     
-    def _get_response_cache_key(self, query: str, context_hash: str) -> str:
+    def _get_response_cache_key(
+        self,
+        query: str,
+        context_hash: str,
+        knowledge_base: Optional[str] = None,
+        route_scope: Optional[str] = None,
+    ) -> str:
         """
         Generate cache key for OpenAI response.
         
         Args:
             query: Normalized user query
             context_hash: Hash of the context used for the response
+            knowledge_base: KB version/name so cache invalidates when KB changes
+            route_scope: Routing target (e.g. OPENAI_SMALL_TALK vs LIGHTRAG)
         
         Returns:
             Cache key string
         """
         # Normalize query for consistent caching
         normalized_query = re.sub(r'\s+', ' ', query.lower().strip())
-        combined = f"{normalized_query}:{context_hash}"
+        kb_part = (knowledge_base or "default").strip().lower()
+        scope_part = (route_scope or "LIGHTRAG").strip().lower()
+        combined = f"{scope_part}:{kb_part}:{normalized_query}:{context_hash}"
         cache_hash = hashlib.md5(combined.encode('utf-8')).hexdigest()
         return f"openai_response:{cache_hash}"
     
@@ -271,7 +281,9 @@ class RedisCache:
         self, 
         query: str, 
         context: str,
-        include_metadata: bool = False
+        include_metadata: bool = False,
+        knowledge_base: Optional[str] = None,
+        route_scope: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get cached OpenAI response for a query+context combination.
@@ -290,12 +302,20 @@ class RedisCache:
         
         try:
             context_hash = self._hash_context(context)
-            cache_key = self._get_response_cache_key(query, context_hash)
+            cache_key = self._get_response_cache_key(
+                query,
+                context_hash,
+                knowledge_base=knowledge_base,
+                route_scope=route_scope,
+            )
             
             cached = await self.client.get(cache_key)
             if cached:
                 data = json.loads(cached)
-                logger.info(f"[RESPONSE_CACHE] HIT for query: '{query[:50]}...' (context_hash: {context_hash})")
+                logger.info(
+                    f"[RESPONSE_CACHE] HIT for query: '{query[:50]}...' "
+                    f"(kb={knowledge_base or 'default'}, context_hash: {context_hash})"
+                )
                 
                 # Update hit count for analytics
                 try:
@@ -325,7 +345,9 @@ class RedisCache:
         response: str,
         sources: Optional[List[str]] = None,
         ttl: Optional[int] = None,
-        routing_target: Optional[str] = None
+        routing_target: Optional[str] = None,
+        knowledge_base: Optional[str] = None,
+        route_scope: Optional[str] = None,
     ) -> bool:
         """
         Cache an OpenAI response.
@@ -350,7 +372,8 @@ class RedisCache:
             "technical difficulties",
             "apologize",
             "try again later",
-            "error occurred"
+            "error occurred",
+            "could not find reliable information in the knowledge base",
         ]
         response_lower = response.lower()
         if any(indicator in response_lower for indicator in error_indicators):
@@ -364,13 +387,19 @@ class RedisCache:
         
         try:
             context_hash = self._hash_context(context)
-            cache_key = self._get_response_cache_key(query, context_hash)
+            cache_key = self._get_response_cache_key(
+                query,
+                context_hash,
+                knowledge_base=knowledge_base,
+                route_scope=route_scope,
+            )
             
             cache_data = {
                 "response": response,
                 "sources": sources or [],
                 "query": query[:200],  # Store truncated query for debugging
                 "context_hash": context_hash,
+                "knowledge_base": knowledge_base or "default",
                 "routing_target": routing_target,
                 "cached_at": __import__('datetime').datetime.utcnow().isoformat()
             }

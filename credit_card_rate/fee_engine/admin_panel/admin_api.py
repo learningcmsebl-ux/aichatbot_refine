@@ -24,6 +24,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
 import logging
+from urllib.parse import quote_plus
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,6 +45,8 @@ CHARGE_CONTEXT_ALLOWED = {
     "ON_LIMIT",
     "ON_ENHANCED_AMOUNT",
     "ON_REDUCED_AMOUNT",
+    "ON_CATEGORY_A",
+    "ON_CATEGORY_B",
     "ON_CATEGORY_A_B",
     "ON_CATEGORY_C",
 }
@@ -595,6 +598,7 @@ class RetailAssetChargeUpdate(BaseModel):
     loan_product: Optional[str] = None
     loan_product_name: Optional[str] = None
     charge_type: Optional[str] = None
+    charge_title: Optional[str] = None
     charge_context: Optional[str] = None
     charge_description: Optional[str] = None
     fee_value: Optional[Decimal] = None
@@ -657,6 +661,8 @@ class RetailAssetChargeCreate(BaseModel):
     loan_product: str
     loan_product_name: str
     charge_type: str
+    charge_title: Optional[str] = None
+    charge_context: Optional[str] = None
     charge_description: str
     fee_value: Optional[Decimal] = None
     fee_unit: str = "TEXT"
@@ -2888,6 +2894,432 @@ async def get_skybanking_filters(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting Skybanking filters: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error getting Skybanking filters: {str(e)}")
+
+# ============================================================================
+# PHONEBOOK ADMIN ENDPOINTS
+# ============================================================================
+
+# Phonebook Database Connection
+PHONEBOOK_DB_AVAILABLE = False
+PhonebookSessionLocal = None
+
+def get_phonebook_database_url():
+    """Get database URL for phonebook (same as main chatbot DB)."""
+    url = os.getenv("PHONEBOOK_DB_URL") or os.getenv("POSTGRES_DB_URL")
+    if url:
+        return url
+
+    user = os.getenv("POSTGRES_USER", "postgres")
+    password = os.getenv("POSTGRES_PASSWORD", "")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    db = os.getenv("POSTGRES_DB", "bank_chatbot")
+    password_encoded = quote_plus(password) if password else ""
+    return f"postgresql://{user}:{password_encoded}@{host}:{port}/{db}"
+
+try:
+    phonebook_engine = create_engine(
+        get_phonebook_database_url(),
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+        echo=False
+    )
+    PhonebookSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=phonebook_engine)
+    PHONEBOOK_DB_AVAILABLE = True
+    logger.info("Phonebook database connection established")
+except Exception as e:
+    logger.error(f"Failed to connect to phonebook database: {e}")
+    PHONEBOOK_DB_AVAILABLE = False
+
+# Phonebook Employee Model (mirrors the one in phonebook_postgres.py)
+from sqlalchemy.dialects.postgresql import TSVECTOR
+
+class Employee(Base):
+    """Employee model for phonebook"""
+    __tablename__ = "employees"
+    __table_args__ = {'extend_existing': True}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(String, index=True, nullable=True)
+    full_name = Column(String, nullable=False)
+    first_name = Column(String, index=True, nullable=True)
+    last_name = Column(String, index=True, nullable=True)
+    designation = Column(String, index=True, nullable=True)
+    department = Column(String, index=True, nullable=True)
+    division = Column(String, nullable=True)
+    email = Column(String, index=True, nullable=True)
+    telephone = Column(String, nullable=True)
+    pabx = Column(String, nullable=True)
+    ip_phone = Column(String, nullable=True)
+    mobile = Column(String, index=True, nullable=True)
+    group_email = Column(String, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    search_vector = Column(TSVECTOR)
+
+def get_phonebook_db():
+    """Get phonebook database session"""
+    if not PHONEBOOK_DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Phonebook database not available")
+    db = PhonebookSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Pydantic models for Phonebook
+class EmployeeCreate(BaseModel):
+    employee_id: Optional[str] = None
+    full_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    division: Optional[str] = None
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    pabx: Optional[str] = None
+    ip_phone: Optional[str] = None
+    mobile: Optional[str] = None
+    group_email: Optional[str] = None
+
+class EmployeeUpdate(BaseModel):
+    employee_id: Optional[str] = None
+    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    division: Optional[str] = None
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    pabx: Optional[str] = None
+    ip_phone: Optional[str] = None
+    mobile: Optional[str] = None
+    group_email: Optional[str] = None
+
+# Phonebook API Endpoints
+@app.get("/api/phonebook/employees", dependencies=[Depends(verify_admin)])
+async def get_employees(
+    search: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    designation: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_phonebook_db)
+):
+    """Get employees with pagination and filters"""
+    try:
+        query = db.query(Employee)
+        
+        # Apply filters
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Employee.full_name.ilike(search_term),
+                    Employee.employee_id.ilike(search_term),
+                    Employee.email.ilike(search_term),
+                    Employee.mobile.ilike(search_term),
+                    Employee.department.ilike(search_term),
+                    Employee.designation.ilike(search_term)
+                )
+            )
+        
+        if department:
+            query = query.filter(Employee.department.ilike(f"%{department}%"))
+        
+        if designation:
+            query = query.filter(Employee.designation.ilike(f"%{designation}%"))
+        
+        # Get total count
+        total = query.count()
+        
+        # Apply pagination
+        offset = (page - 1) * limit
+        employees = query.order_by(Employee.full_name).offset(offset).limit(limit).all()
+        
+        # Format response
+        result = []
+        for emp in employees:
+            result.append({
+                "id": emp.id,
+                "employee_id": emp.employee_id,
+                "full_name": emp.full_name,
+                "first_name": emp.first_name,
+                "last_name": emp.last_name,
+                "designation": emp.designation,
+                "department": emp.department,
+                "division": emp.division,
+                "email": emp.email,
+                "telephone": emp.telephone,
+                "pabx": emp.pabx,
+                "ip_phone": emp.ip_phone,
+                "mobile": emp.mobile,
+                "group_email": emp.group_email,
+                "created_at": emp.created_at.isoformat() if emp.created_at else None,
+                "updated_at": emp.updated_at.isoformat() if emp.updated_at else None
+            })
+        
+        return {
+            "employees": result,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": (total + limit - 1) // limit
+        }
+    except Exception as e:
+        logger.error(f"Error getting employees: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting employees: {str(e)}")
+
+@app.get("/api/phonebook/employees/{employee_id}", dependencies=[Depends(verify_admin)])
+async def get_employee(employee_id: int, db: Session = Depends(get_phonebook_db)):
+    """Get single employee by ID"""
+    try:
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        return {
+            "id": employee.id,
+            "employee_id": employee.employee_id,
+            "full_name": employee.full_name,
+            "first_name": employee.first_name,
+            "last_name": employee.last_name,
+            "designation": employee.designation,
+            "department": employee.department,
+            "division": employee.division,
+            "email": employee.email,
+            "telephone": employee.telephone,
+            "pabx": employee.pabx,
+            "ip_phone": employee.ip_phone,
+            "mobile": employee.mobile,
+            "group_email": employee.group_email,
+            "created_at": employee.created_at.isoformat() if employee.created_at else None,
+            "updated_at": employee.updated_at.isoformat() if employee.updated_at else None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting employee: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting employee: {str(e)}")
+
+@app.post("/api/phonebook/employees", dependencies=[Depends(verify_admin)])
+async def create_employee(employee: EmployeeCreate, db: Session = Depends(get_phonebook_db)):
+    """Create new employee"""
+    try:
+        # Split full_name if first/last not provided
+        if not employee.first_name and employee.full_name:
+            parts = employee.full_name.split()
+            employee.first_name = parts[0] if parts else ""
+            employee.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+        
+        new_employee = Employee(
+            employee_id=employee.employee_id,
+            full_name=employee.full_name,
+            first_name=employee.first_name,
+            last_name=employee.last_name,
+            designation=employee.designation,
+            department=employee.department,
+            division=employee.division,
+            email=employee.email,
+            telephone=employee.telephone,
+            pabx=employee.pabx,
+            ip_phone=employee.ip_phone,
+            mobile=employee.mobile,
+            group_email=employee.group_email
+        )
+        
+        db.add(new_employee)
+        db.commit()
+        db.refresh(new_employee)
+        
+        return {
+            "message": "Employee created successfully",
+            "id": new_employee.id
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating employee: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating employee: {str(e)}")
+
+@app.put("/api/phonebook/employees/{employee_id}", dependencies=[Depends(verify_admin)])
+async def update_employee(employee_id: int, employee: EmployeeUpdate, db: Session = Depends(get_phonebook_db)):
+    """Update employee"""
+    try:
+        existing = db.query(Employee).filter(Employee.id == employee_id).first()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        # Update fields
+        update_data = employee.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            if value is not None:
+                setattr(existing, field, value)
+        
+        # Update first/last name if full_name changed
+        if employee.full_name and (not employee.first_name or not employee.last_name):
+            parts = employee.full_name.split()
+            existing.first_name = parts[0] if parts else existing.first_name
+            existing.last_name = " ".join(parts[1:]) if len(parts) > 1 else existing.last_name
+        
+        db.commit()
+        
+        return {"message": "Employee updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating employee: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error updating employee: {str(e)}")
+
+@app.delete("/api/phonebook/employees/{employee_id}", dependencies=[Depends(verify_admin)])
+async def delete_employee(employee_id: int, db: Session = Depends(get_phonebook_db)):
+    """Delete employee"""
+    try:
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        db.delete(employee)
+        db.commit()
+        
+        return {"message": "Employee deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting employee: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting employee: {str(e)}")
+
+@app.get("/api/phonebook/filters", dependencies=[Depends(verify_admin)])
+async def get_phonebook_filters(db: Session = Depends(get_phonebook_db)):
+    """Get filter options for phonebook"""
+    try:
+        # Get unique departments
+        departments = db.query(Employee.department).distinct().filter(Employee.department.isnot(None)).all()
+        departments = sorted([d[0] for d in departments if d[0] and d[0].strip()])
+        
+        # Get unique designations
+        designations = db.query(Employee.designation).distinct().filter(Employee.designation.isnot(None)).all()
+        designations = sorted([d[0] for d in designations if d[0] and d[0].strip()])
+        
+        # Get unique divisions
+        divisions = db.query(Employee.division).distinct().filter(Employee.division.isnot(None)).all()
+        divisions = sorted([d[0] for d in divisions if d[0] and d[0].strip()])
+        
+        return {
+            "departments": departments,
+            "designations": designations,
+            "divisions": divisions
+        }
+    except Exception as e:
+        logger.error(f"Error getting phonebook filters: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting phonebook filters: {str(e)}")
+
+@app.get("/api/phonebook/stats", dependencies=[Depends(verify_admin)])
+async def get_phonebook_stats(db: Session = Depends(get_phonebook_db)):
+    """Get phonebook statistics"""
+    try:
+        total_employees = db.query(Employee).count()
+        total_departments = db.query(Employee.department).distinct().filter(Employee.department.isnot(None)).count()
+        total_designations = db.query(Employee.designation).distinct().filter(Employee.designation.isnot(None)).count()
+        
+        # Get top departments
+        from sqlalchemy import func as sqlfunc
+        top_departments = db.query(
+            Employee.department,
+            sqlfunc.count(Employee.id).label('count')
+        ).filter(
+            Employee.department.isnot(None)
+        ).group_by(
+            Employee.department
+        ).order_by(
+            sqlfunc.count(Employee.id).desc()
+        ).limit(10).all()
+        
+        return {
+            "total_employees": total_employees,
+            "total_departments": total_departments,
+            "total_designations": total_designations,
+            "top_departments": [{"department": d[0], "count": d[1]} for d in top_departments if d[0]]
+        }
+    except Exception as e:
+        logger.error(f"Error getting phonebook stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting phonebook stats: {str(e)}")
+
+@app.get("/api/export/phonebook", dependencies=[Depends(verify_admin)])
+async def export_phonebook_csv(
+    search: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    designation: Optional[str] = Query(None),
+    db: Session = Depends(get_phonebook_db)
+):
+    """Export phonebook to CSV"""
+    try:
+        query = db.query(Employee)
+        
+        # Apply filters
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Employee.full_name.ilike(search_term),
+                    Employee.employee_id.ilike(search_term),
+                    Employee.email.ilike(search_term)
+                )
+            )
+        
+        if department:
+            query = query.filter(Employee.department.ilike(f"%{department}%"))
+        
+        if designation:
+            query = query.filter(Employee.designation.ilike(f"%{designation}%"))
+        
+        employees = query.order_by(Employee.full_name).all()
+        
+        # Create CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            "Employee ID", "Full Name", "First Name", "Last Name",
+            "Designation", "Department", "Division",
+            "Email", "Telephone", "PABX", "IP Phone", "Mobile", "Group Email"
+        ])
+        
+        # Write data
+        for emp in employees:
+            writer.writerow([
+                emp.employee_id or "",
+                emp.full_name or "",
+                emp.first_name or "",
+                emp.last_name or "",
+                emp.designation or "",
+                emp.department or "",
+                emp.division or "",
+                emp.email or "",
+                emp.telephone or "",
+                emp.pabx or "",
+                emp.ip_phone or "",
+                emp.mobile or "",
+                emp.group_email or ""
+            ])
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=phonebook_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error exporting phonebook: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error exporting phonebook: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn

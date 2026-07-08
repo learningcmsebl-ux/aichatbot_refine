@@ -12,6 +12,8 @@ from typing import Optional, List
 from datetime import datetime
 import pytz
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -128,29 +130,37 @@ class ResponseFormatter:
     
     def get_current_datetime(self, format_type: str = "full") -> str:
         """
-        Get current date and time in Bangladesh timezone.
-        
+        Get current date and time as a formatted string.
+
+        Uses settings.TIMEZONE when available (default UTC), matching the
+        original ChatOrchestrator behavior. Falls back to system local time
+        if the configured timezone is invalid.
+
         Args:
             format_type: "full" for date+time, "date" for date only, "time" for time only
-            
+
         Returns:
-            Formatted datetime string
+            Formatted datetime string, e.g. "Monday, June 21, 2026 at 08:24:30 PM UTC"
         """
         try:
-            now = datetime.now(self.tz)
-            
-            if format_type == "date":
-                return now.strftime("%A, %B %d, %Y")
-            elif format_type == "time":
-                return now.strftime("%I:%M %p")
-            else:
-                date_str = now.strftime("%A, %B %d, %Y")
-                time_str = now.strftime("%I:%M %p")
-                return f"{date_str} at {time_str}"
-                
-        except Exception as e:
-            logger.error(f"Error getting datetime: {e}")
-            return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timezone_str = getattr(settings, 'TIMEZONE', 'UTC')
+            tz = pytz.timezone(timezone_str)
+        except Exception:
+            tz = None
+
+        now = datetime.now(tz) if tz else datetime.now()
+
+        date_str = now.strftime("%A, %B %d, %Y")
+        if format_type == "date":
+            return date_str
+
+        time_str = now.strftime("%I:%M:%S %p")
+        if format_type == "time":
+            return time_str
+
+        if tz:
+            return f"{date_str} at {time_str} {now.strftime('%Z')}"
+        return f"{date_str} at {time_str}"
     
     def format_sources_marker(self, sources: List[str]) -> str:
         """

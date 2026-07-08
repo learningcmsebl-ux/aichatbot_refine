@@ -1,4 +1,5 @@
-import type { ChatRequest, ChatResponse } from '../types';
+import type { ChatRequest, ChatResponse, ChatSessionItem, ChatSessionWithMessages } from '../types';
+import { getAuthHeaders } from '../utils/authStorage';
 
 // Use relative path in dev (Vite proxy) or env variable for production
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -144,15 +145,15 @@ export class ChatAPI {
         await this.fetchClientIp();
       }
       
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...(getAuthHeaders() as Record<string, string>),
       };
-      
-      // Add client IP header if available
+
       if (this.clientIp) {
         headers['X-Client-IP'] = this.clientIp;
       }
-      
+
       response = await fetch(`${this.baseUrl}/chat`, {
         method: 'POST',
         headers,
@@ -184,15 +185,15 @@ export class ChatAPI {
         await this.fetchClientIp();
       }
       
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...(getAuthHeaders() as Record<string, string>),
       };
-      
-      // Add client IP header if available
+
       if (this.clientIp) {
         headers['X-Client-IP'] = this.clientIp;
       }
-      
+
       response = await fetch(`${this.baseUrl}/chat/stream`, {
         method: 'POST',
         headers,
@@ -249,7 +250,9 @@ export class ChatAPI {
   }
 
   async getHistory(sessionId: string, limit: number = 50) {
-    const response = await fetch(`${this.baseUrl}/chat/history/${sessionId}?limit=${limit}`);
+    const response = await fetch(`${this.baseUrl}/chat/history/${sessionId}?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) {
       throw new Error(`Failed to get history: ${response.statusText}`);
     }
@@ -259,6 +262,7 @@ export class ChatAPI {
   async clearHistory(sessionId: string) {
     const response = await fetch(`${this.baseUrl}/chat/history/${sessionId}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     if (!response.ok) {
       throw new Error(`Failed to clear history: ${response.statusText}`);
@@ -268,4 +272,66 @@ export class ChatAPI {
 }
 
 export const chatAPI = new ChatAPI();
+
+// ---------------------------------------------------------------------------
+// Sessions API
+// ---------------------------------------------------------------------------
+export class SessionsAPI {
+  private baseUrl: string;
+
+  constructor(baseUrl: string = API_BASE) {
+    this.baseUrl = baseUrl;
+  }
+
+  private get headers(): Record<string, string> {
+    return { 'Content-Type': 'application/json', ...(getAuthHeaders() as Record<string, string>) };
+  }
+
+  async list(archived = false): Promise<ChatSessionItem[]> {
+    const res = await fetch(`${this.baseUrl}/chat/sessions?archived=${archived}`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Failed to list sessions: ${res.statusText}`);
+    return res.json();
+  }
+
+  async search(query: string): Promise<ChatSessionItem[]> {
+    const res = await fetch(`${this.baseUrl}/chat/sessions/search?q=${encodeURIComponent(query)}`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+    return res.json();
+  }
+
+  async get(sessionId: string): Promise<ChatSessionWithMessages> {
+    const res = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Failed to get session: ${res.statusText}`);
+    return res.json();
+  }
+
+  async rename(sessionId: string, title: string): Promise<ChatSessionItem> {
+    const res = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: this.headers,
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) throw new Error(`Rename failed: ${res.statusText}`);
+    return res.json();
+  }
+
+  async archive(sessionId: string): Promise<ChatSessionItem> {
+    const res = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}/archive`, {
+      method: 'POST',
+      headers: this.headers,
+    });
+    if (!res.ok) throw new Error(`Archive failed: ${res.statusText}`);
+    return res.json();
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: this.headers,
+    });
+    if (!res.ok) throw new Error(`Delete failed: ${res.statusText}`);
+  }
+}
+
+export const sessionsAPI = new SessionsAPI();
 

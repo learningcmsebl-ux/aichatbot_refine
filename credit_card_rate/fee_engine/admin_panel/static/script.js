@@ -12,6 +12,7 @@ let filtersData = null;
 let retailCurrentPage = 0;
 let retailTotalCharges = 0;
 let retailCurrentFilters = {};
+let retailPageSize = 25; // Default rows per page for retail charges
 let retailFiltersData = null;
 
 // Skybanking Fees state
@@ -36,6 +37,14 @@ let locationFiltersData = null;
 let poiCurrentPage = 0;
 let poiTotal = 0;
 let poiCurrentFilters = {};
+
+// Phonebook state
+let phonebookCurrentPage = 1;
+let phonebookPageSize = 25;
+let phonebookTotal = 0;
+let phonebookCurrentFilters = {};
+let phonebookFiltersData = null;
+let currentViewingEmployee = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -88,6 +97,9 @@ function testAuth() {
             loadMachines();
             loadPriorityCenters();
             loadPois();
+            loadPhonebookFilters();
+            loadPhonebookStats();
+            loadPhonebook();
         } else {
             showLogin();
         }
@@ -302,10 +314,17 @@ function setupEventListeners() {
     });
     
     document.getElementById('retailNextPage').addEventListener('click', () => {
-        if ((retailCurrentPage + 1) * pageSize < retailTotalCharges) {
+        if ((retailCurrentPage + 1) * retailPageSize < retailTotalCharges) {
             retailCurrentPage++;
             loadRetailAssetCharges();
         }
+    });
+    
+    // Page size selector for retail charges
+    document.getElementById('retailPageSize').addEventListener('change', (e) => {
+        retailPageSize = parseInt(e.target.value, 10);
+        retailCurrentPage = 0; // Reset to first page
+        loadRetailAssetCharges();
     });
 }
 
@@ -346,6 +365,11 @@ function switchTab(tabName) {
         document.getElementById('pois-tab').classList.add('active');
         document.querySelector('.tab-btn[onclick="switchTab(\'pois\')"]').classList.add('active');
         loadPois();
+    } else if (tabName === 'phonebook') {
+        document.getElementById('phonebook-tab').classList.add('active');
+        document.querySelector('.tab-btn[onclick="switchTab(\'phonebook\')"]').classList.add('active');
+        loadPhonebookStats();
+        loadPhonebook();
     }
 }
 
@@ -820,12 +844,12 @@ async function loadRetailAssetFilters() {
 
 async function loadRetailAssetCharges() {
     const tbody = document.getElementById('retailChargesTableBody');
-    tbody.innerHTML = '<tr><td colspan="11" class="loading">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading...</td></tr>';
     
     try {
         const params = new URLSearchParams({
-            limit: pageSize,
-            offset: retailCurrentPage * pageSize,
+            limit: retailPageSize,
+            offset: retailCurrentPage * retailPageSize,
             ...retailCurrentFilters
         });
         
@@ -839,7 +863,7 @@ async function loadRetailAssetCharges() {
         document.getElementById('retailShowingCount').textContent = `Showing: ${data.charges.length}`;
     } catch (error) {
         console.error('Error loading retail asset charges:', error);
-        tbody.innerHTML = `<tr><td colspan="11" class="loading" style="color: red;">Error: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="loading" style="color: red;">Error: ${error.message}</td></tr>`;
     }
 }
 
@@ -847,7 +871,7 @@ function renderRetailCharges(charges) {
     const tbody = document.getElementById('retailChargesTableBody');
     
     if (charges.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="loading">No charges found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No charges found</td></tr>';
         return;
     }
     
@@ -876,8 +900,11 @@ function renderRetailCharges(charges) {
                 <td data-col="expand" class="expandCol">
                     <button class="expandBtn" onclick="toggleRowExpand(${index})" title="Expand/Collapse">▼</button>
                 </td>
-                <td data-col="id" title="${charge.charge_id}">
-                    <span class="cellText">${charge.charge_id.substring(0, 8)}...</span>
+                <td data-col="actions" class="actionsCell">
+                    <div class="actionsWrap">
+                        <button class="btn btn-primary btn-small" onclick="editRetailCharge('${charge.charge_id}')">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteRetailCharge('${charge.charge_id}')">Delete</button>
+                    </div>
                 </td>
                 <td data-col="loanProduct" title="${charge.loan_product_name}">
                     <span class="cellText clamp">${charge.loan_product_name}</span>
@@ -902,12 +929,6 @@ function renderRetailCharges(charges) {
                 </td>
                 <td data-col="status">
                     <span class="status-badge status-${charge.status.toLowerCase()}">${charge.status}</span>
-                </td>
-                <td data-col="actions" class="actionsCell">
-                    <div class="actionsWrap">
-                        <button class="btn btn-primary btn-small" onclick="editRetailCharge('${charge.charge_id}')">Edit</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteRetailCharge('${charge.charge_id}')">Delete</button>
-                    </div>
                 </td>
             </tr>
         `;
@@ -941,10 +962,10 @@ function updateRetailPagination() {
     const pageInfo = document.getElementById('retailPageInfo');
     
     prevBtn.disabled = retailCurrentPage === 0;
-    nextBtn.disabled = (retailCurrentPage + 1) * pageSize >= retailTotalCharges;
+    nextBtn.disabled = (retailCurrentPage + 1) * retailPageSize >= retailTotalCharges;
     
-    const start = retailCurrentPage * pageSize + 1;
-    const end = Math.min((retailCurrentPage + 1) * pageSize, retailTotalCharges);
+    const start = retailCurrentPage * retailPageSize + 1;
+    const end = Math.min((retailCurrentPage + 1) * retailPageSize, retailTotalCharges);
     pageInfo.textContent = `Page ${retailCurrentPage + 1} (${start}-${end} of ${retailTotalCharges})`;
 }
 
@@ -997,11 +1018,31 @@ function resetRetailEditForm() {
         'editRetailLoanProductName',
         'editRetailChargeType',
         'editRetailChargeContext',
+        'editRetailChargeTitle',
         'editRetailChargeDescription',
         'editRetailFeeText',
         'editRetailAnswerText',
         'editRetailParseStatus',
+        'editRetailAnswerSource',
         'editRetailFeeValue',
+        'editRetailMinFeeValue',
+        'editRetailMinFeeUnit',
+        'editRetailMaxFeeValue',
+        'editRetailMaxFeeUnit',
+        'editRetailConditionType',
+        'editRetailConditionDescription',
+        'editRetailOriginalChargeText',
+        'editRetailTier1Threshold',
+        'editRetailTier1FeeValue',
+        'editRetailTier1FeeUnit',
+        'editRetailTier1MaxFee',
+        'editRetailTier2Threshold',
+        'editRetailTier2FeeValue',
+        'editRetailTier2FeeUnit',
+        'editRetailTier2MaxFee',
+        'editRetailEmployeeFeeValue',
+        'editRetailEmployeeFeeUnit',
+        'editRetailEmployeeFeeDescription',
         'editRetailFeeRateValue',
         'editRetailFeeRateUnit',
         'editRetailFeeAmountValue',
@@ -1035,6 +1076,10 @@ function resetRetailEditForm() {
     if (statusEl) statusEl.value = 'ACTIVE';
     const parseStatusEl = document.getElementById('editRetailParseStatus');
     if (parseStatusEl) parseStatusEl.value = 'UNPARSED';
+    const answerSourceEl = document.getElementById('editRetailAnswerSource');
+    if (answerSourceEl) answerSourceEl.value = '';
+    const conditionTypeEl = document.getElementById('editRetailConditionType');
+    if (conditionTypeEl) conditionTypeEl.value = 'NONE';
     const priorityEl = document.getElementById('editRetailPriority');
     if (priorityEl) priorityEl.value = 100;
 
@@ -1043,6 +1088,18 @@ function resetRetailEditForm() {
         errorDiv.textContent = '';
         errorDiv.classList.remove('show');
     }
+
+    const toggleAdvanced = document.getElementById('toggleRetailAdvanced');
+    const advancedFields = document.getElementById('retailAdvancedFields');
+    if (toggleAdvanced) toggleAdvanced.checked = false;
+    if (advancedFields) advancedFields.style.display = 'none';
+}
+
+function toggleRetailAdvancedFields() {
+    const toggle = document.getElementById('toggleRetailAdvanced');
+    const advanced = document.getElementById('retailAdvancedFields');
+    if (!advanced) return;
+    advanced.style.display = toggle && toggle.checked ? 'block' : 'none';
 }
 
 function populateRetailEditForm(charge) {
@@ -1071,6 +1128,7 @@ function populateRetailEditForm(charge) {
         chargeTypeEl.value = chargeTypeValue;
     }
     document.getElementById('editRetailChargeContext').value = charge.charge_context || 'GENERAL';
+    document.getElementById('editRetailChargeTitle').value = charge.charge_title || '';
     document.getElementById('editRetailChargeDescription').value = charge.charge_description || '';
     const feeTextEl = document.getElementById('editRetailFeeText');
     if (feeTextEl) feeTextEl.value = charge.fee_text || '';
@@ -1078,7 +1136,45 @@ function populateRetailEditForm(charge) {
     if (answerTextEl) answerTextEl.value = charge.answer_text || '';
     const parseStatusEl = document.getElementById('editRetailParseStatus');
     if (parseStatusEl) parseStatusEl.value = charge.parse_status || 'UNPARSED';
+    const answerSourceEl = document.getElementById('editRetailAnswerSource');
+    if (answerSourceEl) answerSourceEl.value = charge.answer_source || '';
     document.getElementById('editRetailFeeValue').value = charge.fee_value || '';
+    const minFeeValueEl = document.getElementById('editRetailMinFeeValue');
+    if (minFeeValueEl) minFeeValueEl.value = charge.min_fee_value || '';
+    const minFeeUnitEl = document.getElementById('editRetailMinFeeUnit');
+    if (minFeeUnitEl) minFeeUnitEl.value = charge.min_fee_unit || '';
+    const maxFeeValueEl = document.getElementById('editRetailMaxFeeValue');
+    if (maxFeeValueEl) maxFeeValueEl.value = charge.max_fee_value || '';
+    const maxFeeUnitEl = document.getElementById('editRetailMaxFeeUnit');
+    if (maxFeeUnitEl) maxFeeUnitEl.value = charge.max_fee_unit || '';
+    const conditionTypeEl = document.getElementById('editRetailConditionType');
+    if (conditionTypeEl) conditionTypeEl.value = charge.condition_type || 'NONE';
+    const conditionDescEl = document.getElementById('editRetailConditionDescription');
+    if (conditionDescEl) conditionDescEl.value = charge.condition_description || '';
+    const originalTextEl = document.getElementById('editRetailOriginalChargeText');
+    if (originalTextEl) originalTextEl.value = charge.original_charge_text || '';
+    const tier1ThresholdEl = document.getElementById('editRetailTier1Threshold');
+    if (tier1ThresholdEl) tier1ThresholdEl.value = charge.tier_1_threshold || '';
+    const tier1FeeValueEl = document.getElementById('editRetailTier1FeeValue');
+    if (tier1FeeValueEl) tier1FeeValueEl.value = charge.tier_1_fee_value || '';
+    const tier1FeeUnitEl = document.getElementById('editRetailTier1FeeUnit');
+    if (tier1FeeUnitEl) tier1FeeUnitEl.value = charge.tier_1_fee_unit || '';
+    const tier1MaxFeeEl = document.getElementById('editRetailTier1MaxFee');
+    if (tier1MaxFeeEl) tier1MaxFeeEl.value = charge.tier_1_max_fee || '';
+    const tier2ThresholdEl = document.getElementById('editRetailTier2Threshold');
+    if (tier2ThresholdEl) tier2ThresholdEl.value = charge.tier_2_threshold || '';
+    const tier2FeeValueEl = document.getElementById('editRetailTier2FeeValue');
+    if (tier2FeeValueEl) tier2FeeValueEl.value = charge.tier_2_fee_value || '';
+    const tier2FeeUnitEl = document.getElementById('editRetailTier2FeeUnit');
+    if (tier2FeeUnitEl) tier2FeeUnitEl.value = charge.tier_2_fee_unit || '';
+    const tier2MaxFeeEl = document.getElementById('editRetailTier2MaxFee');
+    if (tier2MaxFeeEl) tier2MaxFeeEl.value = charge.tier_2_max_fee || '';
+    const employeeFeeValueEl = document.getElementById('editRetailEmployeeFeeValue');
+    if (employeeFeeValueEl) employeeFeeValueEl.value = charge.employee_fee_value || '';
+    const employeeFeeUnitEl = document.getElementById('editRetailEmployeeFeeUnit');
+    if (employeeFeeUnitEl) employeeFeeUnitEl.value = charge.employee_fee_unit || '';
+    const employeeFeeDescEl = document.getElementById('editRetailEmployeeFeeDescription');
+    if (employeeFeeDescEl) employeeFeeDescEl.value = charge.employee_fee_description || '';
     const feeRateValueEl = document.getElementById('editRetailFeeRateValue');
     if (feeRateValueEl) feeRateValueEl.value = charge.fee_rate_value || '';
     const feeRateUnitEl = document.getElementById('editRetailFeeRateUnit');
@@ -1138,11 +1234,31 @@ async function handleSaveRetailCharge(e) {
         loan_product_name: document.getElementById('editRetailLoanProductName').value || null,
         charge_type: document.getElementById('editRetailChargeType').value || null,
         charge_context: document.getElementById('editRetailChargeContext').value || 'GENERAL',
+        charge_title: document.getElementById('editRetailChargeTitle').value || null,
         charge_description: document.getElementById('editRetailChargeDescription').value || null,
         fee_text: (document.getElementById('editRetailFeeText') && document.getElementById('editRetailFeeText').value) ? document.getElementById('editRetailFeeText').value : null,
         answer_text: (document.getElementById('editRetailAnswerText') && document.getElementById('editRetailAnswerText').value) ? document.getElementById('editRetailAnswerText').value : null,
         parse_status: (document.getElementById('editRetailParseStatus') && document.getElementById('editRetailParseStatus').value) ? document.getElementById('editRetailParseStatus').value : null,
+        answer_source: (document.getElementById('editRetailAnswerSource') && document.getElementById('editRetailAnswerSource').value) ? document.getElementById('editRetailAnswerSource').value : null,
         fee_value: document.getElementById('editRetailFeeValue').value ? parseFloat(document.getElementById('editRetailFeeValue').value) : null,
+        min_fee_value: document.getElementById('editRetailMinFeeValue').value ? parseFloat(document.getElementById('editRetailMinFeeValue').value) : null,
+        min_fee_unit: (document.getElementById('editRetailMinFeeUnit') && document.getElementById('editRetailMinFeeUnit').value) ? document.getElementById('editRetailMinFeeUnit').value : null,
+        max_fee_value: document.getElementById('editRetailMaxFeeValue').value ? parseFloat(document.getElementById('editRetailMaxFeeValue').value) : null,
+        max_fee_unit: (document.getElementById('editRetailMaxFeeUnit') && document.getElementById('editRetailMaxFeeUnit').value) ? document.getElementById('editRetailMaxFeeUnit').value : null,
+        condition_type: (document.getElementById('editRetailConditionType') && document.getElementById('editRetailConditionType').value) ? document.getElementById('editRetailConditionType').value : null,
+        condition_description: (document.getElementById('editRetailConditionDescription') && document.getElementById('editRetailConditionDescription').value) ? document.getElementById('editRetailConditionDescription').value : null,
+        original_charge_text: (document.getElementById('editRetailOriginalChargeText') && document.getElementById('editRetailOriginalChargeText').value) ? document.getElementById('editRetailOriginalChargeText').value : null,
+        tier_1_threshold: document.getElementById('editRetailTier1Threshold').value ? parseFloat(document.getElementById('editRetailTier1Threshold').value) : null,
+        tier_1_fee_value: document.getElementById('editRetailTier1FeeValue').value ? parseFloat(document.getElementById('editRetailTier1FeeValue').value) : null,
+        tier_1_fee_unit: (document.getElementById('editRetailTier1FeeUnit') && document.getElementById('editRetailTier1FeeUnit').value) ? document.getElementById('editRetailTier1FeeUnit').value : null,
+        tier_1_max_fee: document.getElementById('editRetailTier1MaxFee').value ? parseFloat(document.getElementById('editRetailTier1MaxFee').value) : null,
+        tier_2_threshold: document.getElementById('editRetailTier2Threshold').value ? parseFloat(document.getElementById('editRetailTier2Threshold').value) : null,
+        tier_2_fee_value: document.getElementById('editRetailTier2FeeValue').value ? parseFloat(document.getElementById('editRetailTier2FeeValue').value) : null,
+        tier_2_fee_unit: (document.getElementById('editRetailTier2FeeUnit') && document.getElementById('editRetailTier2FeeUnit').value) ? document.getElementById('editRetailTier2FeeUnit').value : null,
+        tier_2_max_fee: document.getElementById('editRetailTier2MaxFee').value ? parseFloat(document.getElementById('editRetailTier2MaxFee').value) : null,
+        employee_fee_value: document.getElementById('editRetailEmployeeFeeValue').value ? parseFloat(document.getElementById('editRetailEmployeeFeeValue').value) : null,
+        employee_fee_unit: (document.getElementById('editRetailEmployeeFeeUnit') && document.getElementById('editRetailEmployeeFeeUnit').value) ? document.getElementById('editRetailEmployeeFeeUnit').value : null,
+        employee_fee_description: (document.getElementById('editRetailEmployeeFeeDescription') && document.getElementById('editRetailEmployeeFeeDescription').value) ? document.getElementById('editRetailEmployeeFeeDescription').value : null,
         fee_rate_value: (document.getElementById('editRetailFeeRateValue') && document.getElementById('editRetailFeeRateValue').value) ? parseFloat(document.getElementById('editRetailFeeRateValue').value) : null,
         fee_rate_unit: (document.getElementById('editRetailFeeRateUnit') && document.getElementById('editRetailFeeRateUnit').value) ? document.getElementById('editRetailFeeRateUnit').value : null,
         fee_amount_value: (document.getElementById('editRetailFeeAmountValue') && document.getElementById('editRetailFeeAmountValue').value) ? parseFloat(document.getElementById('editRetailFeeAmountValue').value) : null,
@@ -2557,3 +2673,539 @@ function exportPriorityCentersToCSV() {
     }
 }
 
+// ============================================================================
+// PHONEBOOK FUNCTIONS - Modern Enterprise Directory
+// ============================================================================
+
+let phonebookViewMode = 'list'; // 'list' or 'grid'
+let phonebookSearchTimeout = null;
+
+// Load phonebook stats
+function loadPhonebookStats() {
+    fetch('/api/phonebook/stats', {
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('phonebookTotalEmployees').textContent = data.total_employees.toLocaleString();
+        document.getElementById('phonebookTotalDepartments').textContent = data.total_departments.toLocaleString();
+        document.getElementById('phonebookTotalDesignations').textContent = data.total_designations.toLocaleString();
+    })
+    .catch(error => console.error('Error loading phonebook stats:', error));
+}
+
+// Load phonebook filters
+function loadPhonebookFilters() {
+    fetch('/api/phonebook/filters', {
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => response.json())
+    .then(data => {
+        phonebookFiltersData = data;
+        
+        const deptSelect = document.getElementById('phonebookFilterDepartment');
+        deptSelect.innerHTML = '<option value="">All Departments</option>' + 
+            data.departments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+        
+        const desigSelect = document.getElementById('phonebookFilterDesignation');
+        desigSelect.innerHTML = '<option value="">All Designations</option>' + 
+            data.designations.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    })
+    .catch(error => console.error('Error loading phonebook filters:', error));
+}
+
+// Load phonebook employees
+function loadPhonebook() {
+    showPhonebookSkeleton();
+    
+    let url = `/api/phonebook/employees?page=${phonebookCurrentPage}&limit=${phonebookPageSize}`;
+    
+    if (phonebookCurrentFilters.search) url += `&search=${encodeURIComponent(phonebookCurrentFilters.search)}`;
+    if (phonebookCurrentFilters.department) url += `&department=${encodeURIComponent(phonebookCurrentFilters.department)}`;
+    if (phonebookCurrentFilters.designation) url += `&designation=${encodeURIComponent(phonebookCurrentFilters.designation)}`;
+    
+    fetch(url, {
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => response.json())
+    .then(data => {
+        phonebookTotal = data.total;
+        renderPhonebook(data.employees);
+        updatePhonebookPagination(data);
+        updatePhonebookResultsText(data);
+        updateClearFiltersVisibility();
+    })
+    .catch(error => {
+        console.error('Error loading phonebook:', error);
+        showPhonebookEmpty();
+    });
+}
+
+// Show skeleton loading
+function showPhonebookSkeleton() {
+    document.getElementById('pbEmptyState').style.display = 'none';
+    document.getElementById('phonebookListBody').innerHTML = `
+        <div class="pb-skeleton-list">
+            ${Array(5).fill('<div class="pb-skeleton-item"></div>').join('')}
+        </div>
+    `;
+    document.getElementById('phonebookGridBody').innerHTML = '';
+}
+
+// Show empty state
+function showPhonebookEmpty() {
+    document.getElementById('phonebookListBody').innerHTML = '';
+    document.getElementById('phonebookGridBody').innerHTML = '';
+    document.getElementById('pbEmptyState').style.display = 'flex';
+}
+
+// Render phonebook (list or grid)
+function renderPhonebook(employees) {
+    if (!employees || employees.length === 0) {
+        showPhonebookEmpty();
+        return;
+    }
+    
+    document.getElementById('pbEmptyState').style.display = 'none';
+    
+    // Render List View
+    document.getElementById('phonebookListBody').innerHTML = employees.map(emp => `
+        <div class="pb-list-item" onclick="viewEmployee(${emp.id})">
+            <div class="pb-avatar">${getInitials(emp.full_name)}</div>
+            <div class="pb-employee-info">
+                <div class="pb-employee-name">${escapeHtml(emp.full_name)}</div>
+                <div class="pb-employee-title">${escapeHtml(emp.designation || 'No designation')}</div>
+                <div class="pb-employee-contact">
+                    ${emp.email ? `<a href="mailto:${emp.email}" onclick="event.stopPropagation()">${emp.email}</a>` : ''}
+                    ${emp.mobile ? `<a href="tel:${emp.mobile}" onclick="event.stopPropagation()">${emp.mobile}</a>` : ''}
+                    ${emp.ip_phone ? `<span>IP: ${emp.ip_phone}</span>` : ''}
+                </div>
+            </div>
+            <div class="pb-list-actions">
+                <button class="pb-icon-btn view" onclick="event.stopPropagation(); viewEmployee(${emp.id})" title="View">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="pb-icon-btn edit" onclick="event.stopPropagation(); editEmployee(${emp.id})" title="Edit">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="pb-icon-btn delete" onclick="event.stopPropagation(); deleteEmployee(${emp.id})" title="Delete">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    // Render Grid View
+    document.getElementById('phonebookGridBody').innerHTML = employees.map(emp => `
+        <div class="pb-card" onclick="viewEmployee(${emp.id})">
+            <div class="pb-card-header">
+                <div class="pb-avatar">${getInitials(emp.full_name)}</div>
+                <div>
+                    <div class="pb-card-name">${escapeHtml(emp.full_name)}</div>
+                    <div class="pb-card-title">${escapeHtml(emp.designation || 'No designation')}</div>
+                    <div class="pb-card-dept">${escapeHtml(emp.department || '')}</div>
+                </div>
+            </div>
+            <div class="pb-card-contact">
+                ${emp.mobile ? `<div class="pb-card-contact-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg>
+                    <a href="tel:${emp.mobile}" onclick="event.stopPropagation()">${emp.mobile}</a>
+                </div>` : ''}
+                ${emp.email ? `<div class="pb-card-contact-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <a href="mailto:${emp.email}" onclick="event.stopPropagation()">${emp.email}</a>
+                </div>` : ''}
+                ${emp.ip_phone ? `<div class="pb-card-contact-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    <span>IP: ${emp.ip_phone}</span>
+                </div>` : ''}
+            </div>
+            <div class="pb-card-actions" onclick="event.stopPropagation()">
+                ${emp.mobile ? `<a href="tel:${emp.mobile}" class="pb-card-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg>
+                    Call
+                </a>` : ''}
+                ${emp.email ? `<a href="mailto:${emp.email}" class="pb-card-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Email
+                </a>` : ''}
+                <button onclick="viewEmployee(${emp.id})" class="pb-card-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    View
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update results text
+function updatePhonebookResultsText(data) {
+    const start = (data.page - 1) * phonebookPageSize + 1;
+    const end = Math.min(data.page * phonebookPageSize, data.total);
+    const text = data.total > 0 ? `Showing ${start}-${end} of ${data.total.toLocaleString()} employees` : 'No employees found';
+    document.getElementById('phonebookResultsText').textContent = text;
+}
+
+// Update pagination
+function updatePhonebookPagination(data) {
+    const totalPages = data.total_pages || Math.ceil(data.total / phonebookPageSize);
+    document.getElementById('phonebookPageInfo').textContent = `Page ${data.page} of ${Math.max(totalPages, 1)}`;
+    document.getElementById('phonebookPrevPage').disabled = data.page <= 1;
+    document.getElementById('phonebookNextPage').disabled = data.page >= totalPages;
+}
+
+// Update clear filters visibility
+function updateClearFiltersVisibility() {
+    const hasFilters = phonebookCurrentFilters.search || phonebookCurrentFilters.department || phonebookCurrentFilters.designation;
+    const clearBtn = document.getElementById('phonebookClearFilters');
+    const clearSearch = document.getElementById('phonebookClearSearch');
+    if (clearBtn) clearBtn.style.display = hasFilters ? 'block' : 'none';
+    if (clearSearch) clearSearch.style.display = phonebookCurrentFilters.search ? 'block' : 'none';
+}
+
+// Clear all filters
+function clearPhonebookFilters() {
+    document.getElementById('phonebookSearch').value = '';
+    document.getElementById('phonebookFilterDepartment').value = '';
+    document.getElementById('phonebookFilterDesignation').value = '';
+    phonebookCurrentFilters = {};
+    phonebookCurrentPage = 1;
+    loadPhonebook();
+}
+
+// Toggle view mode
+function setPhonebookViewMode(mode) {
+    phonebookViewMode = mode;
+    document.getElementById('pbViewList').classList.toggle('active', mode === 'list');
+    document.getElementById('pbViewGrid').classList.toggle('active', mode === 'grid');
+    document.getElementById('pbListView').style.display = mode === 'list' ? 'block' : 'none';
+    document.getElementById('pbGridView').style.display = mode === 'grid' ? 'block' : 'none';
+}
+
+// Get initials
+function getInitials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).filter(p => p.length > 0);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+}
+
+// Escape HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// View employee
+function viewEmployee(id) {
+    fetch(`/api/phonebook/employees/${id}`, {
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => response.json())
+    .then(emp => {
+        currentViewingEmployee = emp;
+        
+        // Update profile view
+        document.getElementById('viewEmployeeAvatar').textContent = getInitials(emp.full_name);
+        document.getElementById('viewEmployeeName').textContent = emp.full_name || 'Unknown';
+        document.getElementById('viewEmployeeDesignation').textContent = emp.designation || 'No designation';
+        document.getElementById('viewEmployeeDepartment').textContent = emp.department || '';
+        
+        // Contact info - hide empty fields
+        setViewField('viewEmployeeEmail', emp.email, 'mailto:' + emp.email, 'viewRowEmail');
+        setViewField('viewEmployeeMobile', emp.mobile, 'tel:' + emp.mobile, 'viewRowMobile');
+        setViewFieldText('viewEmployeeTelephone', emp.telephone, 'viewRowTelephone');
+        setViewFieldText('viewEmployeeIpPhone', emp.ip_phone, 'viewRowIpPhone');
+        setViewFieldText('viewEmployeePabx', emp.pabx, 'viewRowPabx');
+        setViewFieldText('viewEmployeeGroupEmail', emp.group_email, 'viewRowGroupEmail');
+        
+        // Work info
+        setViewFieldText('viewEmployeeEmpId', emp.employee_id, 'viewRowEmpId');
+        setViewFieldText('viewEmployeeDivision', emp.division, 'viewRowDivision');
+        
+        // Quick actions
+        const callBtn = document.getElementById('viewActionCall');
+        const emailBtn = document.getElementById('viewActionEmail');
+        if (callBtn) {
+            callBtn.href = emp.mobile ? 'tel:' + emp.mobile : '#';
+            callBtn.style.display = emp.mobile ? 'flex' : 'none';
+        }
+        if (emailBtn) {
+            emailBtn.href = emp.email ? 'mailto:' + emp.email : '#';
+            emailBtn.style.display = emp.email ? 'flex' : 'none';
+        }
+        
+        document.getElementById('phonebookViewModal').style.display = 'flex';
+    })
+    .catch(error => {
+        console.error('Error loading employee:', error);
+        alert('Error loading employee details');
+    });
+}
+
+function setViewField(elementId, value, href, rowId) {
+    const el = document.getElementById(elementId);
+    const row = document.getElementById(rowId);
+    if (el && row) {
+        if (value) {
+            el.textContent = value;
+            el.href = href;
+            row.style.display = 'block';
+        } else {
+            row.style.display = 'none';
+        }
+    }
+}
+
+function setViewFieldText(elementId, value, rowId) {
+    const el = document.getElementById(elementId);
+    const row = document.getElementById(rowId);
+    if (el && row) {
+        if (value) {
+            el.textContent = value;
+            row.style.display = 'block';
+        } else {
+            row.style.display = 'none';
+        }
+    }
+}
+
+// Close view modal
+function closePhonebookViewModal() {
+    document.getElementById('phonebookViewModal').style.display = 'none';
+    currentViewingEmployee = null;
+}
+
+// Edit from view
+function editFromView() {
+    if (currentViewingEmployee) {
+        closePhonebookViewModal();
+        editEmployee(currentViewingEmployee.id);
+    }
+}
+
+// Edit employee
+function editEmployee(id) {
+    fetch(`/api/phonebook/employees/${id}`, {
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => response.json())
+    .then(emp => {
+        document.getElementById('phonebookModalTitle').textContent = 'Edit Employee';
+        document.getElementById('phonebookEmployeeId').value = emp.id;
+        document.getElementById('phonebookEmpId').value = emp.employee_id || '';
+        document.getElementById('phonebookFullName').value = emp.full_name || '';
+        document.getElementById('phonebookDesignation').value = emp.designation || '';
+        document.getElementById('phonebookDepartment').value = emp.department || '';
+        document.getElementById('phonebookDivision').value = emp.division || '';
+        document.getElementById('phonebookEmail').value = emp.email || '';
+        document.getElementById('phonebookMobile').value = emp.mobile || '';
+        document.getElementById('phonebookTelephone').value = emp.telephone || '';
+        document.getElementById('phonebookPabx').value = emp.pabx || '';
+        document.getElementById('phonebookIpPhone').value = emp.ip_phone || '';
+        document.getElementById('phonebookGroupEmail').value = emp.group_email || '';
+        document.getElementById('phonebookFormError').textContent = '';
+        document.getElementById('phonebookModal').style.display = 'flex';
+    })
+    .catch(error => {
+        console.error('Error loading employee:', error);
+        alert('Error loading employee');
+    });
+}
+
+// Add new employee
+function openAddEmployeeModal() {
+    document.getElementById('phonebookModalTitle').textContent = 'Add Employee';
+    document.getElementById('phonebookEmployeeId').value = '';
+    document.getElementById('phonebookForm').reset();
+    document.getElementById('phonebookFormError').textContent = '';
+    document.getElementById('phonebookModal').style.display = 'flex';
+}
+
+// Close modal
+function closePhonebookModal() {
+    document.getElementById('phonebookModal').style.display = 'none';
+}
+
+// Save employee
+function saveEmployee(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('phonebookEmployeeId').value;
+    const isEdit = !!id;
+    
+    const employeeData = {
+        employee_id: document.getElementById('phonebookEmpId').value || null,
+        full_name: document.getElementById('phonebookFullName').value,
+        designation: document.getElementById('phonebookDesignation').value || null,
+        department: document.getElementById('phonebookDepartment').value || null,
+        division: document.getElementById('phonebookDivision').value || null,
+        email: document.getElementById('phonebookEmail').value || null,
+        mobile: document.getElementById('phonebookMobile').value || null,
+        telephone: document.getElementById('phonebookTelephone').value || null,
+        pabx: document.getElementById('phonebookPabx').value || null,
+        ip_phone: document.getElementById('phonebookIpPhone').value || null,
+        group_email: document.getElementById('phonebookGroupEmail').value || null
+    };
+    
+    fetch(isEdit ? `/api/phonebook/employees/${id}` : '/api/phonebook/employees', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+        },
+        body: JSON.stringify(employeeData)
+    })
+    .then(response => {
+        if (!response.ok) return response.json().then(err => { throw new Error(err.detail || 'Error saving'); });
+        return response.json();
+    })
+    .then(() => {
+        closePhonebookModal();
+        loadPhonebook();
+        loadPhonebookStats();
+        loadPhonebookFilters();
+    })
+    .catch(error => {
+        document.getElementById('phonebookFormError').textContent = error.message;
+    });
+}
+
+// Delete employee
+function deleteEmployee(id) {
+    if (!confirm('Delete this employee?')) return;
+    
+    fetch(`/api/phonebook/employees/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Error deleting');
+        return response.json();
+    })
+    .then(() => {
+        loadPhonebook();
+        loadPhonebookStats();
+    })
+    .catch(error => alert('Error deleting employee'));
+}
+
+// Export phonebook
+function exportPhonebook() {
+    let url = '/api/export/phonebook?';
+    if (phonebookCurrentFilters.search) url += `search=${encodeURIComponent(phonebookCurrentFilters.search)}&`;
+    if (phonebookCurrentFilters.department) url += `department=${encodeURIComponent(phonebookCurrentFilters.department)}&`;
+    if (phonebookCurrentFilters.designation) url += `designation=${encodeURIComponent(phonebookCurrentFilters.designation)}&`;
+    
+    fetch(url, {
+        headers: { 'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password) }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = `phonebook_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+    })
+    .catch(error => alert('Error exporting'));
+}
+
+// Setup event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Live search with debounce
+    const searchInput = document.getElementById('phonebookSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(phonebookSearchTimeout);
+            phonebookSearchTimeout = setTimeout(() => {
+                phonebookCurrentFilters.search = this.value;
+                phonebookCurrentPage = 1;
+                loadPhonebook();
+            }, 300);
+        });
+    }
+    
+    // Clear search button
+    const clearSearch = document.getElementById('phonebookClearSearch');
+    if (clearSearch) {
+        clearSearch.addEventListener('click', () => {
+            document.getElementById('phonebookSearch').value = '';
+            phonebookCurrentFilters.search = '';
+            phonebookCurrentPage = 1;
+            loadPhonebook();
+        });
+    }
+    
+    // Filter dropdowns - apply on change
+    const deptFilter = document.getElementById('phonebookFilterDepartment');
+    const desigFilter = document.getElementById('phonebookFilterDesignation');
+    if (deptFilter) {
+        deptFilter.addEventListener('change', function() {
+            phonebookCurrentFilters.department = this.value;
+            phonebookCurrentPage = 1;
+            loadPhonebook();
+        });
+    }
+    if (desigFilter) {
+        desigFilter.addEventListener('change', function() {
+            phonebookCurrentFilters.designation = this.value;
+            phonebookCurrentPage = 1;
+            loadPhonebook();
+        });
+    }
+    
+    // Clear filters
+    const clearBtn = document.getElementById('phonebookClearFilters');
+    if (clearBtn) clearBtn.addEventListener('click', clearPhonebookFilters);
+    
+    // Export
+    const exportBtn = document.getElementById('exportPhonebook');
+    if (exportBtn) exportBtn.addEventListener('click', exportPhonebook);
+    
+    // Add employee
+    const addBtn = document.getElementById('addNewEmployee');
+    if (addBtn) addBtn.addEventListener('click', openAddEmployeeModal);
+    
+    // View toggle
+    const viewList = document.getElementById('pbViewList');
+    const viewGrid = document.getElementById('pbViewGrid');
+    if (viewList) viewList.addEventListener('click', () => setPhonebookViewMode('list'));
+    if (viewGrid) viewGrid.addEventListener('click', () => setPhonebookViewMode('grid'));
+    
+    // Pagination
+    const prevBtn = document.getElementById('phonebookPrevPage');
+    const nextBtn = document.getElementById('phonebookNextPage');
+    if (prevBtn) prevBtn.addEventListener('click', () => { if (phonebookCurrentPage > 1) { phonebookCurrentPage--; loadPhonebook(); } });
+    if (nextBtn) nextBtn.addEventListener('click', () => { if (phonebookCurrentPage < Math.ceil(phonebookTotal / phonebookPageSize)) { phonebookCurrentPage++; loadPhonebook(); } });
+    
+    // Page size
+    const pageSizeSelect = document.getElementById('phonebookPageSize');
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            phonebookPageSize = parseInt(this.value);
+            phonebookCurrentPage = 1;
+            loadPhonebook();
+        });
+    }
+    
+    // Form submit
+    const form = document.getElementById('phonebookForm');
+    if (form) form.addEventListener('submit', saveEmployee);
+    
+    // Close modals on overlay click
+    document.querySelectorAll('.pb-modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+    
+    // Close modals on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.getElementById('phonebookModal').style.display = 'none';
+            document.getElementById('phonebookViewModal').style.display = 'none';
+        }
+    });
+});

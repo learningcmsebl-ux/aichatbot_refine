@@ -298,23 +298,40 @@ class DisambiguationHandler:
     
     def build_routing_disambiguation_prompt(self) -> str:
         """Build prompt for routing disambiguation."""
-        return "\n".join([
+        lines = [
             "Your question could refer to multiple things. Please choose one:",
             "1. Fees/charges (cards, loans, or Skybanking)",
             "2. Steps/process/how to do it",
             "3. Branch/ATM/location",
-            "4. Contact information (phone/email)",
+            "4. Employee contact info (phone/email/extension)",
             "",
-            "Please reply with a number (1-4)."
-        ])
+            "Reply with a number (1-4).",
+        ]
+        return "\n".join(lines)
     
     def build_routing_disambiguation_options(self) -> List[Dict[str, Any]]:
-        """Build options for routing disambiguation."""
+        """Build options for routing disambiguation (route_target drives resolution)."""
         return [
-            {"label": "Fees/charges", "route": "fee", "keywords": ["fee", "charge", "cost"]},
-            {"label": "Process/steps", "route": "process", "keywords": ["process", "how to", "steps"]},
-            {"label": "Location", "route": "location", "keywords": ["branch", "atm", "location"]},
-            {"label": "Contact info", "route": "contact", "keywords": ["contact", "phone", "email"]},
+            {
+                "label": "Fees/charges",
+                "route_target": "FEE_ENGINE",
+                "keywords": ["fee", "fees", "charge", "charges", "pricing", "cost", "commission"],
+            },
+            {
+                "label": "Steps/process/how to do it",
+                "route_target": "LIGHTRAG",
+                "keywords": ["process", "procedure", "how to", "steps", "method", "policy", "rules"],
+            },
+            {
+                "label": "Branch/ATM/location",
+                "route_target": "LOCATION_SERVICE",
+                "keywords": ["branch", "atm", "location", "address", "near me", "where is"],
+            },
+            {
+                "label": "Employee contact info (phone/email/extension)",
+                "route_target": "PHONEBOOK",
+                "keywords": ["contact", "phone", "number", "email", "extension", "employee", "staff", "manager"],
+            },
         ]
     
     def build_fee_type_disambiguation_prompt(
@@ -325,15 +342,17 @@ class DisambiguationHandler:
         Build prompt for fee type disambiguation.
         
         Args:
-            fee_candidates: List of fee type labels
+            fee_candidates: List of fee engine target codes (e.g. FEE_ENGINE_CARDS)
             
         Returns:
-            Formatted prompt string
+            Formatted prompt string with friendly labels
         """
-        lines = ["Please specify which fee you're asking about:"]
-        for idx, candidate in enumerate(fee_candidates, 1):
-            lines.append(f"{idx}. {candidate}")
-        lines.extend(["", "Please reply with a number."])
+        lines = ["Which fees/charges do you mean?"]
+        options = self.build_fee_type_disambiguation_options(fee_candidates)
+        for i, opt in enumerate(options, start=1):
+            lines.append(f"{i}. {opt.get('label')}")
+        lines.append("")
+        lines.append(f"Reply with a number (1-{len(options)}).")
         return "\n".join(lines)
     
     def build_fee_type_disambiguation_options(
@@ -344,15 +363,21 @@ class DisambiguationHandler:
         Build options for fee type disambiguation.
         
         Args:
-            fee_candidates: List of fee type labels
+            fee_candidates: List of fee engine target codes to include
             
         Returns:
-            List of option dictionaries
+            List of option dictionaries with route_target, friendly label, and keywords
         """
-        return [
-            {"label": candidate, "charge_type": candidate, "keywords": [candidate.lower()]}
-            for candidate in fee_candidates
+        order = [
+            ("FEE_ENGINE_CARDS", "Card fees/charges", ["card", "credit", "debit", "visa", "mastercard", "supplementary", "lounge", "atm"]),
+            ("FEE_ENGINE_RETAIL_ASSETS", "Loan/retail asset fees", ["loan", "fast cash", "fast loan", "home loan", "car loan", "personal loan", "education loan", "executive loan", "retail asset", "overdraft", "emi"]),
+            ("FEE_ENGINE_SKYBANKING", "Skybanking fees/charges", ["skybanking", "sky banking", "mobile banking", "digital banking", "ebl app", "online banking"]),
         ]
+        options = []
+        for target, label, keywords in order:
+            if target in fee_candidates:
+                options.append({"label": label, "route_target": target, "keywords": keywords})
+        return options
     
     # =========================================================================
     # State Persistence (Redis + Local Fallback)

@@ -4,53 +4,50 @@
  */
 
 class ChargesGrid {
-    constructor(tableId, storageKey = 'chargesGrid.widths.v1') {
+    constructor(tableId, storageKey = 'chargesGrid.widths.v2-compact') {
         this.tableId = tableId;
         this.storageKey = storageKey;
         this.table = document.getElementById(tableId);
         
-        // Default column widths
+        // Default column widths - COMPACT layout
         this.defaultWidths = {
-            expand: 40,
-            id: 110,
-            loanProduct: 220,
-            chargeType: 160,
-            chargeContext: 160,
-            description: 320,
-            feeValue: 280,
-            unit: 90,
-            effectiveFrom: 130,
-            status: 100,
-            actions: 160
+            expand: 28,
+            actions: 100,
+            loanProduct: 140,
+            chargeType: 110,
+            chargeContext: 100,
+            description: 200,
+            feeValue: 180,
+            unit: 55,
+            effectiveFrom: 90,
+            status: 65
         };
         
         // Min/Max widths per column
         this.minWidths = {
-            expand: 40,
-            id: 80,
-            loanProduct: 120,
-            chargeType: 100,
-            chargeContext: 100,
-            description: 150,
-            feeValue: 150,
-            unit: 60,
-            effectiveFrom: 100,
-            status: 80,
-            actions: 140
+            expand: 28,
+            actions: 90,
+            loanProduct: 100,
+            chargeType: 80,
+            chargeContext: 80,
+            description: 120,
+            feeValue: 120,
+            unit: 45,
+            effectiveFrom: 80,
+            status: 55
         };
         
         this.maxWidths = {
-            expand: 40,
-            id: 200,
-            loanProduct: 400,
-            chargeType: 300,
-            chargeContext: 300,
-            description: 700,
-            feeValue: 700,
-            unit: 150,
-            effectiveFrom: 200,
-            status: 150,
-            actions: 200
+            expand: 28,
+            actions: 140,
+            loanProduct: 250,
+            chargeType: 200,
+            chargeContext: 180,
+            description: 400,
+            feeValue: 400,
+            unit: 100,
+            effectiveFrom: 140,
+            status: 100
         };
         
         // Load saved widths or use defaults
@@ -257,4 +254,140 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initChargesGrid);
 } else {
     initChargesGrid();
+}
+
+/**
+ * Horizontal Scroll Enhancements
+ * - Mouse wheel horizontal scrolling (no Shift key needed when hovering over table)
+ * - Scroll shadow indicators
+ */
+function initHorizontalScroll() {
+    const scrollContainers = document.querySelectorAll('.gridScroll');
+    
+    scrollContainers.forEach(container => {
+        // Mouse wheel horizontal scrolling
+        container.addEventListener('wheel', (e) => {
+            // Only intercept if there's horizontal overflow
+            if (container.scrollWidth <= container.clientWidth) return;
+            
+            // If user is doing vertical scroll and there's vertical content, let it pass
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.shiftKey === false) {
+                // Convert vertical scroll to horizontal when over the table
+                e.preventDefault();
+                container.scrollLeft += e.deltaY;
+            }
+            
+            updateScrollShadows(container);
+        }, { passive: false });
+        
+        // Track scroll position for shadow indicators
+        container.addEventListener('scroll', () => {
+            updateScrollShadows(container);
+        });
+        
+        // Initial shadow state
+        setTimeout(() => updateScrollShadows(container), 100);
+    });
+}
+
+function updateScrollShadows(container) {
+    const scrollLeft = container.scrollLeft;
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    
+    // Left shadow: show when scrolled right (content exists to the left)
+    if (scrollLeft > 5) {
+        container.classList.add('scroll-left');
+    } else {
+        container.classList.remove('scroll-left');
+    }
+    
+    // Right shadow: show when more content exists to the right
+    if (scrollLeft < maxScroll - 5) {
+        container.classList.add('scroll-right');
+    } else {
+        container.classList.remove('scroll-right');
+    }
+}
+
+// Initialize horizontal scroll enhancements
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHorizontalScroll);
+} else {
+    // Small delay to ensure containers are rendered
+    setTimeout(initHorizontalScroll, 200);
+}
+
+// Re-initialize when tab is switched (for lazy-loaded content)
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('tab-btn')) {
+        setTimeout(initHorizontalScroll, 100);
+    }
+});
+
+/**
+ * Keyboard Navigation for Grid Tables
+ * - Page Up/Down: Scroll vertically by page
+ * - Home/End: Scroll to top/bottom
+ * - Arrow Left/Right: Scroll horizontally
+ */
+function initKeyboardNavigation() {
+    const scrollContainers = document.querySelectorAll('.gridScroll');
+    
+    scrollContainers.forEach(container => {
+        // Make container focusable
+        container.setAttribute('tabindex', '0');
+        
+        container.addEventListener('keydown', (e) => {
+            const scrollAmount = 200;
+            const pageScrollAmount = container.clientHeight - 50;
+            
+            switch (e.key) {
+                case 'PageDown':
+                    e.preventDefault();
+                    container.scrollBy({ top: pageScrollAmount, behavior: 'smooth' });
+                    break;
+                case 'PageUp':
+                    e.preventDefault();
+                    container.scrollBy({ top: -pageScrollAmount, behavior: 'smooth' });
+                    break;
+                case 'Home':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        container.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                    }
+                    break;
+                case 'End':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        container.scrollTo({ 
+                            top: container.scrollHeight, 
+                            left: 0, 
+                            behavior: 'smooth' 
+                        });
+                    }
+                    break;
+                case 'ArrowLeft':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                    }
+                    break;
+            }
+            
+            updateScrollShadows(container);
+        });
+    });
+}
+
+// Initialize keyboard navigation
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initKeyboardNavigation);
+} else {
+    setTimeout(initKeyboardNavigation, 300);
 }

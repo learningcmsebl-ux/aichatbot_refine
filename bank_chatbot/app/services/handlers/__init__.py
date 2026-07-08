@@ -13,9 +13,25 @@ Classes:
 from .query_classifier import QueryClassifier
 from .response_formatter import ResponseFormatter
 from .disambiguation_handler import DisambiguationHandler
+from .lead_capture_handler import LeadCaptureHandler
+from .phonebook_handler import PhonebookHandler
+from .forms_handler import FormsHandler
+from .app_links_handler import AppLinksHandler
+from .leadership_handler import LeadershipHandler
+from .soc_handler import SocHandler
+from .proposals_handler import ProposalsHandler
+from .circulars_handler import CircularsHandler
 
 __all__ = [
     "QueryClassifier",
     "ResponseFormatter", 
     "DisambiguationHandler",
+    "LeadCaptureHandler",
+    "PhonebookHandler",
+    "FormsHandler",
+    "AppLinksHandler",
+    "LeadershipHandler",
+    "SocHandler",
+    "ProposalsHandler",
+    "CircularsHandler",
 ]

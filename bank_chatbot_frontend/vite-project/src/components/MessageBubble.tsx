@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
 import type { Message } from '../types';
-
+import { renderMessageContent } from '../utils/linkifyContent';
 interface MessageBubbleProps {
   message: Message;
+}
+
+/**
+ * Strips decorative separator lines (===, ---, ~~~, ***) that sometimes appear
+ * in raw LLM output. Also collapses 3+ blank lines to 2.
+ */
+function cleanBotContent(content: string): string {
+  return content
+    .split('\n')
+    .filter(line => !/^[=\-~*_]{3,}\s*$/.test(line.trim()))
+    .filter(line => !/^\s*Profile:\s*/i.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
@@ -16,60 +30,29 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+    } catch {
+      /* ignore */
     }
   };
 
+  const formattedTime = message.timestamp
+    ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  /* ------------------------------------------------------------------ */
+  /*  User message                                                        */
+  /* ------------------------------------------------------------------ */
   if (isUser) {
     return (
-      <div
-        className="message-enter max-w-full group flex justify-end"
-        style={{ animation: 'fadeIn 0.3s' }}
-      >
+      <div className="msg-row msg-row--user">
         <div
           className="msg-bubble user"
-          style={{
-            background: 'linear-gradient(135deg, #0057a6 0%, #004080 100%)',  /* Subtle gradient - EBL blue */
-            color: '#ffffff',
-            whiteSpace: 'pre-line',
-            padding: '12px 16px',  /* More padding for bubble feel */
-            borderRadius: '12px 12px 4px 12px',  /* Less rounded, more bubble-like with slight tail effect */
-            marginBottom: '8px',
-            fontSize: '15px',  /* Slightly larger */
-            lineHeight: '1.5',
-            maxWidth: '75%',  /* Slightly wider */
-            marginLeft: 'auto',
-            wordWrap: 'break-word',
-            boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.15)',  /* Subtle shadow for depth */
-            transition: 'all 0.2s ease',
-            border: 'none',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0px 3px 8px rgba(0, 0, 0, 0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0px 2px 6px rgba(0, 0, 0, 0.15)';
-          }}
+          style={{ whiteSpace: 'pre-wrap' }}
         >
-          <div style={{ lineHeight: '1.5' }}>
-            {message.content}
-          </div>
-          {message.timestamp && (
-            <div
-              className="text-xs mt-1.5 opacity-80 text-right"
-              style={{ 
-                fontSize: '10px',  /* Smaller than main text */
-                color: 'rgba(255, 255, 255, 0.65)',  /* Lighter/more transparent */
-                marginTop: '4px',
-                fontWeight: 400,
-                letterSpacing: '0.3px'
-              }}
-            >
-              {new Date(message.timestamp).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+          {message.content}
+          {formattedTime && (
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', marginTop: '5px', textAlign: 'right', fontWeight: 400 }}>
+              {formattedTime}
             </div>
           )}
         </div>
@@ -77,145 +60,96 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     );
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Assistant message                                                   */
+  /* ------------------------------------------------------------------ */
+  const displayContent = cleanBotContent(message.content);
+
   return (
-    <div
-      className="message-enter max-w-full relative group"
-      style={{ animation: 'fadeIn 0.3s' }}
-    >
+    <div className="msg-row msg-row--assistant">
+      {/* Avatar */}
+      <div className="msg-bot-avatar-wrap">
+        <div className="msg-bot-avatar">
+          <img src="/dia-avatar.png" alt="DIA" />
+        </div>
+      </div>
+
+      {/* Bubble */}
       <div
-        className={`msg-bubble bot ${
-          hasError
-            ? 'bg-red-50 text-red-800 border border-red-200'
-            : ''
-        }`}
+        className={`msg-bubble bot group${hasError ? ' msg-bubble--error' : ''}`}
         style={{
-          backgroundColor: hasError ? '#fef2f2' : '#ffffff',
-          color: hasError ? '#991b1b' : '#111827',
-          whiteSpace: 'pre-line',
-          padding: '10px 14px',
-          borderRadius: '18px',
-          marginBottom: '10px',
-          fontSize: '14px',
-          lineHeight: '1.5',
-          maxWidth: '70%',
-          wordWrap: 'break-word',
-          boxShadow: hasError
-            ? '0 1px 3px rgba(239, 68, 68, 0.1)'
-            : '0 2px 6px rgba(15, 23, 42, 0.06)',
-          transition: 'all 0.2s ease',
-          borderLeft: isStreaming ? '3px solid #10a37f' : undefined,
-        }}
-        onMouseEnter={(e) => {
-          if (!hasError) {
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = hasError
-            ? '0 1px 3px rgba(239, 68, 68, 0.1)'
-            : '0 2px 6px rgba(15, 23, 42, 0.06)';
+          backgroundColor: hasError ? '#fef2f2' : undefined,
+          color: hasError ? '#991b1b' : undefined,
+          borderLeft: isStreaming ? '3px solid #0057a6' : undefined,
+          whiteSpace: 'pre-wrap',
         }}
       >
-        <div style={{ lineHeight: '1.5' }}>
-          {message.content}
-        </div>
+        {renderMessageContent(displayContent)}
+
+        {/* Streaming cursor */}
         {isStreaming && (
           <span
-            className="inline-block w-2 h-4 bg-[#10a37f] ml-1.5 rounded-sm animate-pulse"
             style={{
+              display: 'inline-block',
+              width: '7px',
+              height: '15px',
+              background: '#0057a6',
+              borderRadius: '2px',
+              marginLeft: '5px',
               verticalAlign: 'middle',
-              animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              animation: 'pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }}
           />
         )}
-        {message.timestamp && !isStreaming && (
-          <div
-            className="text-xs mt-1 opacity-65 text-left font-normal tracking-wide"
-            style={{ 
-              fontSize: '10px', 
-              color: 'rgba(53, 55, 64, 0.65)', 
-              marginTop: '4px' 
-            }}
-          >
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+
+        {/* Timestamp */}
+        {formattedTime && !isStreaming && (
+          <div style={{ fontSize: '10px', color: 'rgba(26,35,50,0.45)', marginTop: '5px', fontWeight: 400 }}>
+            {formattedTime}
           </div>
         )}
+
+        {/* Sources */}
         {message.sources && message.sources.length > 0 && !isStreaming && (
-          <div
-            className="mt-4 pt-3 border-t"
-            style={{
-              marginTop: '16px',
-              paddingTop: '12px',
-              borderTop: '1px solid rgba(229, 231, 235, 0.6)',
-            }}
-          >
-            <div
-              className="text-xs font-medium mb-2"
-              style={{
-                fontSize: '11px',
-                color: 'rgba(75, 85, 99, 0.9)',
-                marginBottom: '8px',
-                fontWeight: 500,
-                letterSpacing: '0.3px',
-              }}
-            >
+          <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(0,60,120,0.1)' }}>
+            <div style={{ fontSize: '11px', color: '#5a6a84', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.2px' }}>
               Source{message.sources.length > 1 ? 's' : ''}:
             </div>
-            <div className="space-y-1.5">
-              {message.sources.map((source, idx) => (
-                <div
-                  key={idx}
-                  className="text-xs flex items-start"
-                  style={{
-                    fontSize: '11px',
-                    color: 'rgba(55, 65, 81, 0.85)',
-                    lineHeight: '1.5',
-                  }}
-                >
-                  <span
-                    className="mr-2 mt-0.5 flex-shrink-0"
-                    style={{
-                      color: 'rgba(99, 102, 241, 0.7)',
-                      fontSize: '8px',
-                    }}
-                  >
-                    ▪
-                  </span>
-                  <span style={{ wordBreak: 'break-word' }}>{source}</span>
-                </div>
-              ))}
-            </div>
+            {message.sources.map((src, i) => (
+              <div key={i} style={{ fontSize: '11px', color: '#4b5a72', lineHeight: 1.5, display: 'flex', gap: '6px' }}>
+                <span style={{ color: '#0057a6', flexShrink: 0 }}>▪</span>
+                <span style={{ wordBreak: 'break-word' }}>{src}</span>
+              </div>
+            ))}
           </div>
         )}
-        {/* Copy button - appears on hover */}
+
+        {/* Copy button (hover) */}
         {!isStreaming && !hasError && message.content && (
           <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-gray-200 active:bg-gray-300"
-            style={{
-              transition: 'opacity 0.2s ease, background-color 0.2s ease',
-            }}
             title="Copy message"
             aria-label="Copy message"
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              opacity: 0,
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '5px',
+              cursor: 'pointer',
+              color: '#6b7fa0',
+              transition: 'opacity 0.2s, background 0.2s',
+            }}
+            className="copy-btn"
+            onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = '#f0f4f9'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '0'; e.currentTarget.style.background = 'transparent'; }}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="text-gray-600"
-            >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               {copied ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               ) : (
                 <>
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />

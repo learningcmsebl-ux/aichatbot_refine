@@ -14,6 +14,8 @@ Query Received
     ├─→ Is it Compliance Query? → YES → LightRAG (skip phonebook)
     │
     ├─→ Is it Management Query? → YES → LightRAG (skip phonebook)
+    │       **Exception:** role/people lookups (`head`, `manager`, `director` + employee signal)
+    │       → PHONEBOOK via `role_people_lookup` (see `routing_engine.py`)
     │
     ├─→ Is it Financial Report Query? → YES → LightRAG (skip phonebook)
     │
@@ -21,9 +23,15 @@ Query Received
     │
     ├─→ Is it User Document Query? → YES → LightRAG (skip phonebook)
     │
-    └─→ Is it Contact/Phonebook/Employee Query? → YES → Phonebook FIRST (NO LightRAG)
+    └─→ Is it Contact/Phonebook/Employee Query? → YES → Phonebook via `PhonebookHandler` (NO LightRAG)
         │
         └─→ If no results in phonebook → Return error (still NO LightRAG)
+
+## Implementation (2026)
+
+- **Routing:** `RoutingEngine.decide()` in `app/services/routing_engine.py` — single source of truth for `target`.
+- **Phonebook:** `PhonebookHandler` (`app/services/handlers/phonebook_handler.py`) — shared by stream and sync paths.
+- **Session security:** `assert_reference_access` on chat POST/stream and history; `ensure_session` claims orphan legacy messages on first write.
 ```
 
 ## Priority Rules

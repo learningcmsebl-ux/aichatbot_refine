@@ -114,10 +114,49 @@ services:
       ENABLE_STREAMING: ${ENABLE_STREAMING:-True}
       
       # CORS
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://dia.ebl-bd.com,http://localhost:3000}
       
       # Debug
       DEBUG: ${DEBUG:-False}
+
+      # Employee AD login
+      AUTH_ENABLED: ${AUTH_ENABLED:-True}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-secret-in-production}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-480}
+      LDAP_SERVER: ${LDAP_SERVER:-}
+      LDAP_PORT: ${LDAP_PORT:-389}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-}
+      LDAP_BIND_USER: ${LDAP_BIND_USER:-}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-}
+      LDAP_USE_SSL: ${LDAP_USE_SSL:-False}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-ebl.bd}
+      LDAP_NETBIOS_DOMAIN: ${LDAP_NETBIOS_DOMAIN:-EBL}
+      LDAP_EMAIL_DOMAIN: ${LDAP_EMAIL_DOMAIN:-@ebl-bd.com}
+      LDAP_CONNECT_TIMEOUT: ${LDAP_CONNECT_TIMEOUT:-10}
+      LDAP_AUTH_SEARCH_BASE: ${LDAP_AUTH_SEARCH_BASE:-}
+      LDAP_USERS_OU: ${LDAP_USERS_OU:-}
+      LDAP_DEFAULT_USER_PASSWORD: ${LDAP_DEFAULT_USER_PASSWORD:-Ebl123}
+      LDAP_PROVISION_ENABLED: ${LDAP_PROVISION_ENABLED:-False}
+
+      # Lead generation (chat capture + status queries)
+      ENABLE_LEAD_GENERATION: ${ENABLE_LEAD_GENERATION:-True}
+      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-}
+
+      # EBL Home intranet indexes (forms, apps, leadership)
+      ENABLE_EBLHOME_FORMS: ${ENABLE_EBLHOME_FORMS:-True}
+      ENABLE_EBLHOME_APPS: ${ENABLE_EBLHOME_APPS:-True}
+      ENABLE_EBLHOME_LEADERSHIP: ${ENABLE_EBLHOME_LEADERSHIP:-True}
+      ENABLE_EBLHOME_SOC: ${ENABLE_EBLHOME_SOC:-True}
+      ENABLE_EBLHOME_PROPOSALS: ${ENABLE_EBLHOME_PROPOSALS:-True}
+      ENABLE_EBLHOME_CIRCULARS: ${ENABLE_EBLHOME_CIRCULARS:-True}
+      EBLHOME_BASE_URL: ${EBLHOME_BASE_URL:-http://eblhome}
+      EBLHOME_MYSQL_HOST: ${EBLHOME_MYSQL_HOST:-192.168.3.57}
+      EBLHOME_MYSQL_PORT: ${EBLHOME_MYSQL_PORT:-3306}
+      EBLHOME_MYSQL_DB: ${EBLHOME_MYSQL_DB:-ebl_home}
+      EBLHOME_MYSQL_USER: ${EBLHOME_MYSQL_USER:-tanvir}
+      EBLHOME_MYSQL_PASSWORD: ${EBLHOME_MYSQL_PASSWORD:-tanvir}
+      EBLHOME_FETCH_BASE_URL: ${EBLHOME_FETCH_BASE_URL:-http://192.168.3.57}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -154,6 +193,8 @@ services:
     build:
       context: ../chatbot_dashboard
       dockerfile: Dockerfile
+      args:
+        VITE_ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-}
     container_name: bank-chatbot-dashboard
     ports:
       - "3001:3001"
@@ -168,6 +209,53 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  lead-portal:
+    build:
+      context: ../lead_portal
+      dockerfile: Dockerfile
+    container_name: bank-lead-portal
+    ports:
+      - "3002:3002"
+    depends_on:
+      - chatbot
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3002 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # HTTPS gateway — https://dia.ebl-bd.com (wildcard *.ebl-bd.com cert)
+  gateway:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: bank-chatbot-gateway
+    ports:
+      - "${GATEWAY_HTTP_PORT:-80}:80"
+      - "${GATEWAY_HTTPS_PORT:-443}:443"
+    volumes:
+      - ../star_ebl-bd_com_2026/star_ebl-bd_com.crt:/etc/nginx/ssl/server.crt:ro
+      - ../star_ebl-bd_com_2026/DigiCertCA.crt:/etc/nginx/ssl/intermediate.crt:ro
+      - ../star_ebl-bd_com_2026/wildcard_ebl-bd_com.key:/etc/nginx/ssl/privkey.pem:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      chatbot:
+        condition: service_healthy
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O /dev/null --no-check-certificate https://localhost/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
 volumes:
   redis_data:

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fee and Location Engine</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=20260129-modern">
 </head>
 <body>
     <div class="container">
@@ -43,6 +43,7 @@
                 <button class="tab-btn" onclick="switchTab('machines')">ATM/CRM/RTDM</button>
                 <button class="tab-btn" onclick="switchTab('priority-centers')">Priority Centers</button>
                 <button class="tab-btn" onclick="switchTab('pois')">POIs/Landmarks</button>
+                <button class="tab-btn" onclick="switchTab('phonebook')">📞 Phonebook</button>
             </div>
 
             <!-- Card Fees Tab -->
@@ -190,9 +191,8 @@
                                 <th data-col="expand" class="expandCol">
                                     <span title="Expand/Collapse rows">⇅</span>
                                 </th>
-                                <th data-col="id">
-                                    ID
-                                    <span class="colResizer" title="Drag to resize"></span>
+                                <th data-col="actions" class="actionsCol">
+                                    Actions
                                 </th>
                                 <th data-col="loanProduct">
                                     Loan Product
@@ -226,19 +226,25 @@
                                     Status
                                     <span class="colResizer" title="Drag to resize"></span>
                                 </th>
-                                <th data-col="actions" class="actionsCol">
-                                    Actions
-                                </th>
                             </tr>
                         </thead>
                         <tbody id="retailChargesTableBody">
                             <tr>
-                                <td colspan="11" class="loading">Loading...</td>
+                                <td colspan="10" class="loading">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="pagination">
+                    <div class="page-size-selector">
+                        <label for="retailPageSize">Rows per page:</label>
+                        <select id="retailPageSize">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
                     <button id="retailPrevPage" class="btn btn-secondary" disabled>Previous</button>
                     <span id="retailPageInfo">Page 1</span>
                     <button id="retailNextPage" class="btn btn-secondary">Next</button>
@@ -598,6 +604,144 @@
                     <button id="skybankingNextPage" class="btn btn-secondary">Next</button>
                 </div>
             </div>
+            </div>
+
+            <!-- Phonebook Tab -->
+            <div id="phonebook-tab" class="tab-content">
+                <div class="pb-container">
+                    <!-- Header with Stats -->
+                    <div class="pb-header">
+                        <div class="pb-title-row">
+                            <div>
+                                <h1 class="pb-title">Employee Directory</h1>
+                                <p class="pb-subtitle">Find and connect with colleagues</p>
+                            </div>
+                            <div class="pb-header-actions">
+                                <button id="exportPhonebook" class="pb-btn pb-btn-outline" title="Export to CSV">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    Export
+                                </button>
+                                <button id="addNewEmployee" class="pb-btn pb-btn-primary">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Add Employee
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Stats -->
+                        <div class="pb-stats">
+                            <div class="pb-stat">
+                                <span class="pb-stat-value" id="phonebookTotalEmployees">0</span>
+                                <span class="pb-stat-label">Employees</span>
+                            </div>
+                            <div class="pb-stat-divider"></div>
+                            <div class="pb-stat">
+                                <span class="pb-stat-value" id="phonebookTotalDepartments">0</span>
+                                <span class="pb-stat-label">Departments</span>
+                            </div>
+                            <div class="pb-stat-divider"></div>
+                            <div class="pb-stat">
+                                <span class="pb-stat-value" id="phonebookTotalDesignations">0</span>
+                                <span class="pb-stat-label">Designations</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search & Filters (Sticky) -->
+                    <div class="pb-search-section">
+                        <div class="pb-search-wrapper">
+                            <svg class="pb-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="phonebookSearch" class="pb-search-input" placeholder="Search by name, email, ID, or phone...">
+                            <button id="phonebookClearSearch" class="pb-clear-search" style="display:none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Quick Filters -->
+                        <div class="pb-filters">
+                            <div class="pb-filter-group">
+                                <select id="phonebookFilterDepartment" class="pb-filter-select">
+                                    <option value="">All Departments</option>
+                                </select>
+                            </div>
+                            <div class="pb-filter-group">
+                                <select id="phonebookFilterDesignation" class="pb-filter-select">
+                                    <option value="">All Designations</option>
+                                </select>
+                            </div>
+                            <button id="phonebookClearFilters" class="pb-btn-text" style="display:none;">Clear filters</button>
+                        </div>
+                        
+                        <!-- View Toggle & Results Info -->
+                        <div class="pb-toolbar">
+                            <div class="pb-results-info">
+                                <span id="phonebookResultsText">Loading...</span>
+                            </div>
+                            <div class="pb-view-toggle">
+                                <button id="pbViewList" class="pb-view-btn active" title="List View">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                                </button>
+                                <button id="pbViewGrid" class="pb-view-btn" title="Card View">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employee List Container -->
+                    <div class="pb-list-container">
+                        <!-- List View -->
+                        <div id="pbListView" class="pb-list-view">
+                            <div id="phonebookListBody" class="pb-list">
+                                <!-- Loading skeleton -->
+                                <div class="pb-skeleton-list">
+                                    <div class="pb-skeleton-item"></div>
+                                    <div class="pb-skeleton-item"></div>
+                                    <div class="pb-skeleton-item"></div>
+                                    <div class="pb-skeleton-item"></div>
+                                    <div class="pb-skeleton-item"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Grid/Card View -->
+                        <div id="pbGridView" class="pb-grid-view" style="display:none;">
+                            <div id="phonebookGridBody" class="pb-grid">
+                                <!-- Cards will be rendered here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Empty State -->
+                        <div id="pbEmptyState" class="pb-empty-state" style="display:none;">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <h3>No employees found</h3>
+                            <p>Try adjusting your search or filter criteria</p>
+                            <button class="pb-btn pb-btn-outline" onclick="clearPhonebookFilters()">Clear all filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pb-pagination">
+                        <div class="pb-pagination-info">
+                            <select id="phonebookPageSize" class="pb-page-select">
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                        </div>
+                        <div class="pb-pagination-controls">
+                            <button id="phonebookPrevPage" class="pb-page-btn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                                Previous
+                            </button>
+                            <span id="phonebookPageInfo" class="pb-page-info">Page 1 of 1</span>
+                            <button id="phonebookNextPage" class="pb-page-btn">
+                                Next
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -964,11 +1108,20 @@
                             <option value="ON_LIMIT">ON_LIMIT</option>
                             <option value="ON_ENHANCED_AMOUNT">ON_ENHANCED_AMOUNT</option>
                             <option value="ON_REDUCED_AMOUNT">ON_REDUCED_AMOUNT</option>
+                            <option value="ON_CATEGORY_A">ON_CATEGORY_A</option>
+                            <option value="ON_CATEGORY_B">ON_CATEGORY_B</option>
                             <option value="ON_CATEGORY_A_B">ON_CATEGORY_A_B</option>
                             <option value="ON_CATEGORY_C">ON_CATEGORY_C</option>
                         </select>
                         <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
                             Valid enum values only. This is part of the uniqueness constraint.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailChargeTitle">Charge Title *</label>
+                        <input type="text" id="editRetailChargeTitle" required>
+                        <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                            Short label shown in responses and exports.
                         </small>
                     </div>
                     <div class="form-group">
@@ -1002,52 +1155,188 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label for="editRetailAnswerSource">Answer Source</label>
+                        <input type="text" id="editRetailAnswerSource" placeholder="e.g., SCHEDULE">
+                    </div>
+                    <div class="form-group">
                         <label for="editRetailFeeValue">Fee Value</label>
                         <input type="number" id="editRetailFeeValue" step="0.0001">
                     </div>
                     <div class="form-group">
-                        <label for="editRetailFeeRateValue">Fee Rate Value</label>
-                        <input type="number" id="editRetailFeeRateValue" step="0.0001" placeholder="e.g., 1.5">
+                        <label for="editRetailMinFeeValue">Min Fee Value</label>
+                        <input type="number" id="editRetailMinFeeValue" step="0.0001">
                     </div>
                     <div class="form-group">
-                        <label for="editRetailFeeRateUnit">Fee Rate Unit</label>
-                        <select id="editRetailFeeRateUnit">
-                            <option value="">(none)</option>
-                            <option value="PERCENT">PERCENT</option>
-                            <option value="BPS">BPS</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editRetailFeeAmountValue">Fee Amount Value</label>
-                        <input type="number" id="editRetailFeeAmountValue" step="0.0001" placeholder="e.g., 1150">
-                    </div>
-                    <div class="form-group">
-                        <label for="editRetailFeeAmountCurrency">Fee Amount Currency</label>
-                        <select id="editRetailFeeAmountCurrency">
+                        <label for="editRetailMinFeeUnit">Min Fee Currency</label>
+                        <select id="editRetailMinFeeUnit">
                             <option value="">(none)</option>
                             <option value="BDT">BDT</option>
                             <option value="USD">USD</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="editRetailFeePeriod">Fee Period</label>
-                        <select id="editRetailFeePeriod">
+                        <label for="editRetailMaxFeeValue">Max Fee Value</label>
+                        <input type="number" id="editRetailMaxFeeValue" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailMaxFeeUnit">Max Fee Currency</label>
+                        <select id="editRetailMaxFeeUnit">
                             <option value="">(none)</option>
-                            <option value="PER_TRANSACTION">PER_TRANSACTION</option>
-                            <option value="PER_MONTH">PER_MONTH</option>
-                            <option value="PER_YEAR">PER_YEAR</option>
-                            <option value="PER_DAY">PER_DAY</option>
-                            <option value="ONE_TIME">ONE_TIME</option>
+                            <option value="BDT">BDT</option>
+                            <option value="USD">USD</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="editRetailFeeAppliesTo">Fee Applies To</label>
-                        <select id="editRetailFeeAppliesTo">
-                            <option value="">(none)</option>
-                            <option value="ON_LOAN_AMOUNT">ON_LOAN_AMOUNT</option>
-                            <option value="ON_OVERDUE_AMOUNT">ON_OVERDUE_AMOUNT</option>
-                            <option value="ON_LIMIT">ON_LIMIT</option>
+                        <label for="editRetailConditionType">Condition Type</label>
+                        <select id="editRetailConditionType">
+                            <option value="NONE">NONE</option>
+                            <option value="WHICHEVER_HIGHER">WHICHEVER_HIGHER</option>
+                            <option value="TIERED">TIERED</option>
+                            <option value="NOTE_BASED">NOTE_BASED</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailConditionDescription">Condition Description</label>
+                        <input type="text" id="editRetailConditionDescription">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="editRetailOriginalChargeText">Original Charge Text</label>
+                        <textarea id="editRetailOriginalChargeText" rows="2"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <div style="font-weight: 600; margin: 8px 0 4px;">Tier 1 (if applicable)</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier1Threshold">Tier 1 Threshold</label>
+                        <input type="number" id="editRetailTier1Threshold" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier1FeeValue">Tier 1 Rate Value</label>
+                        <input type="number" id="editRetailTier1FeeValue" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier1FeeUnit">Tier 1 Rate Unit</label>
+                        <select id="editRetailTier1FeeUnit">
+                            <option value="">(none)</option>
+                            <option value="PERCENT">PERCENT</option>
+                            <option value="BDT">BDT</option>
+                            <option value="USD">USD</option>
+                            <option value="TEXT">TEXT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier1MaxFee">Tier 1 Max Fee</label>
+                        <input type="number" id="editRetailTier1MaxFee" step="0.0001">
+                    </div>
+                    <div class="form-group full-width">
+                        <div style="font-weight: 600; margin: 8px 0 4px;">Tier 2 (if applicable)</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier2Threshold">Tier 2 Threshold</label>
+                        <input type="number" id="editRetailTier2Threshold" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier2FeeValue">Tier 2 Rate Value</label>
+                        <input type="number" id="editRetailTier2FeeValue" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier2FeeUnit">Tier 2 Rate Unit</label>
+                        <select id="editRetailTier2FeeUnit">
+                            <option value="">(none)</option>
+                            <option value="PERCENT">PERCENT</option>
+                            <option value="BDT">BDT</option>
+                            <option value="USD">USD</option>
+                            <option value="TEXT">TEXT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailTier2MaxFee">Tier 2 Max Fee</label>
+                        <input type="number" id="editRetailTier2MaxFee" step="0.0001">
+                    </div>
+                    <div class="form-group full-width">
+                        <div style="font-weight: 600; margin: 8px 0 4px;">Employee Pricing (if applicable)</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailEmployeeFeeValue">Employee Fee Value</label>
+                        <input type="number" id="editRetailEmployeeFeeValue" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailEmployeeFeeUnit">Employee Fee Unit</label>
+                        <select id="editRetailEmployeeFeeUnit">
+                            <option value="">(none)</option>
+                            <option value="BDT">BDT</option>
+                            <option value="USD">USD</option>
+                            <option value="PERCENT">PERCENT</option>
+                            <option value="TEXT">TEXT</option>
+                            <option value="ACTUAL_COST">ACTUAL_COST</option>
+                            <option value="COUNT">COUNT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRetailEmployeeFeeDescription">Employee Fee Description</label>
+                        <input type="text" id="editRetailEmployeeFeeDescription">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>
+                            <input type="checkbox" id="toggleRetailAdvanced" onclick="toggleRetailAdvancedFields()">
+                            Show advanced/unused fields
+                        </label>
+                    </div>
+                    <div id="retailAdvancedFields" class="form-group full-width" style="display: none;">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="editRetailFeeRateValue">Fee Rate Value</label>
+                                <input type="number" id="editRetailFeeRateValue" step="0.0001" placeholder="e.g., 1.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="editRetailFeeRateUnit">Fee Rate Unit</label>
+                                <select id="editRetailFeeRateUnit">
+                                    <option value="">(none)</option>
+                                    <option value="PERCENT">PERCENT</option>
+                                    <option value="BPS">BPS</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editRetailFeeAmountValue">Fee Amount Value</label>
+                                <input type="number" id="editRetailFeeAmountValue" step="0.0001" placeholder="e.g., 1150">
+                            </div>
+                            <div class="form-group">
+                                <label for="editRetailFeeAmountCurrency">Fee Amount Currency</label>
+                                <select id="editRetailFeeAmountCurrency">
+                                    <option value="">(none)</option>
+                                    <option value="BDT">BDT</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editRetailFeePeriod">Fee Period</label>
+                                <select id="editRetailFeePeriod">
+                                    <option value="">(none)</option>
+                                    <option value="PER_TRANSACTION">PER_TRANSACTION</option>
+                                    <option value="PER_MONTH">PER_MONTH</option>
+                                    <option value="PER_YEAR">PER_YEAR</option>
+                                    <option value="PER_DAY">PER_DAY</option>
+                                    <option value="ONE_TIME">ONE_TIME</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editRetailFeeAppliesTo">Fee Applies To</label>
+                                <select id="editRetailFeeAppliesTo">
+                                    <option value="">(none)</option>
+                                    <option value="ON_LOAN_AMOUNT">ON_LOAN_AMOUNT</option>
+                                    <option value="ON_OVERDUE_AMOUNT">ON_OVERDUE_AMOUNT</option>
+                                    <option value="ON_LIMIT">ON_LIMIT</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editRetailEffectiveTo">Effective To</label>
+                                <input type="date" id="editRetailEffectiveTo">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="editRetailRemarks">Remarks</label>
+                                <textarea id="editRetailRemarks" rows="3"></textarea>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="editRetailFeeUnit">Fee Unit *</label>
@@ -1084,16 +1373,8 @@
                         <input type="date" id="editRetailEffectiveFrom" required>
                     </div>
                     <div class="form-group">
-                        <label for="editRetailEffectiveTo">Effective To</label>
-                        <input type="date" id="editRetailEffectiveTo">
-                    </div>
-                    <div class="form-group">
                         <label for="editRetailPriority">Priority</label>
                         <input type="number" id="editRetailPriority" value="100">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="editRetailRemarks">Remarks</label>
-                        <textarea id="editRetailRemarks" rows="3"></textarea>
                     </div>
                 </div>
                 <div id="editRetailError" class="error-message"></div>
@@ -1106,8 +1387,183 @@
     </div>
 
     <!-- Cache-bust static assets to avoid stale JS after updates -->
-    <script src="/static/script.js?v=20260119"></script>
-    <script src="/static/grid.js?v=20260119"></script>
+    <!-- Phonebook Edit/Add Modal -->
+    <div id="phonebookModal" class="pb-modal">
+        <div class="pb-modal-overlay" onclick="closePhonebookModal()"></div>
+        <div class="pb-modal-container pb-modal-md">
+            <div class="pb-modal-header">
+                <h2 id="phonebookModalTitle">Add Employee</h2>
+                <button class="pb-modal-close" onclick="closePhonebookModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="phonebookForm" class="pb-modal-body">
+                <input type="hidden" id="phonebookEmployeeId">
+                
+                <!-- Basic Info Section -->
+                <div class="pb-form-section">
+                    <h3 class="pb-form-section-title">Basic Information</h3>
+                    <div class="pb-form-grid">
+                        <div class="pb-form-group">
+                            <label for="phonebookEmpId">Employee ID</label>
+                            <input type="text" id="phonebookEmpId" placeholder="Enter ID">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookFullName">Full Name <span class="required">*</span></label>
+                            <input type="text" id="phonebookFullName" required placeholder="Enter full name">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookDesignation">Designation</label>
+                            <input type="text" id="phonebookDesignation" placeholder="Job title">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookDepartment">Department</label>
+                            <input type="text" id="phonebookDepartment" placeholder="Department name">
+                        </div>
+                        <div class="pb-form-group pb-form-full">
+                            <label for="phonebookDivision">Division</label>
+                            <input type="text" id="phonebookDivision" placeholder="Division or branch">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Info Section -->
+                <div class="pb-form-section">
+                    <h3 class="pb-form-section-title">Contact Information</h3>
+                    <div class="pb-form-grid">
+                        <div class="pb-form-group">
+                            <label for="phonebookEmail">Email</label>
+                            <input type="email" id="phonebookEmail" placeholder="name@company.com">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookMobile">Mobile</label>
+                            <input type="text" id="phonebookMobile" placeholder="01XXXXXXXXX">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookTelephone">Telephone</label>
+                            <input type="text" id="phonebookTelephone" placeholder="Office phone">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookPabx">PABX</label>
+                            <input type="text" id="phonebookPabx" placeholder="Extension">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookIpPhone">IP Phone</label>
+                            <input type="text" id="phonebookIpPhone" placeholder="IP extension">
+                        </div>
+                        <div class="pb-form-group">
+                            <label for="phonebookGroupEmail">Group Email</label>
+                            <input type="email" id="phonebookGroupEmail" placeholder="team@company.com">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="phonebookFormError" class="pb-form-error"></div>
+            </form>
+            <div class="pb-modal-footer">
+                <button type="button" class="pb-btn pb-btn-ghost" onclick="closePhonebookModal()">Cancel</button>
+                <button type="submit" form="phonebookForm" class="pb-btn pb-btn-primary">Save Employee</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phonebook View Modal -->
+    <div id="phonebookViewModal" class="pb-modal">
+        <div class="pb-modal-overlay" onclick="closePhonebookViewModal()"></div>
+        <div class="pb-modal-container pb-modal-md">
+            <div class="pb-modal-header">
+                <h2>Employee Profile</h2>
+                <button class="pb-modal-close" onclick="closePhonebookViewModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="pb-modal-body pb-profile">
+                <!-- Profile Header -->
+                <div class="pb-profile-header">
+                    <div class="pb-profile-avatar" id="viewEmployeeAvatar">JD</div>
+                    <div class="pb-profile-info">
+                        <h3 id="viewEmployeeName" class="pb-profile-name">John Doe</h3>
+                        <p id="viewEmployeeDesignation" class="pb-profile-title">Senior Manager</p>
+                        <p id="viewEmployeeDepartment" class="pb-profile-dept">IT Division</p>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="pb-profile-actions">
+                    <a href="#" id="viewActionCall" class="pb-action-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        Call
+                    </a>
+                    <a href="#" id="viewActionEmail" class="pb-action-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        Email
+                    </a>
+                </div>
+                
+                <!-- Contact Section -->
+                <div class="pb-profile-section">
+                    <h4 class="pb-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg>
+                        Contact Information
+                    </h4>
+                    <div class="pb-info-grid">
+                        <div class="pb-info-item" id="viewRowEmail">
+                            <span class="pb-info-label">Email</span>
+                            <a href="#" id="viewEmployeeEmail" class="pb-info-value pb-link">john.doe@ebl.com.bd</a>
+                        </div>
+                        <div class="pb-info-item" id="viewRowMobile">
+                            <span class="pb-info-label">Mobile</span>
+                            <a href="#" id="viewEmployeeMobile" class="pb-info-value pb-link">01712345678</a>
+                        </div>
+                        <div class="pb-info-item" id="viewRowTelephone">
+                            <span class="pb-info-label">Telephone</span>
+                            <span id="viewEmployeeTelephone" class="pb-info-value">02-9556360</span>
+                        </div>
+                        <div class="pb-info-item" id="viewRowIpPhone">
+                            <span class="pb-info-label">IP Phone</span>
+                            <span id="viewEmployeeIpPhone" class="pb-info-value">5678</span>
+                        </div>
+                        <div class="pb-info-item" id="viewRowPabx">
+                            <span class="pb-info-label">PABX</span>
+                            <span id="viewEmployeePabx" class="pb-info-value">1234</span>
+                        </div>
+                        <div class="pb-info-item" id="viewRowGroupEmail">
+                            <span class="pb-info-label">Group Email</span>
+                            <span id="viewEmployeeGroupEmail" class="pb-info-value">it-team@ebl.com.bd</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Work Section -->
+                <div class="pb-profile-section">
+                    <h4 class="pb-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                        Work Information
+                    </h4>
+                    <div class="pb-info-grid">
+                        <div class="pb-info-item" id="viewRowEmpId">
+                            <span class="pb-info-label">Employee ID</span>
+                            <span id="viewEmployeeEmpId" class="pb-info-value">12345</span>
+                        </div>
+                        <div class="pb-info-item" id="viewRowDivision">
+                            <span class="pb-info-label">Division</span>
+                            <span id="viewEmployeeDivision" class="pb-info-value">Head Office</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="pb-modal-footer">
+                <button type="button" class="pb-btn pb-btn-ghost" onclick="closePhonebookViewModal()">Close</button>
+                <button type="button" class="pb-btn pb-btn-primary" onclick="editFromView()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js?v=20260129-modern"></script>
+    <script src="/static/grid.js?v=20260128c"></script>
 </body>
 </html>
 

@@ -25,16 +25,11 @@ User Query
     │   └─→ YES → Direct LLM response (no context needed)
     │
     ├─→ Is Phonebook/Employee Query?
-    │   └─→ YES → Route to Phonebook Database
-    │       └─→ Extract search term (handles "find X", "phone number of X", etc.)
-    │       └─→ Search PostgreSQL phonebook
-    │       └─→ Return contact info or "not found" message
-    │       └─→ **DO NOT** query LightRAG
+    │   └─→ YES → `PhonebookHandler.lookup()` (PostgreSQL phonebook)
+    │       └─→ **DO NOT** query LightRAG on miss or error
     │
     ├─→ Is Card Rates/Fees Query?
-    │   └─→ YES → Try Fee Engine Microservice FIRST
-    │       ├─→ If microservice returns data → Use ONLY that data (skip LightRAG)
-    │       └─→ If microservice returns NO data → **FALLBACK to LightRAG**
+    │   └─→ YES → Fee Engine ONLY (no LightRAG fallback)
     │
     ├─→ Is Compliance/Policy Query?
     │   └─→ YES → Check for required entities (policy name, account type, etc.)
@@ -260,18 +255,29 @@ __SOURCES__{"type": "sources", "sources": ["Source 1", "Source 2"]}__SOURCES__
 
 ---
 
-## Lead Generation (Currently Disabled)
+## Lead Generation
 
-**Status**: Disabled via `ENABLE_LEAD_GENERATION=False` in `.env`
+**Status**: Enabled when `ENABLE_LEAD_GENERATION=True` in `.env` (default: `False`).
 
-**Flow** (when enabled):
-1. Detect lead intent ("apply for credit card", "want loan")
-2. Start question flow (name, phone, email, etc.)
-3. Collect answers
-4. Save to database via `LeadManager`
-5. Return confirmation message
+**Components**:
+- `LeadCaptureHandler` — guided chat flow for employees (`app/services/handlers/lead_capture_handler.py`)
+- `LeadService` — RBAC, validation, audit trail (`app/services/lead_service.py`)
+- REST API at `/api/leads` (`app/api/lead_routes.py`)
+- Lead Portal on port 3002 for sales management
 
-**Code**: Preserved but gated by `settings.ENABLE_LEAD_GENERATION` flag.
+**Chat flow** (logged-in employee only):
+1. Detect create intent (`create a lead`, `submit customer lead`, etc.) — fee/rate questions are excluded
+2. Guided field collection (name, mobile, email, branch, etc.) with Redis/local session state
+3. Confirmation step → persist via `LeadService.create_lead`
+4. Return Lead ID (e.g. `LD-000123`)
+
+**Status queries**: `show my submitted leads`, `status of lead LD-000123`, `show feedback for my leads`
+
+**Mid-flow escape**: During capture, normal banking questions (fees, rates, branch lookup) clear lead state and fall through to standard routing.
+
+**Orchestrator hook**: `_handle_lead_generation()` runs early in `process_chat` / `process_chat_sync` when the flag is on; routing tag `LEAD_GENERATION` is logged for analytics.
+
+See `LEAD_GENERATION_MODULE.md` for RBAC matrix, API reference, and smoke checklist.
 
 ---
 
@@ -348,8 +354,14 @@ __SOURCES__{"type": "sources", "sources": ["Source 1", "Source 2"]}__SOURCES__
 4. **Multi-language Support**: Route to language-specific knowledge bases
 5. **Confidence Scoring**: Score query matches and route based on confidence
 
+---
 
+## Session security (2026)
 
+- Chat POST/stream/history call `assert_reference_access` before using a client `session_id`.
+- `ensure_session` claims legacy messages (`user_id IS NULL`) on first authenticated write.
+- Orchestrator passes `user_id` per request (no singleton `_current_user_id`).
+- Analytics routes require JWT or `X-Analytics-Key` (`ANALYTICS_API_KEY`).
 
 
 

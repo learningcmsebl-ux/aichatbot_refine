@@ -36,8 +36,19 @@ export interface Conversation {
   knowledge_base: string | null;
   response_time_ms: number | null;
   client_ip: string | null;
+  routing_target: string | null;
   created_at: string;
   sources?: string[];
+}
+
+export interface RoutingDistribution {
+  period_days: number;
+  distribution: Array<{
+    routing_target: string;
+    count: number;
+    percentage: number;
+  }>;
+  total: number;
 }
 
 export interface HealthStatus {

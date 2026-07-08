@@ -251,12 +251,126 @@ class FeeCalculationResponse(BaseModel):
     remarks: Optional[str] = None
     charge_type: Optional[str] = None  # Include charge_type in response for better context
     options: Optional[List[Dict[str, Any]]] = None  # For disambiguation (e.g., card products)
+    card_product: Optional[str] = None
+    card_network: Optional[str] = None
+    card_category: Optional[str] = None
+
+def _apply_card_network_filter(query, match_any_network: bool, card_network: str):
+    """Apply network filter unless caller requested all networks (ANY)."""
+    if match_any_network:
+        return query
+    network_filter = (
+        (func.upper(CardFeeMaster.card_network) == func.upper(card_network)) |
+        (CardFeeMaster.card_network == "ANY")
+    )
+    return query.filter(network_filter)
+
+
+def _calculated_response_from_rule(
+    rule: "CardFeeMaster",
+    request: "FeeCalculationRequest",
+    fee_amount: Optional[Decimal] = None,
+    answer_text: Optional[str] = None,
+    remarks: Optional[str] = None,
+) -> "FeeCalculationResponse":
+    amount = rule.fee_value if fee_amount is None else fee_amount
+    resolved_answer = answer_text
+    if not resolved_answer:
+        resolved_answer = getattr(rule, "answer_text", None)
+    if not resolved_answer and amount is not None and rule.fee_unit:
+        if rule.fee_unit == "PERCENT":
+            resolved_answer = f"{amount}%"
+        elif rule.fee_unit in ("BDT", "USD"):
+            basis_label = (rule.fee_basis or "PER_TXN").lower().replace("_", " ")
+            resolved_answer = f"{rule.fee_unit} {amount} {basis_label}".strip()
+    return FeeCalculationResponse(
+        status="CALCULATED",
+        fee_amount=amount,
+        fee_currency=rule.fee_unit if rule.fee_unit in ["BDT", "USD"] else request.currency,
+        fee_basis=rule.fee_basis,
+        rule_id=str(rule.fee_id),
+        charge_type=rule.charge_type,
+        answer_text=resolved_answer,
+        remarks=remarks if remarks is not None else rule.remarks,
+        card_product=getattr(rule, "card_product", None),
+        card_network=getattr(rule, "card_network", None),
+        card_category=getattr(rule, "card_category", None),
+    )
+
+
+def _best_rule_for_product(product_rules: List["CardFeeMaster"], product: str) -> Optional["CardFeeMaster"]:
+    """Pick the highest-priority rule for a card product (when multiple networks match)."""
+    matching = [
+        r for r in product_rules
+        if (getattr(r, "card_product", None) or "").strip() == product
+    ]
+    if not matching:
+        return None
+    return sorted(
+        matching,
+        key=lambda r: (-(r.priority or 0), -(float(r.fee_value or 0))),
+    )[0]
+
+
+def _fee_display_label(rule: "CardFeeMaster") -> Optional[str]:
+    """Human-readable fee label for disambiguation options."""
+    answer_text = (getattr(rule, "answer_text", None) or "").strip()
+    if answer_text:
+        return answer_text
+    amount = rule.fee_value
+    unit = rule.fee_unit
+    basis = rule.fee_basis or "PER_TXN"
+    if unit == "PERCENT" and amount is not None:
+        return f"{amount}%"
+    if unit in ("BDT", "USD") and amount is not None:
+        basis_label = basis.lower().replace("_", " ")
+        try:
+            dec = Decimal(str(amount))
+            if unit == "BDT":
+                amt_str = f"{int(dec):,}" if dec == dec.to_integral_value() else f"{dec:,.2f}"
+            else:
+                amt_str = (
+                    f"{int(dec)}"
+                    if dec == dec.to_integral_value()
+                    else f"{dec:.2f}".rstrip("0").rstrip(".")
+                )
+        except Exception:
+            amt_str = str(amount)
+        return f"{unit} {amt_str} {basis_label}".strip()
+    return None
+
+
+def _build_card_disambiguation_options(
+    product_rules: List["CardFeeMaster"],
+    candidates: List[str],
+) -> List[Dict[str, Any]]:
+    """Build fee-aware card product options for NEEDS_DISAMBIGUATION."""
+    options: List[Dict[str, Any]] = []
+    for product in candidates:
+        rule = _best_rule_for_product(product_rules, product)
+        if not rule:
+            continue
+        fee_label = _fee_display_label(rule)
+        fee_currency = rule.fee_unit if rule.fee_unit in ("BDT", "USD") else None
+        options.append(
+            {
+                "card_product": product,
+                "card_product_name": product,
+                "fee_amount": str(rule.fee_value) if rule.fee_value is not None else None,
+                "fee_currency": fee_currency,
+                "fee_basis": rule.fee_basis,
+                "fee_label": fee_label,
+                "rule_id": str(rule.fee_id),
+            }
+        )
+    return options
 
 # Retail Asset Charges API Models
 class RetailAssetChargeRequest(BaseModel):
     as_of_date: date = Field(..., description="Date for charge lookup")
     loan_product: Optional[str] = Field(None, description="Loan product (e.g., FAST_CASH_OD)")
     charge_type: Optional[str] = Field(None, description="Charge type (e.g., PROCESSING_FEE)")
+    charge_context: Optional[str] = Field(None, description="Charge context (e.g., GENERAL, ON_CATEGORY_A)")
     description_keywords: Optional[List[str]] = Field(None, description="Keywords to match in charge_description (e.g., ['on limit', 'enhancement'])")
     query: Optional[str] = Field(None, description="Original user query (for logging/display only, not used for filtering)")
 
@@ -289,6 +403,7 @@ class UnifiedFeeRequest(BaseModel):
     card_product: Optional[str] = None
     # Retail asset-specific fields
     loan_product: Optional[str] = None
+    charge_context: Optional[str] = None
     description_keywords: Optional[List[str]] = None
     query: Optional[str] = Field(None, description="Original user query (for logging/display only, not used for filtering)")
     # Skybanking-specific fields
@@ -358,7 +473,9 @@ async def calculate_fee(request: FeeCalculationRequest):
     # DB is expected to contain: VISA, MASTERCARD, DINERS, UNIONPAY, TAKAPAY (plus ANY in some legacy imports).
     rn = (request.card_network or "").strip()
     rn_upper = rn.upper()
-    if "UNIONPAY" in rn_upper or "UNION PAY" in rn_upper:
+    if rn_upper == "ANY":
+        request.card_network = "ANY"
+    elif "UNIONPAY" in rn_upper or "UNION PAY" in rn_upper:
         request.card_network = "UNIONPAY"
     elif "DINERS" in rn_upper:
         request.card_network = "DINERS"
@@ -372,6 +489,8 @@ async def calculate_fee(request: FeeCalculationRequest):
     else:
         # Default to VISA if unknown/empty
         request.card_network = "VISA"
+
+    match_any_network = request.card_network == "ANY"
 
     db = get_db_session()
     
@@ -389,10 +508,6 @@ async def calculate_fee(request: FeeCalculationRequest):
         product_line = request.product_line if hasattr(request, 'product_line') and request.product_line else "CREDIT_CARDS"
         
         # First, try exact match only (canonical networks + ANY fallback).
-        network_filter = (
-            (func.upper(CardFeeMaster.card_network) == func.upper(request.card_network)) |
-            (CardFeeMaster.card_network == "ANY")
-        )
         exact_match_query = db.query(CardFeeMaster).filter(
             CardFeeMaster.status == "ACTIVE",
             CardFeeMaster.charge_type == request.charge_type,
@@ -406,30 +521,31 @@ async def calculate_fee(request: FeeCalculationRequest):
                 (CardFeeMaster.card_category == request.card_category) |
                 (CardFeeMaster.card_category == "ANY")
             ),
-            network_filter
         )
+        exact_match_query = _apply_card_network_filter(exact_match_query, match_any_network, request.card_network)
 
         # If user did NOT specify card_product, check if multiple products exist.
         # If multiple distinct products match, return NEEDS_DISAMBIGUATION so the chatbot can ask a follow-up question.
         if not request.card_product:
+            candidate_query = db.query(CardFeeMaster).filter(
+                CardFeeMaster.status == "ACTIVE",
+                CardFeeMaster.charge_type == request.charge_type,
+                CardFeeMaster.product_line == product_line,
+                CardFeeMaster.effective_from <= request.as_of_date,
+                (
+                    (CardFeeMaster.effective_to.is_(None))
+                    | (CardFeeMaster.effective_to > request.as_of_date)
+                ),
+                (
+                    (CardFeeMaster.card_category == request.card_category)
+                    | (CardFeeMaster.card_category == "ANY")
+                ),
+                CardFeeMaster.card_product.isnot(None),
+            )
+            candidate_query = _apply_card_network_filter(candidate_query, match_any_network, request.card_network)
             candidate_rows = (
-                db.query(CardFeeMaster.card_product)
-                .filter(
-                    CardFeeMaster.status == "ACTIVE",
-                    CardFeeMaster.charge_type == request.charge_type,
-                    CardFeeMaster.product_line == product_line,
-                    CardFeeMaster.effective_from <= request.as_of_date,
-                    (
-                        (CardFeeMaster.effective_to.is_(None))
-                        | (CardFeeMaster.effective_to > request.as_of_date)
-                    ),
-                    (
-                        (CardFeeMaster.card_category == request.card_category)
-                        | (CardFeeMaster.card_category == "ANY")
-                    ),
-                    network_filter,
-                    CardFeeMaster.card_product.isnot(None),
-                )
+                candidate_query
+                .with_entities(CardFeeMaster.card_product)
                 .distinct()
                 .all()
             )
@@ -442,14 +558,60 @@ async def calculate_fee(request: FeeCalculationRequest):
             )
 
             if len(candidates) > 1:
+                product_rules_query = db.query(CardFeeMaster).filter(
+                    CardFeeMaster.status == "ACTIVE",
+                    CardFeeMaster.charge_type == request.charge_type,
+                    CardFeeMaster.product_line == product_line,
+                    CardFeeMaster.effective_from <= request.as_of_date,
+                    (
+                        (CardFeeMaster.effective_to.is_(None))
+                        | (CardFeeMaster.effective_to > request.as_of_date)
+                    ),
+                    (
+                        (CardFeeMaster.card_category == request.card_category)
+                        | (CardFeeMaster.card_category == "ANY")
+                    ),
+                    CardFeeMaster.card_product.in_(candidates),
+                )
+                product_rules_query = _apply_card_network_filter(
+                    product_rules_query, match_any_network, request.card_network
+                )
+                product_rules = product_rules_query.all()
+
+                per_product_rules = [
+                    rule
+                    for rule in (
+                        _best_rule_for_product(product_rules, product)
+                        for product in candidates
+                    )
+                    if rule is not None
+                ]
+
+                fee_signatures = {
+                    (r.fee_value, r.fee_unit, r.fee_basis) for r in per_product_rules
+                }
+                options = _build_card_disambiguation_options(product_rules, candidates)
+                fee_name = (request.charge_type or "fee").replace("_", " ").title()
+                if len(fee_signatures) == 1 and per_product_rules:
+                    sample_rule = sorted(
+                        per_product_rules,
+                        key=lambda r: (-(r.priority or 0), -(float(r.fee_value or 0))),
+                    )[0]
+                    sample_label = _fee_display_label(sample_rule) or "the same across products"
+                    message = (
+                        f"{fee_name} is {sample_label} for all listed card products. "
+                        "Please specify which card product you mean."
+                    )
+                else:
+                    message = (
+                        f"{fee_name} varies by card product. "
+                        "Please specify which card product you mean."
+                    )
                 return FeeCalculationResponse(
                     status="NEEDS_DISAMBIGUATION",
                     charge_type=request.charge_type,
-                    message=(
-                        "Card product is required to answer this fee question. "
-                        "Please specify which card product you mean."
-                    ),
-                    options=[{"card_product": p, "card_product_name": p} for p in candidates],
+                    message=message,
+                    options=options,
                 )
 
             # If only one candidate exists, auto-resolve it (no follow-up needed).
@@ -529,7 +691,9 @@ async def calculate_fee(request: FeeCalculationRequest):
                     (CardFeeMaster.card_category == request.card_category) |
                     (CardFeeMaster.card_category == "ANY")
                 ),
-                network_filter
+            )
+            partial_match_query = _apply_card_network_filter(
+                partial_match_query, match_any_network, request.card_network
             )
 
             product_any_penalty = case((CardFeeMaster.card_product == "ANY", 1), else_=0)
@@ -708,8 +872,10 @@ async def calculate_fee(request: FeeCalculationRequest):
                         (CardFeeMaster.card_category == request.card_category) |
                         (CardFeeMaster.card_category == "ANY")
                     ),
-                    network_filter,
                     CardFeeMaster.fee_unit == request.currency,
+                )
+                currency_match_query = _apply_card_network_filter(
+                    currency_match_query, match_any_network, request.card_network
                 )
 
                 if request.card_product:
@@ -770,7 +936,11 @@ async def calculate_fee(request: FeeCalculationRequest):
             rule_id=str(rule.fee_id),
             charge_type=rule.charge_type,
             answer_text=getattr(rule, "answer_text", None),
-            remarks=rule.remarks
+            remarks=rule.remarks,
+            # Echo product identity so the chatbot can label which card this answer is for.
+            card_product=getattr(rule, "card_product", None) or request.card_product,
+            card_network=getattr(rule, "card_network", None) or request.card_network,
+            card_category=getattr(rule, "card_category", None) or request.card_category,
         )
         
     except Exception as e:
@@ -834,7 +1004,7 @@ def extract_charge_context(charge_description: str) -> str:
     
     Returns:
         charge_context: ON_LIMIT, ON_ENHANCED_AMOUNT, ON_REDUCED_AMOUNT,
-        ON_CATEGORY_A_B, ON_CATEGORY_C, or GENERAL
+        ON_CATEGORY_A, ON_CATEGORY_B, ON_CATEGORY_A_B, ON_CATEGORY_C, or GENERAL
         (Only valid enum values for charge_context_enum)
     """
     if not charge_description:
@@ -845,6 +1015,10 @@ def extract_charge_context(charge_description: str) -> str:
     # Category-specific phrases
     if any(keyword in desc_lower for keyword in ["category a and category b", "category a & b", "category a/b"]):
         return "ON_CATEGORY_A_B"
+    if "category a" in desc_lower and "category b" not in desc_lower:
+        return "ON_CATEGORY_A"
+    if "category b" in desc_lower and "category a" not in desc_lower:
+        return "ON_CATEGORY_B"
     if "category c" in desc_lower:
         return "ON_CATEGORY_C"
 
@@ -930,10 +1104,11 @@ def _render_retail_asset_answer_text(charge: RetailAssetChargeMaster) -> Optiona
 @app.post("/retail-asset-charges/query", response_model=RetailAssetChargeResponse)
 async def query_retail_asset_charges(request: RetailAssetChargeRequest):
     """
-    Query retail asset charges by loan product, charge type, and description keywords.
+    Query retail asset charges by loan product, charge type, charge context,
+    and/or description keywords.
 
-    NOTE: This endpoint uses charge_description text matching for lookups.
-    The charge_context column is NOT used for filtering.
+    NOTE: This endpoint primarily uses charge_description text matching for lookups,
+    but will filter by charge_context when provided.
     """
     db = get_db_session()
     try:
@@ -954,6 +1129,10 @@ async def query_retail_asset_charges(request: RetailAssetChargeRequest):
         # Filter by charge type if provided
         if request.charge_type:
             query = query.filter(RetailAssetChargeMaster.charge_type == request.charge_type)
+
+        # Filter by charge context if provided
+        if request.charge_context:
+            query = query.filter(RetailAssetChargeMaster.charge_context == request.charge_context)
 
         # Order by priority (highest first), then by effective_from (newest first)
         charges = query.order_by(
@@ -996,7 +1175,7 @@ async def query_retail_asset_charges(request: RetailAssetChargeRequest):
 
         # If loan_product + charge_type are specified but description_keywords is not,
         # check for collisions (multiple charges with different descriptions)
-        if request.loan_product and request.charge_type and not request.description_keywords:
+        if request.loan_product and request.charge_type and not request.description_keywords and not request.charge_context:
             # Group by charge_description patterns
             descriptions_found = set(charge.charge_description for charge in charges)
 
@@ -1305,6 +1484,7 @@ async def query_fees_unified(request: UnifiedFeeRequest):
                 as_of_date=request.as_of_date,
                 loan_product=request.loan_product,
                 charge_type=request.charge_type,
+                charge_context=request.charge_context,
                 description_keywords=request.description_keywords,
                 query=request.query
             )

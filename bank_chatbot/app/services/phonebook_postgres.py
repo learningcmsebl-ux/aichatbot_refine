@@ -78,7 +78,7 @@ class PhoneBookDB:
                 f"{os.getenv('POSTGRES_PASSWORD', '')}@"
                 f"{os.getenv('POSTGRES_HOST', 'localhost')}:"
                 f"{os.getenv('POSTGRES_PORT', '5432')}/"
-                f"{os.getenv('POSTGRES_DB', 'postgres')}"
+                f"{os.getenv('POSTGRES_DB', 'bank_chatbot')}"
             )
         
         self.database_url = database_url
@@ -528,6 +528,38 @@ class PhoneBookDB:
                 }
             return None
     
+    def search_by_login_username(self, login: str) -> Optional[Dict]:
+        """Match Windows login / email prefix to an employee record."""
+        if not login or not login.strip():
+            return None
+        login_clean = login.strip().lower()
+        with self.get_session() as session:
+            emp = session.query(Employee).filter(
+                func.lower(Employee.employee_id) == login_clean
+            ).first()
+            if not emp:
+                emp = session.query(Employee).filter(
+                    func.lower(Employee.email).like(f"{login_clean}@%")
+                ).first()
+            if not emp:
+                return None
+            return {
+                'id': emp.id,
+                'employee_id': emp.employee_id,
+                'full_name': emp.full_name,
+                'first_name': emp.first_name,
+                'last_name': emp.last_name,
+                'designation': emp.designation,
+                'department': emp.department,
+                'division': emp.division,
+                'email': emp.email,
+                'telephone': emp.telephone,
+                'pabx': emp.pabx,
+                'ip_phone': emp.ip_phone,
+                'mobile': emp.mobile,
+                'group_email': emp.group_email,
+            }
+
     def search_by_email(self, email: str) -> Optional[Dict]:
         """Search by email address"""
         with self.get_session() as session:

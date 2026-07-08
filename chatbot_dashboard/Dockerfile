@@ -12,6 +12,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+ARG VITE_ANALYTICS_API_KEY=
+ENV VITE_ANALYTICS_API_KEY=$VITE_ANALYTICS_API_KEY
+
 # Build the application
 RUN npm run build
 

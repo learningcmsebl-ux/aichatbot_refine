@@ -1,13 +1,15 @@
 import axios from 'axios';
-import type { PerformanceMetrics, Question, Conversation, HealthStatus } from '../types';
+import type { PerformanceMetrics, Question, Conversation, HealthStatus, RoutingDistribution } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const ANALYTICS_API_KEY = import.meta.env.VITE_ANALYTICS_API_KEY || '';
 
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 60000, // Increased timeout to 60 seconds
   headers: {
     'Content-Type': 'application/json',
+    ...(ANALYTICS_API_KEY ? { 'X-Analytics-Key': ANALYTICS_API_KEY } : {}),
   },
 });
 
@@ -65,11 +67,21 @@ export const analyticsAPI = {
     return response.data.questions;
   },
 
-  async getConversationHistory(sessionId?: string, limit: number = 100): Promise<Conversation[]> {
-    console.log(`[API] Fetching conversation history (sessionId: ${sessionId || 'all'}, limit: ${limit})`);
+  async getConversationHistory(
+    sessionId?: string, 
+    limit: number = 100,
+    search?: string,
+    routingTarget?: string
+  ): Promise<Conversation[]> {
+    console.log(`[API] Fetching conversation history (sessionId: ${sessionId || 'all'}, limit: ${limit}, search: ${search || 'none'}, routing: ${routingTarget || 'all'})`);
     try {
       const response = await api.get<{ conversations: Conversation[] }>('/analytics/history', {
-        params: { session_id: sessionId, limit },
+        params: { 
+          session_id: sessionId, 
+          limit,
+          search: search || undefined,
+          routing_target: routingTarget || undefined
+        },
       });
       console.log(`[API] Received ${response.data.conversations.length} conversations`);
       return response.data.conversations;
@@ -87,6 +99,22 @@ export const analyticsAPI = {
   async getHealthStatus(): Promise<HealthStatus> {
     const response = await api.get<HealthStatus>('/health/detailed');
     return response.data;
+  },
+
+  async getRoutingDistribution(days: number = 30): Promise<RoutingDistribution> {
+    const response = await api.get<RoutingDistribution>('/analytics/routing-distribution', {
+      params: { days },
+    });
+    return response.data;
+  },
+
+  getExportCsvUrl(days: number = 30, search?: string): string {
+    const params = new URLSearchParams();
+    params.append('days', days.toString());
+    if (search) {
+      params.append('search', search);
+    }
+    return `${API_BASE}/analytics/export-csv?${params.toString()}`;
   },
 };
 

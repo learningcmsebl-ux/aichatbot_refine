@@ -67,6 +67,15 @@ location_service/geocode_progress*.json
 # Docker
 docker-compose.override.yml
 
+# TLS private keys and bundles (never commit)
+star_ebl-bd_com_2026/
+star_ebl-bd_com_2026.rar
+Certificate/
+*.pfx
+*.key
+*.rar
+**/PFX key password.txt
+
 # Frontend build
 bank_chatbot_frontend/vite-project/dist/
 bank_chatbot_frontend/vite-project/.vite/

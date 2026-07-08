@@ -141,7 +141,7 @@ def main() -> int:
     # Two-turn disambiguation test: missing card_product must ask, then resolve.
     disambig_session = "test_disambiguation_card_product"
     first = _post_chat("What is the issuance fee for a VISA credit card?", session_id=disambig_session)
-    if "To answer, please specify the card product" not in first or "Classic" not in first:
+    if "varies by card product" not in first or "Classic" not in first:
         print("[FAIL] CardProductDisambiguationPrompt")
         print(first[:1200])
         return 1

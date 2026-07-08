@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { analyticsAPI } from '../services/api';
-import type { PerformanceMetrics, Question, Conversation, HealthStatus } from '../types';
+import type { PerformanceMetrics, Question, Conversation, HealthStatus, RoutingDistribution } from '../types';
 import MetricsCards from './MetricsCards';
 import PerformanceChart from './PerformanceChart';
 import QuestionsTable from './QuestionsTable';
 import ConversationsTable from './ConversationsTable';
 import HealthStatusPanel from './HealthStatusPanel';
+import RoutingDistributionChart from './RoutingDistributionChart';
 
 const Dashboard: React.FC = () => {
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
@@ -13,9 +14,14 @@ const Dashboard: React.FC = () => {
   const [unanswered, setUnanswered] = useState<Question[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
+  const [routingDistribution, setRoutingDistribution] = useState<RoutingDistribution | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [daysFilter, setDaysFilter] = useState(30);
+  
+  // Conversation filters
+  const [conversationSearch, setConversationSearch] = useState('');
+  const [routingFilter, setRoutingFilter] = useState('');
 
   const fetchData = async () => {
     try {
@@ -27,8 +33,9 @@ const Dashboard: React.FC = () => {
         analyticsAPI.getPerformanceMetrics(daysFilter),
         analyticsAPI.getMostAskedQuestions(20),
         analyticsAPI.getUnansweredQuestions(50),
-        analyticsAPI.getConversationHistory(undefined, 50),
+        analyticsAPI.getConversationHistory(undefined, 50, conversationSearch || undefined, routingFilter || undefined),
         analyticsAPI.getHealthStatus(),
+        analyticsAPI.getRoutingDistribution(daysFilter),
       ]);
 
       // Extract results, using defaults for failed requests
@@ -37,9 +44,10 @@ const Dashboard: React.FC = () => {
       const unansweredData = results[2].status === 'fulfilled' ? results[2].value : [];
       const conversationsData = results[3].status === 'fulfilled' ? results[3].value : [];
       const health = results[4].status === 'fulfilled' ? results[4].value : null;
+      const routing = results[5].status === 'fulfilled' ? results[5].value : null;
 
       // Log any failures with detailed information
-      const endpointNames = ['Performance Metrics', 'Most Asked Questions', 'Unanswered Questions', 'Conversation History', 'Health Status'];
+      const endpointNames = ['Performance Metrics', 'Most Asked Questions', 'Unanswered Questions', 'Conversation History', 'Health Status', 'Routing Distribution'];
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`Failed to fetch ${endpointNames[index]}:`, result.reason);
@@ -62,6 +70,7 @@ const Dashboard: React.FC = () => {
       setUnanswered(unansweredData);
       setConversations(conversationsData);
       setHealthStatus(health);
+      setRoutingDistribution(routing);
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to load dashboard data';
@@ -71,12 +80,39 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Separate function to fetch conversations with filters
+  const fetchConversations = useCallback(async () => {
+    try {
+      const data = await analyticsAPI.getConversationHistory(
+        undefined, 
+        100, 
+        conversationSearch || undefined, 
+        routingFilter || undefined
+      );
+      setConversations(data);
+    } catch (err) {
+      console.error('Error fetching conversations:', err);
+    }
+  }, [conversationSearch, routingFilter]);
+
+  const handleExportCsv = () => {
+    const url = analyticsAPI.getExportCsvUrl(daysFilter, conversationSearch);
+    window.open(url, '_blank');
+  };
+
   useEffect(() => {
     fetchData();
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [daysFilter]);
+
+  // Re-fetch conversations when filters change
+  useEffect(() => {
+    if (!loading) {
+      fetchConversations();
+    }
+  }, [conversationSearch, routingFilter, fetchConversations]);
 
   if (loading && !performanceMetrics) {
     return (
@@ -169,13 +205,29 @@ const Dashboard: React.FC = () => {
           <MetricsCards metrics={performanceMetrics.overall} />
         )}
 
-        {/* Performance Chart */}
-        {performanceMetrics && performanceMetrics.daily_metrics.length > 0 && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Performance Trends</h2>
-            <PerformanceChart data={performanceMetrics.daily_metrics} />
+        {/* Charts Grid - Performance and Routing */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Performance Chart */}
+          {performanceMetrics && performanceMetrics.daily_metrics.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Performance Trends</h2>
+              <PerformanceChart data={performanceMetrics.daily_metrics} />
+            </div>
+          )}
+
+          {/* Routing Distribution Chart */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Routing Distribution</h2>
+            {routingDistribution ? (
+              <RoutingDistributionChart 
+                data={routingDistribution.distribution} 
+                total={routingDistribution.total} 
+              />
+            ) : (
+              <p className="text-gray-500 text-center py-8">Loading routing data...</p>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Tables Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -199,7 +251,14 @@ const Dashboard: React.FC = () => {
         {/* Recent Conversations */}
         <div className="bg-white rounded-lg shadow-md p-6 mt-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-800">Recent Conversations</h2>
-          <ConversationsTable conversations={conversations} />
+          <ConversationsTable 
+            conversations={conversations}
+            onSearch={setConversationSearch}
+            onFilterRouting={setRoutingFilter}
+            onExportCsv={handleExportCsv}
+            searchValue={conversationSearch}
+            routingFilter={routingFilter}
+          />
         </div>
       </main>
 

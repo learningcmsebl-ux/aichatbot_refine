@@ -22,6 +22,8 @@ from app.core.dependencies import (
     get_container,
     ServiceContainer,
 )
+from app.core.security import get_current_user, require_analytics_access
+from app.models.auth import EmployeeUser
 
 # Import DTOs from models
 from app.models.chat import (
@@ -304,12 +306,42 @@ def get_client_ip(request: FastAPIRequest) -> str:
     return "unknown"
 
 
+def _require_session_reference_access(
+    session_id: Optional[str],
+    user_id: str,
+    legacy_user_ids: Optional[list] = None,
+) -> None:
+    """Reject chat/history operations when session_id belongs to another user.
+
+    `user_id` is the AD-authenticated stable identity; `legacy_user_ids` are the
+    same user's prior identity keys so they retain access to their own history.
+    """
+    if not session_id:
+        return
+    from app.database.postgres import get_db
+    from app.services.chat_session_service import (
+        SessionOwnershipError,
+        assert_reference_access,
+    )
+
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    try:
+        assert_reference_access(db, session_id, user_id, legacy_user_ids=legacy_user_ids)
+    except SessionOwnershipError:
+        raise HTTPException(status_code=403, detail="Not authorized to access this session")
+    finally:
+        db.close()
+
+
 # Chat Routes
 @chat_router.post("/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
     http_request: FastAPIRequest,
     chat_orchestrator: ChatOrchestrator = Depends(get_orchestrator),
+    current_user: EmployeeUser = Depends(get_current_user),
 ):
     """
     Chat endpoint - Process user query and return response.
@@ -320,6 +352,11 @@ async def chat(
     try:
         client_ip = get_client_ip(http_request)
         
+        # Use the stable AD identity (objectGUID) as the ownership key — never the
+        # client-supplied email. Legacy keys keep the user's older history reachable.
+        user_id = current_user.stable_user_id if current_user else None
+        legacy_keys = current_user.legacy_identity_keys if current_user else []
+        _require_session_reference_access(request.session_id, user_id or "", legacy_keys)
         if request.stream:
             # Streaming response
             async def generate():
@@ -327,7 +364,9 @@ async def chat(
                     query=request.query,
                     session_id=request.session_id,
                     knowledge_base=request.knowledge_base,
-                    client_ip=client_ip
+                    client_ip=client_ip,
+                    user_id=user_id,
+                    employee=current_user,
                 ):
                     yield chunk
             
@@ -345,7 +384,9 @@ async def chat(
                 query=request.query,
                 session_id=request.session_id,
                 knowledge_base=request.knowledge_base,
-                client_ip=client_ip
+                client_ip=client_ip,
+                user_id=user_id,
+                employee=current_user,
             )
             return ChatResponse(
                 response=result["response"],
@@ -355,6 +396,8 @@ async def chat(
     except asyncio.CancelledError:
         logger.warning("Chat request was cancelled")
         raise HTTPException(status_code=499, detail="Request cancelled")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -365,6 +408,7 @@ async def chat_stream(
     request: ChatRequest,
     http_request: FastAPIRequest,
     chat_orchestrator: ChatOrchestrator = Depends(get_orchestrator),
+    current_user: EmployeeUser = Depends(get_current_user),
 ):
     """
     Streaming chat endpoint - Stream response chunks.
@@ -373,13 +417,19 @@ async def chat_stream(
     try:
         client_ip = get_client_ip(http_request) if http_request else "unknown"
         
+        # Stable AD identity for ownership (see /chat above).
+        stream_user_id = current_user.stable_user_id if current_user else None
+        legacy_keys = current_user.legacy_identity_keys if current_user else []
+        _require_session_reference_access(request.session_id, stream_user_id or "", legacy_keys)
         async def generate():
             try:
                 async for chunk in chat_orchestrator.process_chat(
                     query=request.query,
                     session_id=request.session_id,
                     knowledge_base=request.knowledge_base,
-                    client_ip=client_ip
+                    client_ip=client_ip,
+                    user_id=stream_user_id,
+                    employee=current_user,
                 ):
                     yield chunk
             except asyncio.CancelledError:
@@ -402,23 +452,43 @@ async def chat_stream(
     except asyncio.CancelledError:
         logger.warning("Chat stream request was cancelled")
         raise HTTPException(status_code=499, detail="Request cancelled")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Chat stream error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @chat_router.get("/chat/history/{session_id}", response_model=ChatHistoryResponse)
-async def get_chat_history(session_id: str, limit: Optional[int] = 50):
+async def get_chat_history(
+    session_id: str,
+    limit: Optional[int] = 50,
+    current_user: EmployeeUser = Depends(get_current_user),
+):
     """Get conversation history for a session"""
+    from app.database.postgres import PostgresChatMemory, get_db
+    from app.services.chat_session_service import (
+        SessionOwnershipError,
+        assert_reference_access,
+    )
+
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
     try:
-        from app.database.postgres import PostgresChatMemory, get_db
-        
-        db = get_db()
+        # Authorization is based on the AD-authenticated stable identity.
+        stable_id = current_user.stable_user_id
+        legacy_keys = current_user.legacy_identity_keys
+        try:
+            assert_reference_access(db, session_id, stable_id, legacy_user_ids=legacy_keys)
+        except SessionOwnershipError:
+            raise HTTPException(status_code=403, detail="Not authorized to access this session")
         memory = PostgresChatMemory(db=db)
         try:
             history = memory.get_conversation_history(
                 session_id=session_id,
-                limit=limit
+                limit=limit,
+                user_id=stable_id,
             )
             messages = [
                 ChatMessage(
@@ -435,19 +505,40 @@ async def get_chat_history(session_id: str, limit: Optional[int] = 50):
             )
         finally:
             memory.close()
-            db.close()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Get history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 
 @chat_router.delete("/chat/history/{session_id}", response_model=ClearHistoryResponse)
-async def clear_chat_history(session_id: str):
+async def clear_chat_history(
+    session_id: str,
+    current_user: EmployeeUser = Depends(get_current_user),
+):
     """Clear conversation history for a session"""
+    from app.database.postgres import PostgresChatMemory, get_db
+    from app.services.chat_session_service import (
+        SessionOwnershipError,
+        assert_reference_access,
+    )
+
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
     try:
-        from app.database.postgres import PostgresChatMemory, get_db
-        
-        db = get_db()
+        try:
+            assert_reference_access(
+                db,
+                session_id,
+                current_user.stable_user_id,
+                legacy_user_ids=current_user.legacy_identity_keys,
+            )
+        except SessionOwnershipError:
+            raise HTTPException(status_code=403, detail="Not authorized to access this session")
         memory = PostgresChatMemory(db=db)
         try:
             success = memory.clear_session(session_id)
@@ -457,15 +548,21 @@ async def clear_chat_history(session_id: str):
             )
         finally:
             memory.close()
-            db.close()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Clear history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 
 # Analytics Routes
 @analytics_router.get("/analytics/performance", response_model=PerformanceMetricsResponse)
-async def get_performance(days: int = Query(30, ge=1, le=365)):
+async def get_performance(
+    days: int = Query(30, ge=1, le=365),
+    _: None = Depends(require_analytics_access),
+):
     """Get performance metrics for the last N days"""
     try:
         from app.services.analytics import get_performance_metrics
@@ -494,7 +591,10 @@ async def get_performance(days: int = Query(30, ge=1, le=365)):
 
 
 @analytics_router.get("/analytics/most-asked", response_model=MostAskedQuestionsResponse)
-async def get_most_asked(limit: int = Query(20, ge=1, le=100)):
+async def get_most_asked(
+    limit: int = Query(20, ge=1, le=100),
+    _: None = Depends(require_analytics_access),
+):
     """Get most frequently asked questions"""
     try:
         from app.services.analytics import get_most_asked_questions
@@ -508,7 +608,10 @@ async def get_most_asked(limit: int = Query(20, ge=1, le=100)):
 
 
 @analytics_router.get("/analytics/unanswered", response_model=UnansweredQuestionsResponse)
-async def get_unanswered(limit: int = Query(50, ge=1, le=200)):
+async def get_unanswered(
+    limit: int = Query(50, ge=1, le=200),
+    _: None = Depends(require_analytics_access),
+):
     """Get questions that were not answered"""
     try:
         from app.services.analytics import get_unanswered_questions
@@ -526,7 +629,8 @@ async def get_history(
     session_id: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     search: Optional[str] = Query(None),
-    routing_target: Optional[str] = Query(None)
+    routing_target: Optional[str] = Query(None),
+    _: None = Depends(require_analytics_access),
 ):
     """Get conversation history with optional filters"""
     try:
@@ -546,7 +650,10 @@ async def get_history(
 
 
 @analytics_router.get("/analytics/routing-distribution", response_model=RoutingDistributionResponse)
-async def get_routing_dist(days: int = Query(30, ge=1, le=365)):
+async def get_routing_dist(
+    days: int = Query(30, ge=1, le=365),
+    _: None = Depends(require_analytics_access),
+):
     """Get routing distribution statistics for the last N days"""
     try:
         from app.services.analytics import get_routing_distribution
@@ -569,7 +676,8 @@ async def get_routing_dist(days: int = Query(30, ge=1, le=365)):
 @analytics_router.get("/analytics/export-csv")
 async def export_conversations_csv(
     days: int = Query(30, ge=1, le=365),
-    search: Optional[str] = Query(None)
+    search: Optional[str] = Query(None),
+    _: None = Depends(require_analytics_access),
 ):
     """Export conversations as CSV"""
     try:

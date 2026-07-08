@@ -1,0 +1,639 @@
+/* ============================================================
+   Sidebar — Responsive Chat History Panel
+   EBL branding: dark navy #0a2a52, accent #1565c0
+
+   Breakpoints:
+     xl    ≥ 1440px  — 280px sidebar, full content
+     lg    1367-1439 — 240px sidebar (collapsible to 64px)
+     lap14 1024-1366 — 220px sidebar (collapsible to 64px)  ← 14-inch laptop
+     md    768-1023  — drawer/overlay (hamburger in header)
+     sm    < 768px   — drawer/overlay (hamburger in header)
+   ============================================================ */
+
+/* ============================================================
+   CSS Variables — sidebar layout dimensions
+   ============================================================ */
+:root {
+  --sidebar-w:           280px;
+  --sidebar-collapsed-w: 64px;
+}
+
+/* Medium laptop (1367–1439px): narrower sidebar */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  :root {
+    --sidebar-w: 240px;
+  }
+}
+
+/* 14-inch laptop (1024–1366px): tightest desktop sidebar — overrides lg above */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  :root {
+    --sidebar-w: 220px;
+  }
+}
+
+/* ============================================================
+   Base sidebar styles
+   ============================================================ */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  max-width: var(--sidebar-w);
+  height: 100%;
+  background: #0a2a52;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px 0 0 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  /* Animate width (collapse) and transform (mobile drawer) */
+  transition: width 0.24s ease, min-width 0.24s ease, max-width 0.24s ease, transform 0.24s ease;
+}
+
+/* ============================================================
+   Collapsed icon rail (desktop ≥ 1024px only)
+   ============================================================ */
+
+/* By default, always show full content and hide icon rail */
+.sidebar-icon-rail    { display: none; }
+.sidebar-full-content { display: flex; flex-direction: column; height: 100%; }
+
+/* Desktop-only collapse: narrow sidebar, swap panels */
+@media (min-width: 1024px) {
+  .app-layout.sidebar-collapsed .sidebar {
+    width: var(--sidebar-collapsed-w);
+    min-width: var(--sidebar-collapsed-w);
+    max-width: var(--sidebar-collapsed-w);
+  }
+
+  .app-layout.sidebar-collapsed .sidebar-icon-rail    { display: flex; }
+  .app-layout.sidebar-collapsed .sidebar-full-content { display: none; }
+}
+
+/* Icon rail container */
+.sidebar-icon-rail {
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding: 16px 0 14px;
+  gap: 6px;
+}
+
+/* New-chat icon-only button */
+.new-chat-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.new-chat-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* Spacer pushes expand button to bottom */
+.rail-spacer {
+  flex: 1;
+}
+
+/* Expand button (chevron-right, bottom of rail) */
+.sidebar-expand-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+
+.sidebar-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* ============================================================
+   Full-sidebar — header row
+   ============================================================ */
+.sidebar-header {
+  padding: 16px 14px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.sidebar-logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #1565c0, #003d7a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+}
+
+.sidebar-title-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-title-text h2 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-title-text span {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.38);
+  font-weight: 400;
+}
+
+/* Collapse button — desktop only, hidden on tablet/mobile */
+.sidebar-collapse-btn-desktop {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: flex;           /* shown by default on desktop */
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn-desktop:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Close button — mobile/tablet drawer only (hidden on desktop) */
+.sidebar-close-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: none;           /* shown via media query */
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.sidebar-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   New Chat button
+   ============================================================ */
+.new-chat-btn {
+  margin: 10px 12px 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+  flex-shrink: 0;
+  letter-spacing: 0.1px;
+}
+
+.new-chat-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.new-chat-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* ============================================================
+   Search
+   ============================================================ */
+.sidebar-search-wrap {
+  padding: 5px 12px 9px;
+  flex-shrink: 0;
+}
+
+.sidebar-search {
+  width: 100%;
+  padding: 8px 12px 8px 30px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 9px center;
+}
+
+.sidebar-search::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.sidebar-search:focus {
+  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   History list
+   ============================================================ */
+.sidebar-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 8px 16px;
+  min-height: 0;
+}
+
+.sidebar-history::-webkit-scrollbar { width: 3px; }
+.sidebar-history::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+.sidebar-history::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Group labels */
+.history-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.26);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 12px 8px 4px;
+}
+
+/* Single chat item */
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 7px 5px 7px 9px;
+  border-radius: 9px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s;
+  border-left: 3px solid transparent;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.history-item.active {
+  background: rgba(96, 165, 250, 0.16);
+  border-left-color: #60a5fa;
+}
+
+.history-item.active .history-item-title {
+  color: #a8d4ff;
+  font-weight: 600;
+}
+
+.history-item-body {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.history-item-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+/* Rename input */
+input.history-item-title {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  font-family: inherit;
+  display: block;
+}
+
+.history-item-preview {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.33);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.history-item-time {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.26);
+  flex-shrink: 0;
+  margin-left: 5px;
+  align-self: flex-start;
+  padding-top: 2px;
+  white-space: nowrap;
+}
+
+/* Three-dot menu */
+.item-menu-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.32);
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 6px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: color 0.12s, background 0.12s;
+}
+
+.history-item:hover .item-menu-btn,
+.history-item.active .item-menu-btn {
+  display: flex;
+}
+
+.item-menu-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Dropdown */
+.item-dropdown {
+  position: absolute;
+  right: 6px;
+  top: calc(100% - 2px);
+  background: #122b55;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  min-width: 148px;
+  overflow: hidden;
+}
+
+.item-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 13px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  font-family: inherit;
+}
+
+.item-dropdown button:hover { background: rgba(255, 255, 255, 0.08); }
+.item-dropdown button.danger { color: #f87171; }
+.item-dropdown button.danger:hover { background: rgba(248, 113, 113, 0.1); }
+
+/* Empty state */
+.sidebar-empty {
+  text-align: center;
+  padding: 36px 16px;
+  color: rgba(255, 255, 255, 0.24);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+/* ============================================================
+   App layout wrappers
+   ============================================================ */
+.app-layout {
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  background: #091e42;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Overlay (mobile / tablet drawer backdrop) */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ============================================================
+   Responsive: Tablet  768 – 1023px
+   Sidebar becomes a drawer overlay; hamburger shown in header.
+   Collapsed state is ignored at this breakpoint.
+   ============================================================ */
+@media (max-width: 1023px) {
+  /* Always treat as drawer on tablet/mobile regardless of collapsed state */
+  .sidebar,
+  .app-layout.sidebar-collapsed .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: min(280px, 88vw) !important;
+    border-radius: 0;
+    transform: translateX(-100%);
+    z-index: 200;
+  }
+
+  .sidebar.open,
+  .app-layout.sidebar-collapsed .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* On tablet/mobile, always show full content panel, never icon rail */
+  .app-layout.sidebar-collapsed .sidebar-icon-rail    { display: none; }
+  .app-layout.sidebar-collapsed .sidebar-full-content { display: flex; }
+
+  /* Hide desktop collapse button, show mobile close button */
+  .sidebar-collapse-btn-desktop { display: none !important; }
+  .sidebar-close-btn             { display: flex; }
+
+  /* Overlay */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 190;
+    backdrop-filter: blur(2px);
+  }
+
+  .app-layout {
+    position: relative;
+  }
+}
+
+/* ============================================================
+   Responsive: Medium laptop  1367 – 1439px
+   Sidebar is 240px (via CSS variable), collapsible.
+   ============================================================ */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  /* History items: hide preview on narrow sidebar */
+  .history-item-preview {
+    display: none;
+  }
+
+  /* Slightly tighter padding */
+  .sidebar-header {
+    padding: 14px 12px 10px;
+  }
+
+  .new-chat-btn {
+    margin: 8px 10px 4px;
+    font-size: 12.5px;
+  }
+
+  .sidebar-search-wrap {
+    padding: 4px 10px 8px;
+  }
+}
+
+/* ============================================================
+   Responsive: 14-inch laptop  1024 – 1366px
+   Sidebar is 220px, even tighter layout — overrides lg above.
+   ============================================================ */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  /* Keep preview hidden */
+  .history-item-preview {
+    display: none;
+  }
+
+  /* Tighter header */
+  .sidebar-header {
+    padding: 12px 10px 9px;
+    gap: 7px;
+  }
+
+  .sidebar-logo-mark {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .sidebar-title-text h2 {
+    font-size: 12px;
+  }
+
+  .sidebar-title-text span {
+    font-size: 10px;
+  }
+
+  /* Tighter new-chat button */
+  .new-chat-btn {
+    margin: 7px 9px 4px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  /* Tighter search */
+  .sidebar-search-wrap {
+    padding: 3px 9px 7px;
+  }
+
+  .sidebar-search {
+    font-size: 11.5px;
+    padding: 7px 10px 7px 28px;
+  }
+
+  /* Tighter history items */
+  .history-item {
+    padding: 6px 4px 6px 8px;
+  }
+
+  .history-item-title {
+    font-size: 12px;
+  }
+
+  .history-group-label {
+    font-size: 9.5px;
+    padding: 10px 6px 3px;
+  }
+
+  .history-item-time {
+    font-size: 9.5px;
+  }
+}
+
+/* ============================================================
+   Responsive: Mobile  < 768px
+   ============================================================ */
+@media (max-width: 767px) {
+  .sidebar,
+  .app-layout.sidebar-collapsed .sidebar {
+    width: min(280px, 88vw) !important;
+    min-width: min(280px, 88vw) !important;
+    max-width: 88vw !important;
+  }
+}

@@ -49,7 +49,7 @@ def extract_charge_context(charge_description: str, charge_type: Optional[str] =
     
     Returns:
         charge_context: ON_LIMIT, ON_ENHANCED_AMOUNT, ON_REDUCED_AMOUNT,
-        ON_CATEGORY_A_B, ON_CATEGORY_C, or GENERAL
+        ON_CATEGORY_A, ON_CATEGORY_B, ON_CATEGORY_A_B, ON_CATEGORY_C, or GENERAL
     """
     # Charge type-based override (most deterministic)
     if charge_type:
@@ -66,6 +66,10 @@ def extract_charge_context(charge_description: str, charge_type: Optional[str] =
     # Category-specific phrases
     if any(keyword in desc_lower for keyword in ["category a and category b", "category a & b", "category a/b"]):
         return 'ON_CATEGORY_A_B'
+    if "category a" in desc_lower and "category b" not in desc_lower:
+        return 'ON_CATEGORY_A'
+    if "category b" in desc_lower and "category a" not in desc_lower:
+        return 'ON_CATEGORY_B'
     if "category c" in desc_lower:
         return 'ON_CATEGORY_C'
 
