@@ -69,6 +69,9 @@ ROUTE_UTTERANCES: Dict[str, List[str]] = {
         "list of ATMs in chittagong",
     ],
     # ---- Phonebook / employee contact lookup ----
+    # Includes CONTACT queries about senior roles (MD/CEO/CFO/DMD/chairman) so
+    # that "phone number of the managing director" routes here, while identity
+    # queries ("who is the managing director") stay on EBLHOME_LEADERSHIP.
     "PHONEBOOK": [
         "what is the phone number of john",
         "email address of the branch manager",
@@ -79,17 +82,31 @@ ROUTE_UTTERANCES: Dict[str, List[str]] = {
         "employee id of karim",
         "staff directory lookup",
         "give me the mobile number of the operations head",
+        "phone number of the managing director",
+        "contact number of the CEO",
+        "email of the deputy managing director",
+        "extension of the CFO",
+        "how can I contact the head of HR",
+        "phone number of the chairman",
+        "contact details of the DMD",
+        "reach the managing director on phone",
     ],
     # ---- EBL Home: leadership / management profiles ----
     "EBLHOME_LEADERSHIP": [
         "who is the managing director of the bank",
+        "who is the managing director",
+        "who is the current MD",
+        "who is the CEO",
+        "name of the managing director",
         "show me the CEO profile",
         "board of directors",
         "list of deputy managing directors",
+        "who is the deputy managing director",
         "management team of the bank",
         "who is the chairman",
         "profile of the DMD",
         "senior management photos",
+        "tell me about the bank leadership",
     ],
     # ---- EBL Home: compliance circulars ----
     "EBLHOME_CIRCULARS": [
