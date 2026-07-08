@@ -16,6 +16,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Pre-download the semantic router embedding model into the image so it works
+# fully offline / air-gapped at runtime (no download on first request).
+ENV FASTEMBED_CACHE_DIR=/app/.fastembed_cache
+ENV SEMANTIC_ROUTER_MODEL=BAAI/bge-small-en-v1.5
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='${SEMANTIC_ROUTER_MODEL}', cache_dir='${FASTEMBED_CACHE_DIR}')"
+
 # Copy application code
 COPY . .
 

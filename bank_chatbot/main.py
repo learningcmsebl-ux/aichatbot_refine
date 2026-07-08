@@ -48,6 +48,18 @@ async def lifespan(app: FastAPI):
     await init_db()
     await init_redis()
     await startup_services()  # Initialize DI container services
+
+    # Warm up the semantic intent router (loads local embedding model on CPU)
+    # so the first shadow/active request isn't slowed by lazy loading.
+    try:
+        from app.core.config import settings
+        if getattr(settings, "ENABLE_SEMANTIC_ROUTER", False):
+            from app.services.semantic_router import get_semantic_router
+            ok = get_semantic_router().warmup()
+            logger.info("Semantic router warmup: %s", "ready" if ok else "unavailable")
+    except Exception as exc:  # noqa: BLE001 - never block startup
+        logger.warning("Semantic router warmup skipped: %s", exc)
+
     logger.info("Application started successfully")
     yield
     # Shutdown

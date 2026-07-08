@@ -153,6 +153,19 @@ class Settings(BaseSettings):
     PUBLIC_HOST: str = os.getenv("PUBLIC_HOST", "dia.ebl-bd.com")
     PUBLIC_API_BASE_URL: str = os.getenv("PUBLIC_API_BASE_URL", "")
 
+    # Semantic intent router (local ONNX embeddings on CPU; no LLM, no GPU).
+    # When disabled, routing behaviour is unchanged (legacy regex classifier).
+    ENABLE_SEMANTIC_ROUTER: bool = os.getenv("ENABLE_SEMANTIC_ROUTER", "False").lower() == "true"
+    # "shadow" = compute + log the semantic decision but DO NOT change routing.
+    # "active" = use the semantic decision when confident, else fall back to regex.
+    SEMANTIC_ROUTER_MODE: str = os.getenv("SEMANTIC_ROUTER_MODE", "shadow").strip().lower()
+    # Minimum cosine similarity for a confident route; below this, fall back.
+    SEMANTIC_ROUTER_THRESHOLD: float = float(os.getenv("SEMANTIC_ROUTER_THRESHOLD", "0.62"))
+    # Local embedding model (baked into the Docker image at build time).
+    SEMANTIC_ROUTER_MODEL: str = os.getenv("SEMANTIC_ROUTER_MODEL", "BAAI/bge-small-en-v1.5")
+    # Where fastembed caches the ONNX model files (baked at build for air-gap).
+    FASTEMBED_CACHE_DIR: str = os.getenv("FASTEMBED_CACHE_DIR", "/app/.fastembed_cache")
+
     @property
     def public_api_base_url(self) -> str:
         """Public chatbot API base used in downloadable form links."""

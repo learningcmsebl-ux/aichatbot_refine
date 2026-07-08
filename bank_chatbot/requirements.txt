@@ -36,3 +36,8 @@ PyJWT>=2.8.0
 # CHAT_HISTORY_ENCRYPTION_KEY is configured; safe to keep installed regardless).
 cryptography>=41.0.0
 
+# Semantic intent routing (local ONNX embeddings on CPU; no LLM, no GPU).
+# Model is baked into the Docker image at build time for air-gapped operation.
+fastembed>=0.3.6
+numpy>=1.24.0
+

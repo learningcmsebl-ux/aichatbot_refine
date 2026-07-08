@@ -5,9 +5,12 @@ Separates routing decisions from ChatOrchestrator execution logic.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 # Policy/compliance phrasing that must not be treated as phonebook lookups even when
 # "who is", "manager", or "contact" appear in the question.
@@ -66,6 +69,12 @@ class RoutingDecision:
     is_eblhome_circular_query: bool
     is_datetime_query: bool
     signals: Dict[str, bool]
+    # Semantic router (shadow/active). Populated only when ENABLE_SEMANTIC_ROUTER.
+    # In shadow mode these are informational only and do NOT affect `target`.
+    semantic_target: Optional[str] = None
+    semantic_score: float = 0.0
+    semantic_confident: bool = False
+    semantic_agrees: Optional[bool] = None
 
 
 class RoutingEngine:
@@ -304,6 +313,14 @@ class RoutingEngine:
         # will_use_lightrag is only True when target is actually LIGHTRAG
         will_use_lightrag = target == "LIGHTRAG"
 
+        # ===== SEMANTIC ROUTER (shadow / active) =====
+        # In shadow mode we compute + log the semantic decision alongside the
+        # legacy regex decision but DO NOT change routing. This lets us measure
+        # agreement on real traffic before ever enabling active mode.
+        semantic_target, semantic_score, semantic_confident, semantic_agrees = (
+            self._evaluate_semantic_router(query, target)
+        )
+
         signals = {
             "is_location_query": is_location_query,
             "is_retail_asset_fee_query": is_retail_asset_fee_query,
@@ -363,4 +380,52 @@ class RoutingEngine:
             is_eblhome_circular_query=is_eblhome_circular_query,
             is_datetime_query=is_datetime_query,
             signals=signals,
+            semantic_target=semantic_target,
+            semantic_score=semantic_score,
+            semantic_confident=semantic_confident,
+            semantic_agrees=semantic_agrees,
         )
+
+    def _evaluate_semantic_router(self, query: str, regex_target: str):
+        """Run the semantic router in shadow mode (log-only) when enabled.
+
+        Returns a 4-tuple (semantic_target, score, is_confident, agrees) where
+        semantic_target is the best route regardless of threshold, and
+        `is_confident` reflects whether it cleared the configured threshold.
+        Never raises and never changes routing here — active-mode override is a
+        separate, later phase.
+        """
+        try:
+            from app.core.config import settings
+
+            if not getattr(settings, "ENABLE_SEMANTIC_ROUTER", False):
+                return (None, 0.0, False, None)
+
+            from app.services.semantic_router import get_semantic_router
+
+            router = get_semantic_router()
+            result = router.classify(query)
+            # Best route regardless of threshold (for agreement measurement).
+            best_target = (
+                max(result.scores_by_route, key=result.scores_by_route.get)
+                if result.scores_by_route
+                else None
+            )
+            agrees = (best_target == regex_target) if best_target else None
+
+            logger.info(
+                "[SEMANTIC_SHADOW] mode=%s query=%r regex=%s semantic=%s "
+                "score=%.3f margin=%.3f confident=%s agrees=%s",
+                getattr(settings, "SEMANTIC_ROUTER_MODE", "shadow"),
+                query,
+                regex_target,
+                best_target,
+                result.score,
+                result.margin,
+                result.is_confident,
+                agrees,
+            )
+            return (best_target, float(result.score), bool(result.is_confident), agrees)
+        except Exception as exc:  # noqa: BLE001 - shadow logging must never break routing
+            logger.warning("[SEMANTIC_SHADOW] evaluation skipped due to error: %s", exc)
+            return (None, 0.0, False, None)
